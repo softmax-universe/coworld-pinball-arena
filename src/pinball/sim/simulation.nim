@@ -56,6 +56,7 @@ proc apply*(table: var Table, command: Command): CommandOutcome =
   of cmdClearArena:
     table.clearArena()
     table.fsms.setLen 0
+    table.emitNext Event(kind: evProgramLoaded)
 
 proc step*(table: var Table) =
   ## Advance the table by one tick (1/120 s). After `step` returns,

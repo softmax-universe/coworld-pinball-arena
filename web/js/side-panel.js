@@ -7,6 +7,8 @@
 /** The display has this many digit places until a score needs more. */
 const SCORE_PLACES = 7
 const FLOATING_COLOURS = ['yellow', 'red', 'green', 'blue', 'white']
+/** What a floating text is: a text piece of the table, a rule's message, or a score change. */
+const FLOATING_KINDS = ['text', 'message', 'score']
 
 /**
  * The score's digits in groups of three, `50000` as `['50', '000']`. The segment font has no
@@ -33,6 +35,14 @@ export function flagsOf(hud) {
   else if (hud.tiltWarnings > 0) flags.push({ text: `TILT WARNING ${hud.tiltWarnings}`, tone: 'yellow' })
   if (hud.ballSaveActive) flags.push({ text: 'BALL SAVE', tone: 'green' })
   return flags
+}
+
+/** The colour class and the kind of one floating item. Anything unknown shows as a plain white text. */
+export function floatingLook({ colour, kind }) {
+  return {
+    className: `lamp-${FLOATING_COLOURS.includes(colour) ? colour : 'white'}`,
+    kind: FLOATING_KINDS.includes(kind) ? kind : 'text',
+  }
 }
 
 function spans(className, texts) {
@@ -79,12 +89,17 @@ export function createSidePanel(elements) {
       )
     },
 
-    /** `items` is the full set of texts hovering over the table, placed by fractions of its size. */
+    /**
+     * `items` is the full set of texts hovering over the table, placed by fractions of its size.
+     * styles.css gives each kind its own look through `data-kind`.
+     */
     showFloating(items) {
       elements.floating.replaceChildren(
-        ...items.map(({ x, y, text, colour }) => {
+        ...items.map(({ x, y, text, ...item }) => {
+          const look = floatingLook(item)
           const label = document.createElement('span')
-          label.className = `lamp-${FLOATING_COLOURS.includes(colour) ? colour : 'white'}`
+          label.className = look.className
+          label.dataset.kind = look.kind
           label.style.left = `${x * 100}%`
           label.style.top = `${y * 100}%`
           label.textContent = text

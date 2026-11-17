@@ -4,9 +4,9 @@
   tools/build_web.sh copies it to web/game/test.html; with `node server/dev.mjs`
   running it is at http://localhost:<port>/game/test.html.
 
-  It starts the game with the temporary demo table, shows the floating text
-  over the canvas, and keeps every message from the game in `window.received`.
-  Add ?play to the address to have the demo launch the ball and flip.
+  It starts the game on the house table, shows the floating text over the
+  canvas, and keeps every message from the game in `window.received`.
+  Add ?demo to the address to have the bundled demo Flipper program play.
 -->
 <html lang="en">
 <head>
@@ -33,11 +33,10 @@
   var received = [];
   var log = document.getElementById('log');
   var floating = document.getElementById('floating');
-  var demoArguments = ['--demo-table'];
-  if (new URLSearchParams(location.search).has('play')) demoArguments.push('--demo-play');
+  var gameArguments = new URLSearchParams(location.search).has('demo') ? ['--demo'] : [];
   var Module = {
     canvas: document.getElementById('canvas'),
-    arguments: demoArguments,
+    arguments: gameArguments,
     pinballInbox: [],
     pinballMessage: function (json) {
       var message = JSON.parse(json);

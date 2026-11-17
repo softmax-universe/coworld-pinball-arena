@@ -252,6 +252,33 @@ suite "episode":
     check game.ballTicks.len == 1
     check game.balls.len == 1
 
+  test "a locked ball is replaced at the plunger, and the ball ends when the other one drains":
+    var game = startedGame()
+    game.launchAndOutlastSave()
+    game.components.add Component(id: 1, kind: ckBallLock, phase: phaseSolid)
+    let lockedId = game.balls[0].id
+    game.balls[0].state = ballHeld
+    game.balls[0].holderId = 1
+
+    let events = game.advance()
+    check events.count(evBallAdded) == 1
+    doAssert game.balls.len == 2
+    check game.balls[1].atPlunger
+    check game.ballNumber == 1
+    check game.ballTicks.len == 0
+    game.advance(Second)
+    check game.balls.len == 2
+
+    # The served ball drains: ball 1 is over, and the locked ball stays locked.
+    game.drainFreeBalls()
+    check game.phase == episodePlay
+    check game.ballNumber == 2
+    check game.ballTicks.len == 1
+    doAssert game.balls.len == 2
+    check game.balls[0].id == lockedId
+    check game.balls[0].state == ballHeld
+    check game.balls[1].atPlunger
+
   test "a tilt is cleared when the ball ends":
     var game = startedGame()
     game.tilted = true

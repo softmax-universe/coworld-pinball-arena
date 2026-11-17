@@ -11,7 +11,7 @@ You do not see the game while it runs: only what the person says, the Episode su
 - Deploy with `policy.create` (a new name) or `policy.update` (a stored name). The content is one text blob: the whole BASIC source, at most 256 KiB.
 - A name is 1 to 64 characters with no `:`. `house` is taken by the bundled program. `policy.create` with a stored name answers `conflict`: use `policy.update`. `policy.update` with an unknown name answers `not_found`. A create is version 1 and each update adds 1.
 - The page stores the program, selects it and loads it. The person is not asked to approve. The page keeps your 15 most recently used programs.
-- Two directive lines at the very top say when and how the program takes over. They are comments of exactly two words:
+- Two directive lines say when and how the program takes over. They are comments of exactly two words, in either order, among the comment lines at the very top (before the first line of code):
 
 ```basic
 ' @effect next-episode
@@ -20,8 +20,8 @@ You do not see the game while it runs: only what the person says, the Episode su
 
 | Directive | Values |
 | --- | --- |
-| `' @effect` (must be line 1) | `next-episode` (the default): at the start of the next Episode. `next-ball`: when the next ball number is served. `now`: at once |
-| `' @table` (line 2) | `blank` (the default): start from an empty table. `house`: the bundled house program first lays its table and rules (section 10), then your program runs on top of it |
+| `' @effect` | `next-episode` (the default): at the start of the next Episode. `next-ball`: when the next ball number is served. `now`: at once |
+| `' @table` | `blank` (the default): start from an empty table. `house`: the bundled house program first lays its table and rules (section 10), then your program runs on top of it |
 
 When a program takes over during an Episode, every piece and rule of the program before it is removed. The score, the ball number and the clock go on. A program always starts with fresh variables.
 
@@ -155,7 +155,7 @@ Lamps and text obey the zones too. A track does not: it has no place of its own.
 | `kind_captiveball` | 3 | 14 | A trapped ball in a short lane along the rotation. The trapped ball is at the end the rotation points away from: hit it there | `ev_hit` | `set_length` 60 (20..400) |
 | `kind_saucer` | 4 | 18 | Catches a ball whose centre comes within r and that is slower than 600 mm/s (a faster ball rolls over). Holds it, then ejects it. Holds one ball | `ev_captured`, `ev_released` | `set_holdticks` 120 (0..1200), `set_direction` 90, `set_strength` 700 |
 | `kind_scoop` | 5 | 22 | Swallows a ball at any speed and ejects it after the travel time, from the exit point, or from its own place when the exit is (0, 0). One ball at a time | `ev_captured`, `ev_released` | `set_travelticks` 180 (0..1200), `set_exitx` 0 (0..520), `set_exity` 0 (0..1080), `set_direction` 90, `set_strength` 700 |
-| `kind_balllock` | 5 | 22 | Keeps balls until a rule runs `dorelease`. Read the warning below | `ev_locked`, `ev_released` | `set_capacity` 2 (1..6), `set_direction` 90, `set_strength` 700 |
+| `kind_balllock` | 5 | 22 | Keeps balls until a rule runs `dorelease`. Read "Locked balls" below | `ev_locked`, `ev_released` | `set_capacity` 2 (1..6), `set_direction` 90, `set_strength` 700 |
 | `kind_kicker` | 4 | 16 | Shoots away any ball whose centre comes within r | `ev_fired` | `set_strength` 1200, `set_direction` 270 |
 | `kind_kickback` | 3 | 16 | A kicker that works only while lit. Firing puts it out. `reset` or `set_enabled` 1 lights it | `ev_fired`, `ev_usedup`, `ev_relit` | `set_strength` 1500, `set_direction` 270, `set_enabled` 1 |
 | `kind_magnet` | 6 | 18 | Pulls the ball toward it (mode 0), pushes it away (1) or pulls and holds it (2), inside its reach. The pull at the core is 4 x strength mm/s² and fades to nothing at the edge. No solid part. In mode 2 it grabs a ball within 8 mm that is slower than 150 mm/s, and lets go on `dorelease` or when its mode or `set_enabled` changes | `ev_grabbed`, `ev_released` | `set_mode` 0 (0..2), `set_strength` 600, `set_radius` 80 (0..200), `set_enabled` 1 |
@@ -179,7 +179,8 @@ Notes:
 - **A wall is made 80 mm long**, and the keep-out and overlap checks run before you can shorten it. For a short wall in a tight place use size: size 50 is 40 mm long and 4 mm thick. A curved wall is checked as a straight one.
 - **Track.** `track(moutha, mouthb, cax, cay, cbx, cby)` joins two mouths with a smooth curve from 30 mm behind mouth A, bent toward the control points (cax, cay) and (cbx, cby), to 30 mm behind mouth B. Four zeros give a straight line. (It stores these as `set_moutha`, `set_mouthb`, `set_controlax`, `set_controlay`, `set_controlbx`, `set_controlby`.) A ball enters a mouth when its centre is within half the catch width of the mouth's place, it is on the mouth's level and it moves against the mouth's rotation. Both ends work. On the track the ball follows the curve and touches nothing. It leaves at the other mouth's place, moving the way that mouth points (`ev_trackcompleted`), or rolls back out where it came in (`ev_trackfailed`). The `value` of the track events is the id of the mouth.
 - **Ramps.** Mouths on different levels make a ramp. The ball rides at the level of the higher mouth and lands on level 1 where it leaves a raised mouth, unless another track's mouth is there. The entry speed a ramp needs is about the square root of `490000 * levels climbed + 2220 * mm climbed up the table + 80 * length in mm`: 1,100 mm/s for the house ramp. A ball on the track works a rollover, spinner or gate that is within 10 mm of the curve, on the level of the higher mouth.
-- **Held balls count as in play.** A ball in a lock or a holding magnet stays until a rule releases it. If every other ball drains, no new ball is served and the Episode stands still until the clock ends it. With a lock, always add rules that serve a new ball when one is locked, and that release the lock when the ball count falls to the number of locked balls.
+- **Locked balls.** A ball in a lock stays until a rule runs `dorelease`, and the person always has a ball to play. When a ball is locked and no other ball is in play, the table serves a new ball to the plunger by itself, on the same ball number: do not add one with `doaddball` as well. When the last ball that is not in a lock drains, the ball ends as usual (the next ball number is served, or the Episode ends) and the locked balls stay locked. `ev_ballcountchanged` counts locked balls too.
+- **A holding magnet is different.** A ball it holds counts as in play and no new ball is served, so always give a holding magnet a rule that lets go again (a `timeout` that switches it off).
 
 ## 6. Rules
 
@@ -216,7 +217,7 @@ A rule is a finite state machine (FSM): nodes joined by edges, with one current 
 | `doremove(f, n, id)`, `doremovegroup(f, n, group)` | As `remove`, `removegroup` |
 | `dosetting(f, n, id, which, value)`, `dogroupsetting(f, n, group, which, value)` | As `setting`, `groupsetting`: open a gate, flip a diverter, switch a magnet, lower a post |
 | `doreset(f, n, id)`, `doresetgroup(f, n, group)` | Raise drop targets, relight kickbacks |
-| `doaddball(f, n)` | Serve another ball to the plunger (multiball). **Only in a node that a `timeout` edge leads to.** In a node entered by an event edge it breaks the game. Rules do not see `ev_balladded` or `ev_ballcountchanged` for this ball |
+| `doaddball(f, n)` | Serve another ball to the plunger (multiball), up to 6 balls in play. Rules see its `ev_balladded` and `ev_ballcountchanged` on the next tick |
 | `dorelease(f, n, component)` | Release the balls a piece holds |
 | `dosave(f, n, seconds)` | Start a ball save: a ball that drains within that time is served again |
 | `doextraball(f, n)` | Award an extra ball |
@@ -242,7 +243,7 @@ The page plays a sound by itself for every physical event (hits, drops, spins, r
 | `ev_clockthreshold` | Each full minute of the Episode. Value: the minutes gone, 1..7 |
 | `ev_buildphaseended` | The build phase is over and the first ball is served |
 | `ev_episodeending` | The Episode is over |
-| `ev_programloaded` | Not raised for rules at present |
+| `ev_programloaded` | A table program took the table, at the start of an Episode or during one. The rules a program builds in its first run hear it for the program itself |
 
 ## 7. Other calls
 
@@ -447,32 +448,27 @@ The house pays every ordinary hit from one FSM whose branches are nodes with no 
 
 ```basic
 sub rulesmultiball()
-  ' Two saucer shots start a two-ball multiball with a ball save. The new
-  ' ball is served one second after the second shot: a ball must be added by
-  ' a node that a timeout leads to. The rule starts again when one ball is
-  ' left.
+  ' Two saucer shots start a two-ball multiball with a ball save: the second
+  ' shot serves another ball to the plunger. The rule starts again when one
+  ' ball is left.
   multi = fsm()
   saucerone = node(multi)
-  multiready = node(multi)
   multistart = node(multi)
   multiover = node(multi)
   edge(multi, 0, saucerone, ev_captured, saucer, 0, 1)
-  edge(multi, saucerone, multiready, ev_captured, saucer, 0, 1)
-  timeout(multi, multiready, multistart, 1)
+  edge(multi, saucerone, multistart, ev_captured, saucer, 0, 1)
   edgex(multi, multistart, multiover, ev_ballcountchanged, 0, 0, 1, 0, 1, 0)
 
   dolamp(multi, saucerone, saucerlamp(0), lamp_on)
   domessage(multi, saucerone, slot_award, "SAUCER 1 OF 2 FOR MULTIBALL")
 
-  doscore(multi, multiready, 20000)
-  dolampgroup(multi, multiready, grp_saucerlamps, lamp_flashing)
-  domessage(multi, multiready, slot_award, "MULTIBALL")
-  dosound(multi, multiready, cue_fanfare)
-  doflash(multi, multiready)
-
+  doscore(multi, multistart, 20000)
+  dolampgroup(multi, multistart, grp_saucerlamps, lamp_flashing)
+  domessage(multi, multistart, slot_award, "MULTIBALL - PLUNGE THE NEW BALL")
+  dosound(multi, multistart, cue_fanfare)
+  doflash(multi, multistart)
   doaddball(multi, multistart)
   dosave(multi, multistart, 15)
-  domessage(multi, multistart, slot_award, "MULTIBALL - PLUNGE THE NEW BALL")
 
   dolampgroup(multi, multiover, grp_saucerlamps, lamp_off)
   domessage(multi, multiover, slot_award, "MULTIBALL OVER")

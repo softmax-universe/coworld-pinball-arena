@@ -18,17 +18,28 @@ const MAX_SOURCE_BYTES = 256 * 1024
 const MAX_PROGRAMS = 16
 
 const EFFECTS = ['next-episode', 'next-ball', 'now']
-const EFFECT_DIRECTIVE = /^'\s*@effect\s+(\S+)\s*$/
 
 /**
  * When a program wants to take effect: `next-episode`, `next-ball` or `now`. The program says so
- * in a comment on its first line, `' @effect next-ball`, because the message that delivers a
- * program carries only a name and the text. Anything else means the next Episode.
+ * in a directive, `' @effect next-ball`, because the message that delivers a program carries only
+ * a name and the text. Anything else means the next Episode.
+ *
+ * This reads the source the way the game does (`newProgram` in src/pinball/game.nim), so keep the
+ * two in step: a directive is a comment of exactly two words among the comment lines at the top
+ * of the source, upper or lower case, and the last `@effect` there counts.
  */
 export function effectOf(source) {
-  const firstLine = source.split(/\r?\n/, 1)[0]
-  const effect = EFFECT_DIRECTIVE.exec(firstLine)?.[1]
-  return EFFECTS.includes(effect) ? effect : 'next-episode'
+  let effect = 'next-episode'
+  for (const line of source.split(/\r\n|\n|\r/)) {
+    const text = line.trim()
+    if (text === '') continue
+    if (!text.startsWith("'")) break
+    const words = text.slice(1).toLowerCase().split(/\s+/).filter((word) => word !== '')
+    if (words.length === 2 && words[0] === '@effect') {
+      effect = EFFECTS.includes(words[1]) ? words[1] : 'next-episode'
+    }
+  }
+  return effect
 }
 
 function refuse(code, message) {

@@ -5,14 +5,12 @@
 ##
 ## The same code builds natively, for development, and to WebAssembly:
 ##
-##   nim r src/pinball/pinball.nim --demo-table
-##   nim r src/pinball/pinball.nim --demo-table --screenshot shot.png --ticks 700
+##   nim r src/pinball/pinball.nim
+##   nim r src/pinball/pinball.nim --demo --screenshot shot.png --ticks 3000
 ##   tools/build_web.sh
 ##
 ## Options:
-##   --demo-table            Put one piece of every kind on the table (temporary, see
-##                           view/demotable.nim).
-##   --demo-play             With --demo-table: also launch the ball and flip.
+##   --demo                  Start in demo mode: the bundled demo Flipper program plays.
 ##   --screenshot PATH       Run --ticks ticks, save one frame as a PNG and exit. Native only.
 ##   --ticks N               How many ticks to run before the screenshot. Default 0.
 ##   --size WxH              Window size in pixels. Native only.
@@ -22,7 +20,7 @@ import
   opengl, pixie, vmath, windy,
   game,
   sim/simulation,
-  view/[tableview, sound, input, bridge, demotable]
+  view/[tableview, sound, input, bridge]
 
 const
   TickSeconds = 1.0 / TicksPerSecond.float64
@@ -53,7 +51,7 @@ when defined(emscripten):
 
 type
   Options = object
-    demoTable, demoPlay: bool
+    demo: bool
     screenshotPath: string
     ticks: int
     windowSize: IVec2
@@ -77,8 +75,7 @@ proc parseOptions(): Options =
     arguments[index]
   while index < arguments.len:
     case arguments[index]
-    of "--demo-table": result.demoTable = true
-    of "--demo-play": result.demoPlay = true
+    of "--demo": result.demo = true
     of "--screenshot": result.screenshotPath = value()
     of "--ticks": result.ticks = parseInt(value())
     of "--size":
@@ -89,8 +86,6 @@ proc parseOptions(): Options =
 
 proc advance(app: var App, audible = true) =
   ## One tick of the game, and everything that follows a tick.
-  if app.options.demoTable:
-    demoTick(app.game, app.options.demoPlay)
   app.game.tick()
   app.view.observe(app.game.table)
   app.bridge.noteTick(app.game.table)
@@ -147,7 +142,8 @@ proc main() =
   app.window.makeContextCurrent()
   when not defined(emscripten):
     loadExtensions()
-  app.game = newGame()
+  app.game = newGame(GameOptions(settings: DefaultSettings,
+    flipperMode: if app.options.demo: flipperDemo else: flipperHuman))
   app.view = newTableView()
 
   if takingScreenshot:

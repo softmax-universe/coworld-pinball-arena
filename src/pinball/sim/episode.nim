@@ -1,6 +1,15 @@
 ## The flow of one Episode: a build phase, then three balls, ending when the
 ## third ball drains or the clock runs out. Also ball save, extra balls,
 ## multiball, the end of a tilt, and the ball search for a stuck ball.
+##
+## Locked balls. A ball in a ball lock stays there until a rule releases it,
+## so it cannot keep a ball number alive: only the other balls are "live".
+## As on a real machine, the person always has a ball to play:
+##
+## - When a ball is locked and no live ball is left, a new ball is served to
+##   the plunger. The ball number stays.
+## - When the last live ball drains, the ball ends as usual (the next ball
+##   number is served, or the Episode ends) and the locked balls stay locked.
 
 import types, layout, components
 
@@ -25,8 +34,23 @@ proc ballsInPlay(table: Table): int32 =
   ## Held balls and balls on a track count: they will come back.
   int32(table.balls.len)
 
-proc emitBallCount(table: var Table) =
-  table.emit Event(kind: evBallCountChanged, value: table.ballsInPlay)
+proc isLocked(table: Table, ball: Ball): bool =
+  if ball.state != ballHeld:
+    return false
+  let index = table.componentIndex(ball.holderId)
+  index >= 0 and table.components[index].kind == ckBallLock
+
+proc liveBalls(table: Table): int32 =
+  ## See "Locked balls" at the top.
+  for ball in table.balls:
+    if not table.isLocked(ball):
+      inc result
+
+proc raiseEvent(table: var Table, event: Event, inTick: bool) =
+  if inTick:
+    table.emit event
+  else:
+    table.emitNext event
 
 proc waitsInShooterLane(ball: Ball): bool =
   ## True for a free ball on the plunger or in the queue of balls above it.
@@ -48,18 +72,19 @@ proc freeLaneSpot(table: Table): FixedVec2 =
         result.y -= LaneBallSpacing
         searching = true
 
-proc serveBall(table: var Table) =
+proc serveBall(table: var Table, inTick = true) =
   let ball = Ball(id: table.nextBallId, state: ballFree, pos: table.freeLaneSpot(), level: 1)
   inc table.nextBallId
   table.balls.add ball
-  table.emit Event(kind: evBallAdded, ballId: ball.id, level: ball.level)
-  table.emitBallCount()
+  table.raiseEvent(Event(kind: evBallAdded, ballId: ball.id, level: ball.level), inTick)
+  table.raiseEvent(Event(kind: evBallCountChanged, value: table.ballsInPlay), inTick)
 
 proc addBall*(table: var Table): bool =
   ## Serve one more ball to the shooter lane. False at the multiball limit.
+  ## This is the ball a rule adds, so rules see its events on the next tick.
   if table.ballsInPlay >= MaxBallsInPlay:
     return false
-  table.serveBall()
+  table.serveBall(inTick = false)
   true
 
 proc startBallSave*(table: var Table, ticks: int32) =
@@ -113,7 +138,7 @@ proc runBallSave(table: var Table) =
     dec table.ballSaveTicks
 
 proc endBall(table: var Table) =
-  ## The last ball in play is lost: the tilt ends, and the next ball is
+  ## The last live ball is lost: the tilt ends, and the next ball is
   ## served or the Episode ends.
   table.tilted = false
   table.tiltWarnings = 0
@@ -136,15 +161,20 @@ proc handleDrains(table: var Table) =
       continue
     table.balls.delete index
     table.emit Event(kind: evBallDrained, ballId: ball.id)
-    table.emitBallCount()
+    table.emit Event(kind: evBallCountChanged, value: table.ballsInPlay)
     if table.ballSaveTicks > 0:
       table.emit Event(kind: evBallSaved, ballId: ball.id)
       table.serveBall()
       if table.launchSave == launchSaveRunning:
         table.launchSave = launchSaveSpent
         table.ballSaveTicks = 0
-    elif table.ballsInPlay == 0:
+    elif table.liveBalls == 0:
       table.endBall()
+
+proc replaceLockedBall(table: var Table) =
+  ## The last live ball has just been locked: see "Locked balls" at the top.
+  if table.balls.len > 0 and table.liveBalls == 0:
+    table.serveBall()
 
 proc searchForStuckBalls(table: var Table) =
   ## A ball at rest on a held flipper is a cradle, not a stuck ball. The
@@ -201,4 +231,5 @@ proc advanceEpisode*(table: var Table) =
   table.runBallSave()
   table.handleDrains()
   if table.phase == episodePlay:
+    table.replaceLockedBall()
     table.searchForStuckBalls()

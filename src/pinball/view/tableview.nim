@@ -383,11 +383,16 @@ proc partTransform(piece: Component, pieceView: PieceView, part: Part): Mat4 =
 
 proc pieceAnchor*(table: Table, componentId: int32): Vec3 =
   ## A point just above a component, for text that belongs to it. The middle
-  ## of the table when there is no such component.
+  ## of the table when there is no such component. A track has no place of
+  ## its own (it runs between its mouths), so its point is half way along it.
   let index = table.componentIndex(componentId)
   if index < 0:
     return vec3(PlayfieldWidth / 2, 30, PlayfieldHeight * 0.45)
-  table.components[index].pos.onTable(levelY(table.components[index].level) + 30)
+  let piece = table.components[index]
+  let place =
+    if piece.kind == ckTrack: table.trackPoint(piece, table.trackLength(piece) / 2'i32)
+    else: piece.pos
+  place.onTable(levelY(piece.level) + 30)
 
 # --- Balls -------------------------------------------------------------------------
 

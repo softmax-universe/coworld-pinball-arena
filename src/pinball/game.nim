@@ -163,7 +163,10 @@ proc startEpisode(game: Game) =
     if game.options.flipperSource.len > 0: game.options.flipperSource else: DemoFlipperSource)
 
 proc waitingIsDue(game: Game): bool =
-  if game.waiting == nil:
+  ## A program takes the seat on a tick on which the Arena program decides,
+  ## so its first decision follows at once and the rules it builds there
+  ## hear `evProgramLoaded`.
+  if game.waiting == nil or game.table.tick mod ArenaDecisionTicks != 0:
     return false
   if game.table.tick == 0:
     return true   # A new Episode: whatever waits takes the seat.
@@ -175,11 +178,10 @@ proc waitingIsDue(game: Game): bool =
   of effectNow: true
 
 proc seatWaiting(game: Game) =
-  ## The waiting program becomes the Arena player. During an Episode the
-  ## table is cleared for it first, and the score, the balls and the clock
-  ## go on.
-  if game.table.tick > 0:
-    game.give Command(seat: seatArena, kind: cmdClearArena)
+  ## The waiting program becomes the Arena player. The table is cleared for
+  ## it first, which also raises `evProgramLoaded`. During an Episode the
+  ## score, the balls and the clock go on.
+  game.give Command(seat: seatArena, kind: cmdClearArena)
   game.playing = game.waiting
   game.waiting = nil
   game.arena = loadScript(seatArena, game.playing.source)
@@ -259,11 +261,11 @@ proc receiveMessage*(game: Game, json: string) =
   ## A JSON message from the page. Unknown and malformed messages are ignored.
   ##
   ## - `{"type":"program","name":...,"version":...,"source":...}` loads a table
-  ##   program. It takes effect when its first-line directive says:
-  ##   `' @effect next-episode` (the default), `' @effect next-ball` or
-  ##   `' @effect now`. A second directive, `' @table blank` (the default) or
-  ##   `' @table house`, chooses the starting table. Without a source,
-  ##   `"name":"house"` selects the bundled house program.
+  ##   program. Directives in the comment lines at its top say when it takes
+  ##   effect, `' @effect next-episode` (the default), `' @effect next-ball`
+  ##   or `' @effect now`, and which table it starts from, `' @table blank`
+  ##   (the default) or `' @table house`. Without a source, `"name":"house"`
+  ##   selects the bundled house program.
   ## - `{"type":"restart"}` starts a new Episode now, on the newest program
   ##   that compiled.
   ## - `{"type":"flipper","mode":"human"|"demo"}` changes who plays the flippers.

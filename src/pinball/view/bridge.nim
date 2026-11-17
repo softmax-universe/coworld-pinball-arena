@@ -7,7 +7,9 @@
 ##
 ## - `hud`: the numbers and messages of the side panel.
 ## - `floating`: every piece of text that hovers over the table, with the
-##   place of each on the canvas as fractions 0 .. 1 of its width and height.
+##   place of each on the canvas as fractions 0 .. 1 of its width and height
+##   and its `kind`: `text` (a floating-text piece), `message` (from a rule)
+##   or `score` (a score change at the piece that caused it).
 ##
 ## Page to game: the page pushes strings onto the array `Module.pinballInbox`
 ## and the game takes them all once per frame. The game pulls, the page does
@@ -77,10 +79,13 @@ proc signedAmount(amount: int32): string =
 
 proc noteTick*(bridge: var Bridge, table: Table) =
   ## Call after every tick: each score change of the tick becomes a
-  ## short-lived text at the component that caused it.
+  ## short-lived text at the component that caused it. A change with no
+  ## component on the table (a timeout, a signal) has no place to show, and
+  ## the side panel shows the score anyway.
   for change in table.scoreChanges:
-    bridge.popups.add ScorePopup(text: signedAmount(change.amount),
-      at: pieceAnchor(table, change.componentId), secondsLeft: ScorePopupSeconds)
+    if table.componentIndex(change.componentId) >= 0:
+      bridge.popups.add ScorePopup(text: signedAmount(change.amount),
+        at: pieceAnchor(table, change.componentId), secondsLeft: ScorePopupSeconds)
 
 proc hudMessage(table: Table): string =
   const PhaseNames: array[EpisodePhase, string] = ["build", "play", "over"]

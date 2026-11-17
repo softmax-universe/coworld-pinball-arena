@@ -370,7 +370,10 @@ type
     cmdFsmCreate, cmdFsmDelete, cmdFsmReset
     cmdFsmAddNode, cmdFsmAddEdge, cmdFsmAddResult, cmdFsmSetFinal
     cmdSignal
-    cmdClearArena   ## Remove every piece and FSM, when a new program takes over.
+    cmdClearArena
+      ## A program takes the Arena seat: remove every piece and FSM and raise
+      ## `evProgramLoaded`. The driver gives it, not the program, and it is in
+      ## the recording, so a replay raises the event too.
 
   Command* = object
     ## Everything a player can do to the table, human or script. Commands are

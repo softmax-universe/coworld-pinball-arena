@@ -288,6 +288,22 @@ suite "rules":
     game.tick()
     check game.score == 10
 
+  test "a ball added by a rule on an event reaches other rules on the next tick":
+    var game = Table()
+    let adder = game.createFsm().id
+    let added = game.addNode(adder).id
+    check game.addResult(adder, added,
+      NodeResult(kind: resultBallAction, ballAction: ballActionAdd)).accepted
+    check game.addEdge(adder, edgeOn(0, added, evHit)).accepted
+    discard game.addScoreRule(edgeOn(0, 1, evBallAdded), 100)
+
+    # Two events in the tick: the first adds the ball while the second waits.
+    game.tick(hit(Bumper), hit(OtherBumper))
+    check game.balls.len == 2
+    check game.score == 0
+    game.tick()
+    check game.score == 200
+
   test "a final node stops the FSM until it is reset, and a deleted FSM is gone":
     var game = Table()
     let fsmId = game.createFsm().id

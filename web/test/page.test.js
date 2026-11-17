@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { conversationItems, cogentWording } from '../js/chat-panel.js'
 import { nextResumeTime, reconnectDelay } from '../js/cogent-connection.js'
 import { effectLine, failureLine } from '../js/programs-panel.js'
-import { ballText, clockText, flagsOf, scoreGroups } from '../js/side-panel.js'
+import { ballText, clockText, flagsOf, floatingLook, scoreGroups } from '../js/side-panel.js'
 
 const message = (sequence, role, content, requestId) => ({
   sequence,
@@ -35,6 +35,12 @@ test('tilt warnings and ball save show only while they apply; a tilt replaces it
     flagsOf({ tiltWarnings: 2, tilted: true, ballSaveActive: false }).map((flag) => flag.text),
     ['TILT'],
   )
+})
+
+test('a floating text keeps its colour and kind, and anything unknown shows as plain white text', () => {
+  assert.deepEqual(floatingLook({ colour: 'yellow', kind: 'score' }), { className: 'lamp-yellow', kind: 'score' })
+  assert.deepEqual(floatingLook({ colour: 'white', kind: 'message' }), { className: 'lamp-white', kind: 'message' })
+  assert.deepEqual(floatingLook({ colour: 'pink' }), { className: 'lamp-white', kind: 'text' })
 })
 
 test('a message the person just sent shows at once, with its request status under it', () => {

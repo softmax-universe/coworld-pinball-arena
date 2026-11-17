@@ -136,7 +136,9 @@ button {
 }
 
 /* The table is taller than its two thirds of the cabinet is wide, so it stands in the middle of
-   a strip of starfield. */
+   a strip of starfield. Its shape is the one the game's camera frames the table for
+   (`DesignAspect` in src/pinball/view/tableview.nim): keep the two in step, or the game draws the
+   table small with empty bands above and below. */
 .table-area {
   container: table-area / size;
   position: relative;
@@ -153,8 +155,8 @@ button {
 
 .table {
   position: relative;
-  height: min(100cqh, 100cqw * 1080 / 520);
-  aspect-ratio: 520 / 1080;
+  height: min(100cqh, 100cqw / 0.58);
+  aspect-ratio: 0.58;
   background: var(--space-850);
 }
 
@@ -179,6 +181,15 @@ button {
   font-size: calc(var(--u) * 2);
   letter-spacing: 0.06em;
   text-shadow: 0 0 0.5em currentColor, 0 1px 2px var(--space-950);
+}
+/* A rule's message is the loudest. A score change is small and sits just above its piece. */
+.floating-layer span[data-kind='message'] {
+  font-size: calc(var(--u) * 2.6);
+}
+.floating-layer span[data-kind='score'] {
+  translate: -50% -150%;
+  font-size: calc(var(--u) * 1.6);
+  font-weight: 700;
 }
 
 .table-notice {
@@ -246,7 +257,7 @@ button {
   position: absolute;
   left: calc(var(--u) * 2);
   bottom: calc(var(--u) * 2.2);
-  width: calc((100cqw - 100cqh * 520 / 1080) / 2 - var(--u) * 3.4);
+  width: calc((100cqw - 100cqh * 0.58) / 2 - var(--u) * 3.4);
   display: grid;
   gap: calc(var(--u) * 2);
   font-family: var(--font-plate);
@@ -367,15 +378,16 @@ button {
 }
 
 .message p {
-  /* Room for two lines, so a long message does not move what is below it. */
-  height: calc(2 * 1.12em + 0.9em);
+  /* Room for three lines, which holds the longest message a rule can show (40 characters), so a
+     long message is not cut off and does not move what is below it. */
+  height: calc(3 * 1.12em + 0.9em);
   padding: 0.45em 0.5em;
   overflow: hidden;
   background: var(--space-950);
   border-radius: 3px;
   font-family: var(--font-dots);
   font-weight: 900;
-  font-size: calc(var(--u) * 3.5);
+  font-size: calc(var(--u) * 3);
   line-height: 1.12;
   text-transform: uppercase;
   overflow-wrap: anywhere;
@@ -491,6 +503,8 @@ button {
   .floating-layer span {
     font-size: calc(var(--u) * 3);
   }
+  .floating-layer span[data-kind='message'] { font-size: calc(var(--u) * 3.6); }
+  .floating-layer span[data-kind='score'] { font-size: calc(var(--u) * 2.4); }
   .end-title { font-size: calc(var(--u) * 7); }
   .end-label { font-size: calc(var(--u) * 2.6); }
   .lamp-button { font-size: calc(var(--u) * 3); }

@@ -287,32 +287,27 @@ sub rulesextraball()
 end sub
 
 sub rulesmultiball()
-  ' Two saucer shots start a two-ball multiball with a ball save. The new
-  ' ball is served one second after the second shot: a ball must be added by
-  ' a node that a timeout leads to. The rule starts again when one ball is
-  ' left.
+  ' Two saucer shots start a two-ball multiball with a ball save: the second
+  ' shot serves another ball to the plunger. The rule starts again when one
+  ' ball is left.
   multi = fsm()
   saucerone = node(multi)
-  multiready = node(multi)
   multistart = node(multi)
   multiover = node(multi)
   edge(multi, 0, saucerone, ev_captured, saucer, 0, 1)
-  edge(multi, saucerone, multiready, ev_captured, saucer, 0, 1)
-  timeout(multi, multiready, multistart, 1)
+  edge(multi, saucerone, multistart, ev_captured, saucer, 0, 1)
   edgex(multi, multistart, multiover, ev_ballcountchanged, 0, 0, 1, 0, 1, 0)
 
   dolamp(multi, saucerone, saucerlamp(0), lamp_on)
   domessage(multi, saucerone, slot_award, "SAUCER 1 OF 2 FOR MULTIBALL")
 
-  doscore(multi, multiready, 20000)
-  dolampgroup(multi, multiready, grp_saucerlamps, lamp_flashing)
-  domessage(multi, multiready, slot_award, "MULTIBALL")
-  dosound(multi, multiready, cue_fanfare)
-  doflash(multi, multiready)
-
+  doscore(multi, multistart, 20000)
+  dolampgroup(multi, multistart, grp_saucerlamps, lamp_flashing)
+  domessage(multi, multistart, slot_award, "MULTIBALL - PLUNGE THE NEW BALL")
+  dosound(multi, multistart, cue_fanfare)
+  doflash(multi, multistart)
   doaddball(multi, multistart)
   dosave(multi, multistart, 15)
-  domessage(multi, multistart, slot_award, "MULTIBALL - PLUNGE THE NEW BALL")
 
   dolampgroup(multi, multiover, grp_saucerlamps, lamp_off)
   domessage(multi, multiover, slot_award, "MULTIBALL OVER")

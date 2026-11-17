@@ -152,15 +152,20 @@ test('programs, versions and the selection survive a reload', () => {
   assert.deepEqual(after.update('ramps', 'PRINT 5'), { name: 'ramps', version: 3 })
 })
 
-test('the first-line directive says when a program takes effect', () => {
+test('a directive in the comment lines at the top says when a program takes effect', () => {
   assert.equal(effectOf("' @effect next-episode\nPRINT 1"), 'next-episode')
   assert.equal(effectOf("' @effect next-ball\nPRINT 1"), 'next-ball')
   assert.equal(effectOf("' @effect now\nPRINT 1"), 'now')
   assert.equal(effectOf("' @effect now\r\nPRINT 1"), 'now')
+  // As the game reads it: on any comment line at the top, after `@table`, in any case.
+  assert.equal(effectOf("' A plain comment.\n' @effect now\nPRINT 1"), 'now')
+  assert.equal(effectOf("' @table house\n\n' @effect next-ball\nPRINT 1"), 'next-ball')
+  assert.equal(effectOf("  ' @EFFECT Now\nPRINT 1"), 'now')
 })
 
 test('a missing, unknown or misplaced directive means the next Episode', () => {
   assert.equal(effectOf('PRINT 1'), 'next-episode')
   assert.equal(effectOf("' @effect tomorrow\nPRINT 1"), 'next-episode')
-  assert.equal(effectOf("' A plain comment.\n' @effect now\nPRINT 1"), 'next-episode')
+  assert.equal(effectOf("' @effect now please\nPRINT 1"), 'next-episode')
+  assert.equal(effectOf("PRINT 1\n' @effect now"), 'next-episode')
 })

@@ -8,8 +8,8 @@
 ## minute of game time. If a change to the physics makes a ball loop instead,
 ## the Episode clock still ends it, so the loops here wait that long at most.
 ##
-## The bundled house and demo programs are not tested here: every test that
-## needs a table sends its own small program.
+## The bundled house and demo programs are tested in `test_house.nim`: here
+## every test but the one for `' @table house` sends its own small program.
 
 import std/[json, sequtils, strutils, unittest]
 import pinball/game
@@ -142,6 +142,28 @@ while forever = 0
   spins = spins + 1
 wend
 """
+
+  HousePlusProgram = """
+' @table house
+' @effect next-episode
+' The house table and one more rubber post.
+if built = 0 then
+  built = 1
+  post = create(kind_rubberpost, 260, 560, 0, 100, 1, 0)
+end if
+"""
+
+  LoadedProgram = """
+' 7 points when the program takes the table.
+if built = 0 then
+  built = 1
+  rule = fsm()
+  award = node(rule)
+  doscore(rule, award, 7)
+  edge(rule, 0, award, ev_programloaded, 0, 0, 1)
+end if
+"""
+  LoadedScore = 7
 
 # --- Helpers -----------------------------------------------------------------
 
@@ -618,12 +640,38 @@ suite "game driver":
     check session.game.table.tick == uint32(Second)
 
   test "a program can start from the house table":
-    # `' @table house` runs the bundled house program for one decision before
-    # the program itself. The house program is a placeholder for now, so
-    # there is no house table to look for. When it is written: send a program
-    # with `' @table house` that adds one piece, and check that the house
-    # pieces and the program's own piece are both on the table.
-    skip()
+    let session = newSession("house-plus", 1, HousePlusProgram)
+    let game = session.game
+    session.play(2 * ArenaDecisionTicks)
+    check session.sent("programError").len == 0
+    # The house table has three pop bumpers and two rubber posts.
+    check game.pieces(ckPopBumper) == 3
+    check game.pieces(ckDropTarget) == 3
+    check game.pieces(ckRubberPost) == 3
+    check game.table.fsms.len > 0
+    check game.table.rejectedEdits.len == 0
+
+    session.playToEnd()
+    need game.table.phase == episodeOver
+    check game.table.rejectedEdits.len == 0
+    check game.replay().verify()
+
+  test "the rules of a program hear that it was loaded, in the replay too":
+    let session = newSession("first", 1, LoadedProgram)
+    let game = session.game
+    session.play(2 * ArenaDecisionTicks)
+    check game.table.score == LoadedScore
+
+    # A program that takes over during play is announced as well.
+    session.playUntilBallInPlay()
+    session.play(3)
+    session.send programMessage("second", 1, "' @effect now\n" & LoadedProgram)
+    session.play(2 * ArenaDecisionTicks)
+    check game.table.score == 2 * LoadedScore
+
+    session.playToEnd()
+    need game.table.phase == episodeOver
+    check game.replay().verify()
 
   test "malformed and unknown messages are ignored":
     let session = newSession()

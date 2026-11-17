@@ -403,6 +403,13 @@ type
   EndReason* = enum
     endNone, endLastBallDrained, endClock
 
+  LaunchSave* = enum
+    ## The ball save that starts by itself. Each ball number gets one, and it
+    ## gives back one ball at most.
+    launchSaveReady     ## This ball number has not been launched yet.
+    launchSaveRunning   ## `ballSaveTicks` is counting this save down.
+    launchSaveSpent
+
   ScoreChange* = object
     amount*: int32
     componentId*: int32   ## The component whose event led to the change, or 0.
@@ -445,6 +452,9 @@ type
     editWindowSecond*: uint32
       ## Which second of the Episode `editsThisSecond` counts. The windows
       ## are whole seconds from tick 0.
+    freeEditsUntilTick*: uint32
+      ## Script edits are not rate-limited before this tick. Set when the
+      ## arena is cleared for a new program, so that it can lay out its table.
 
     fsms*: seq[Fsm]
     nextFsmId*: int32
@@ -455,6 +465,7 @@ type
     ballStartTick*: uint32        ## When the current ball number was first served.
     extraBalls*: int32
     ballSaveTicks*: int32         ## Ticks of ball save left.
+    launchSave*: LaunchSave
     tiltWarnings*: int32
     tiltMeterTicks*: int32
       ## How shaken the table is. Each nudge adds to it and it falls by one

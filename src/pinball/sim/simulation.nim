@@ -21,7 +21,9 @@ proc mayGive(seat: Seat, kind: CommandKind): bool =
   else: seat == seatArena
 
 proc apply*(table: var Table, command: Command): CommandOutcome =
-  ## Carry out one command now. A rejected command changes nothing.
+  ## Carry out one command now. A rejected command changes nothing, with one
+  ## exception: a rejected edit is added to `table.rejectedEdits` and raises
+  ## `evEditRejected`. A replay must therefore apply rejected commands too.
   if table.phase == episodeOver or not mayGive(command.seat, command.kind):
     return CommandOutcome(reason: rejectNotAllowed)
   case command.kind

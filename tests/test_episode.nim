@@ -143,6 +143,33 @@ suite "episode":
     doAssert game.balls.len == 1
     check game.balls[0].atPlunger
 
+  test "the automatic save returns one ball for each ball number, however often it is launched":
+    var game = startedGame()
+    game.launch()
+    game.advance(Second)
+    check game.drainFreeBalls().count(evBallSaved) == 1
+
+    # The saved ball is launched again and drains at once: it is lost.
+    game.launch()
+    check game.ballSaveTicks == 0
+    game.advance(Second)
+    check game.drainFreeBalls().count(evBallSaved) == 0
+    check game.ballNumber == 2
+
+    # Ball 2 has a save of its own.
+    game.launch()
+    game.advance(Second)
+    check game.drainFreeBalls().count(evBallSaved) == 1
+    check game.ballNumber == 2
+
+    # A save that a rule starts returns every ball that drains in its time.
+    game.startBallSave(10 * Second)
+    for _ in 1 .. 2:
+      game.launch()
+      game.advance(Second)
+      check game.drainFreeBalls().count(evBallSaved) == 1
+    check game.ballNumber == 2
+
   test "a ball that drains after the save has run out is lost":
     var game = startedGame()
     game.launchAndOutlastSave()
@@ -268,6 +295,15 @@ suite "episode":
     check game.balls[0].atPlunger
     check game.ballNumber == 1
     check game.ballTicks.len == 0
+
+  test "a ball that has stopped on a track is returned to the plunger":
+    var game = stuckBallGame()
+    game.balls[0].state = ballOnTrack
+    game.balls[0].level = 2
+    game.advance(LongestBallSearch)
+    check game.balls[0].atPlunger
+    check game.balls[0].level == 1
+    check game.ballNumber == 1
 
   test "balls that are not stuck are never searched for":
     # Waiting on the plunger.

@@ -464,3 +464,18 @@ suite "clear arena":
     discard game.create(ckMagnet, PlaceA)
     discard game.create(ckKicker, PlaceB)
     check game.budgetUsed == 10
+
+  test "after the arena is cleared a script may build for one build-phase length without the edit rate":
+    var game = newGame()  # 2 edits per second.
+    game.phase = episodePlay
+    game.tick(3 * TicksPerSecond)
+    game.clearArena()
+
+    for _ in 1 .. 3 * TestSettings.editsPerSecond:
+      check game.applyEdit(createEdit(ckInsert, PlaceA), rateLimited = true).accepted
+
+    # Then the edit rate is back.
+    game.tick(TestSettings.buildPhaseTicks)
+    check game.applyEdit(createEdit(ckInsert, PlaceA), rateLimited = true).accepted
+    check game.applyEdit(createEdit(ckInsert, PlaceA), rateLimited = true).accepted
+    game.checkRejected(createEdit(ckInsert, PlaceA), rejectRateLimit, limited = true)

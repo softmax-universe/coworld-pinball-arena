@@ -4,7 +4,9 @@
 ## a hologram with a ball inside it waits. Pieces never slide: a move fades
 ## the piece out and beams it in at the new place. An edit that breaks a rule
 ## (keep-out zone, build budget, piece cap, overlap, edit rate) does nothing
-## and is reported.
+## and is reported. The edit rate applies to the Arena script during play,
+## but not in the build phase and not for one build-phase length after the
+## arena was cleared for a new program.
 ##
 ## A deleted piece stays in `table.components` while it fades out, but it is
 ## already gone for the rules here: its cost is back, its place is free and no
@@ -83,7 +85,8 @@ proc placementReason(table: Table, piece: Component): RejectReason =
   rejectNone
 
 proc isCounted(table: Table, edit: Edit, rateLimited: bool): bool =
-  rateLimited and table.phase == episodePlay and edit.kind in CountedEdits
+  rateLimited and table.phase == episodePlay and edit.kind in CountedEdits and
+    table.tick >= table.freeEditsUntilTick
 
 proc currentSecond(table: Table): uint32 =
   table.tick div uint32(TicksPerSecond)
@@ -246,7 +249,10 @@ proc advanceBeamIns*(table: var Table) =
     inc index
 
 proc clearArena*(table: var Table) =
-  ## Fade out every piece. A piece that holds a ball releases it.
+  ## Fade out every piece. A piece that holds a ball releases it. This is how
+  ## a new program takes over the table, so script edits are not rate-limited
+  ## for the length of a build phase from now: it can lay out its table at once.
   for index in 0 ..< table.components.len:
     if not table.components[index].isLeaving:
       table.deletePiece(index)
+  table.freeEditsUntilTick = table.tick + uint32(table.settings.buildPhaseTicks)

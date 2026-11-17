@@ -1,0 +1,7 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "buildCommand": null,
+  "outputDirectory": "web",
+  "rewrites": [{ "source": "/softmax-cogent/:path*", "destination": "/api/cogent" }]
+}

@@ -1,0 +1,22 @@
+# Nim dependency checkouts (synced from nimby.lock) and build output.
+/deps/
+nimcache/
+/build/
+/tmp/
+*.replay
+
+# Compiled test and tool binaries sit next to their source without an extension.
+/tests/*
+!/tests/*.nim
+!/tests/*.nims
+!/tests/*.bas
+!/tests/*/
+
+# Web and server.
+node_modules/
+/web/game/
+.vercel/
+.env
+.env.*
+
+.DS_Store

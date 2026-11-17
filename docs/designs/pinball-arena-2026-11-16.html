@@ -1,0 +1,2366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pinball Arena — Design Doc</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Merriweather:wght@400;700;900&family=Merriweather+Sans:wght@400;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Literata:opsz,wght@7..72,400;7..72,600&display=swap" rel="stylesheet">
+<style>
+  /* ============ Ink & Print tokens ============ */
+  :root {
+    --bg: #fffdf4;            /* cream paper */
+    --surface: #fffaf0;
+    --surface-alt: #f8f6ef;
+    --fg: #111827;            /* warm near-black — never pure #000 */
+    --fg-subtle: #555555;
+    --fg-muted: #999999;
+    --ink-navy: #1a3875;
+    --ink-sage: #6e8050;
+    --ink-terracotta: #b36e4e;
+    --ink-gold: #d4a853;
+    --accent: #859ebe;
+    --accent-soft: #eef2f7;
+    --cta: #0e2758;
+    --cta-foreground: #fffdf4;
+    --border: #e4dac8;
+    --border-strong: #d4c9b5;
+    --border-subtle: #f0ebe1;
+    --serif: 'Merriweather', Georgia, serif;
+    --sans: 'Merriweather Sans', 'Helvetica Neue', sans-serif;
+    --mono: ui-monospace, 'SF Mono', Menlo, monospace;
+  }
+
+  /* ============ Cozy theme (opt-in: <html data-theme="cozy">) ============
+     Warmer paper, brown-black ink, moss and honey accents, soft serif type,
+     sentence-case headings, rounded corners. Same components, same layout. */
+  :root[data-theme="cozy"] {
+    --bg: #fbf4e6;
+    --surface: #fdf8ee;
+    --surface-alt: #f4ead8;
+    --fg: #2e241c;
+    --fg-subtle: #6b5a4a;
+    --fg-muted: #a08f7c;
+    --ink-navy: #3d5a3a;        /* moss: headings and links */
+    --ink-sage: #6f8a4f;
+    --ink-terracotta: #b0603c;
+    --ink-gold: #d39b3a;        /* honey */
+    --accent: #b9a27a;
+    --accent-soft: #f1e8d3;
+    --cta: #4a3626;
+    --cta-foreground: #fdf8ee;
+    --border: #e6d7bd;
+    --border-strong: #d6c19d;
+    --border-subtle: #efe4cf;
+    --serif: 'Fraunces', Georgia, serif;
+    --sans: 'Literata', Georgia, serif;
+  }
+  :root[data-theme="cozy"] body { font-size: 16px; line-height: 1.75; }
+  :root[data-theme="cozy"] h2 {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 22px;
+    font-weight: 600;
+  }
+  :root[data-theme="cozy"] header.masthead h1 { font-weight: 700; }
+  :root[data-theme="cozy"] .callout,
+  :root[data-theme="cozy"] pre,
+  :root[data-theme="cozy"] code { border-radius: 8px; }
+
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ============ Page grid: reading column + comment rail ============ */
+  .dc-page {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 0;
+    max-width: 1240px;
+    margin: 0 auto;
+  }
+  article#doc {
+    max-width: 72ch;
+    margin: 0 auto;
+    padding: 56px 40px 120px;
+    min-width: 0;
+  }
+
+  /* ============ Typography ============ */
+  .eyebrow {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-subtle);
+  }
+  header.masthead { border-bottom: 2px solid var(--border-strong); padding-bottom: 20px; margin-bottom: 32px; }
+  header.masthead h1 {
+    font-family: var(--serif);
+    font-weight: 900;
+    font-size: 34px;
+    line-height: 1.2;
+    margin: 8px 0 10px;
+  }
+  header.masthead .context { color: var(--fg-subtle); font-size: 13.5px; margin: 0; }
+  h2 {
+    font-family: var(--serif);
+    font-weight: 700;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--ink-navy);
+    margin: 48px 0 12px;
+  }
+  h3 { font-family: var(--serif); font-weight: 700; font-size: 16.5px; margin: 32px 0 8px; }
+  p { margin: 0 0 14px; }
+  a { color: var(--ink-navy); text-decoration-color: var(--accent); text-underline-offset: 3px; }
+  a:hover { color: var(--cta); }
+  strong { font-weight: 700; }
+  ul, ol { padding-left: 24px; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  hr { border: 0; border-top: 1px solid var(--border); margin: 40px 0; }
+
+  /* Key-points opener: every section starts with scannable bullets */
+  .key-points {
+    list-style: none;
+    padding: 0 0 0 2px;
+    margin: 0 0 18px;
+  }
+  .key-points li { padding-left: 18px; position: relative; margin-bottom: 6px; }
+  .key-points li::before { content: '—'; position: absolute; left: 0; color: var(--ink-gold); font-weight: 700; }
+
+  /* ============ TOC ============ */
+  nav.toc { margin: 28px 0 8px; }
+  nav.toc ol { list-style: none; padding: 0; column-count: 2; column-gap: 40px; margin: 10px 0 0; }
+  nav.toc li { margin-bottom: 5px; break-inside: avoid; }
+  nav.toc a { text-decoration: none; border-bottom: 1px dotted var(--border-strong); }
+  nav.toc .toc-num { font-family: var(--mono); font-size: 12px; color: var(--fg-muted); margin-right: 8px; }
+
+  /* ============ Tables ============ */
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    margin: 18px 0 22px;
+    font-size: 13.5px;
+  }
+  th {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-subtle);
+    text-align: left;
+    padding: 6px 12px 6px 0;
+    border-bottom: 2px solid var(--border-strong);
+  }
+  td { padding: 7px 12px 7px 0; border-bottom: 1px solid var(--border-subtle); vertical-align: top; }
+  td.num, th.num { text-align: right; font-family: var(--mono); font-size: 12.5px; font-feature-settings: 'tnum' 1; }
+
+  /* ============ Figures ============ */
+  figure { margin: 24px 0 28px; }
+  figure svg { max-width: 100%; height: auto; display: block; }
+  figcaption {
+    margin-top: 10px;
+    font-size: 12px;
+    color: var(--fg-subtle);
+  }
+  figcaption .fig-label {
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-size: 10.5px;
+    color: var(--ink-navy);
+    margin-right: 8px;
+  }
+
+  /* ============ Code & citations ============ */
+  code {
+    font-family: var(--mono);
+    font-size: 12.5px;
+    background: var(--surface-alt);
+    padding: 1px 5px;
+    border-radius: 3px;
+  }
+  pre {
+    background: var(--surface-alt);
+    border: 1px solid var(--border-subtle);
+    border-radius: 3px;
+    padding: 14px 16px;
+    overflow-x: auto;
+    margin: 16px 0 20px;
+  }
+  pre code { background: none; padding: 0; font-size: 12.5px; line-height: 1.6; }
+  .cite {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--fg-subtle);
+    background: var(--surface-alt);
+    padding: 1px 6px;
+    border-radius: 3px;
+    white-space: nowrap;
+  }
+  /* Superscript source references — body prose never carries raw file paths.
+     Full citation lives in the title (hover) and in the numbered Sources list. */
+  sup.ref { line-height: 0; }
+  sup.ref a {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    font-weight: 700;
+    color: var(--ink-navy);
+    text-decoration: none;
+    padding: 0 1px;
+  }
+  sup.ref a:hover { text-decoration: underline; }
+  ol.sources { margin: 12px 0; padding-left: 30px; }
+  ol.sources li {
+    font-size: 13px;
+    padding: 2px 0;
+  }
+  ol.sources li::marker {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--ink-navy);
+  }
+  ol.sources li:target { background: var(--accent-soft); }
+
+  /* ============ Callouts ============ */
+  .callout { padding: 12px 16px; margin: 18px 0; font-size: 13.5px; border-radius: 3px; }
+  .callout .callout-label {
+    display: block;
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 4px;
+  }
+  .callout-info { background: var(--accent-soft); }
+  .callout-info .callout-label { color: var(--ink-navy); }
+  .callout-warn { background: rgba(179, 110, 78, 0.08); border-left: 3px solid var(--ink-terracotta); }
+  .callout-warn .callout-label { color: var(--ink-terracotta); }
+  .callout-open { background: rgba(212, 168, 83, 0.10); }
+  .callout-open .callout-label { color: #8a6a1f; }
+
+  /* ============ Collapsible sections (native <details class="fold">) ============
+     Every h2 section and every appendix is a fold; long h3 subsections may be.
+     The heading sits inside <summary>, so its text stays part of the document
+     for comment anchoring. */
+  details.fold > summary { list-style: none; cursor: pointer; }
+  details.fold > summary::-webkit-details-marker { display: none; }
+  details.fold > summary > h2,
+  details.fold > summary > h3 { display: flex; align-items: baseline; gap: 10px; }
+  details.fold > summary > h2::before,
+  details.fold > summary > h3::before {
+    content: '';
+    flex: none;
+    width: 6px;
+    height: 6px;
+    border-right: 1.5px solid var(--fg-muted);
+    border-bottom: 1.5px solid var(--fg-muted);
+    transform: translateY(-2px) rotate(-45deg);
+    transition: transform 120ms ease-out;
+  }
+  details.fold[open] > summary > h2::before,
+  details.fold[open] > summary > h3::before { transform: translateY(-4px) rotate(45deg); }
+  details.fold > summary:hover > h2,
+  details.fold > summary:hover > h3 { color: var(--cta); }
+  details.fold > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+  .fold-controls { margin: 10px 0 0; font-size: 12px; color: var(--fg-muted); }
+  .fold-controls button {
+    font: inherit;
+    color: var(--ink-navy);
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    text-decoration: underline dotted var(--border-strong);
+    text-underline-offset: 3px;
+  }
+  .appendix-label { color: var(--fg-muted); }
+
+  /* ============ Open questions: two-way links ============
+     In the body, a gold "Q1" marker sits where a section depends on an
+     unresolved question; the question's entry links back to each marker. */
+  sup.oq-ref { line-height: 0; }
+  sup.oq-ref a {
+    font-family: var(--sans);
+    font-size: 10px;
+    font-weight: 700;
+    color: #8a6a1f;
+    background: rgba(212, 168, 83, 0.16);
+    border-radius: 999px;
+    padding: 1px 5px;
+    margin-left: 2px;
+    text-decoration: none;
+  }
+  sup.oq-ref a:hover { background: rgba(212, 168, 83, 0.32); }
+  ol.open-questions { padding-left: 0; list-style: none; counter-reset: oq; }
+  ol.open-questions > li {
+    counter-increment: oq;
+    position: relative;
+    padding: 10px 0 10px 40px;
+    border-top: 1px solid var(--border-subtle);
+  }
+  ol.open-questions > li::before {
+    content: 'Q' counter(oq);
+    position: absolute;
+    left: 0;
+    top: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    color: #8a6a1f;
+  }
+  ol.open-questions p { margin: 0 0 6px; }
+  .oq-label {
+    font-size: 10.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--fg-subtle);
+    margin-right: 6px;
+  }
+  .oq-from { font-size: 12.5px; color: var(--fg-subtle); }
+  ol.open-questions > li:target,
+  sup.oq-ref:target a,
+  .oq-anchor:target { background: rgba(212, 168, 83, 0.28); }
+
+  /* Decision record — Decision Record appendix only. The body states the
+     current design; it never carries labeled decision callouts. */
+  .decision { border-top: 1px solid var(--border); padding: 14px 0 4px; margin: 14px 0; }
+  .decision .decision-label { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-sage); }
+  .decision p { margin-top: 6px; }
+
+  blockquote {
+    margin: 16px 0 20px;
+    padding: 2px 0 2px 16px;
+    border-left: 2px solid var(--border-strong);
+    color: var(--fg-subtle);
+    font-family: var(--serif);
+    font-size: 14px;
+  }
+  td, .cite, ol.sources li { overflow-wrap: anywhere; }
+  .cite { white-space: normal; }
+
+  @media (max-width: 1100px) {
+    .dc-page { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 640px) {
+    article#doc { padding: 32px 16px 96px; }
+    header.masthead h1 { font-size: 26px; }
+    nav.toc ol { column-count: 1; }
+    table { display: block; overflow-x: auto; }
+  }
+  @media print {
+    #dc-sidebar, #dc-fab, #dc-toggle { display: none !important; }
+    .dc-page { grid-template-columns: 1fr; }
+  }
+
+  /* ================================================================
+     DC-COMMENTS BEGIN — styles (copy verbatim; do not modify)
+     ================================================================ */
+  ::highlight(dc-hl) { background: rgba(212, 168, 83, 0.28); }
+  ::highlight(dc-hl-active) { background: rgba(212, 168, 83, 0.6); }
+
+  #dc-fab {
+    position: absolute;
+    z-index: 40;
+    display: none;
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--cta-foreground);
+    background: var(--cta);
+    border: 1px solid #0a1c42;
+    border-radius: 3px;
+    padding: 5px 10px;
+    cursor: pointer;
+  }
+  #dc-fab:hover { background: var(--ink-navy); }
+
+  #dc-sidebar {
+    border-left: 1px solid var(--border);
+    background: var(--surface);
+    padding: 24px 20px 60px;
+    font-size: 13px;
+    position: sticky;
+    top: 0;
+    height: 100dvh;
+    overflow-y: auto;
+  }
+  #dc-sidebar h2.dc-title {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--fg-subtle);
+    margin: 0 0 4px;
+  }
+  .dc-actions { display: flex; gap: 6px; flex-wrap: wrap; margin: 10px 0 18px; }
+  .dc-btn {
+    font-family: var(--sans);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--fg);
+    background: var(--surface);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 4px 9px;
+    cursor: pointer;
+  }
+  .dc-btn:hover { background: var(--surface-alt); }
+  .dc-btn:focus-visible, #dc-fab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .dc-empty { color: var(--fg-muted); font-style: italic; }
+  .dc-item { border-top: 1px solid var(--border-subtle); padding: 12px 0; cursor: pointer; }
+  .dc-item.dc-resolved { opacity: 0.5; }
+  .dc-quote {
+    border-left: 2px solid var(--ink-gold);
+    padding-left: 8px;
+    color: var(--fg-subtle);
+    font-style: italic;
+    font-size: 12px;
+    margin-bottom: 6px;
+    overflow-wrap: break-word;
+  }
+  .dc-orphan-tag {
+    font-size: 9.5px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--ink-terracotta);
+    background: rgba(179, 110, 78, 0.12);
+    border-radius: 999px;
+    padding: 1px 7px;
+    margin-left: 6px;
+  }
+  .dc-text { white-space: pre-wrap; overflow-wrap: break-word; }
+  .dc-item textarea {
+    width: 100%;
+    min-height: 64px;
+    font-family: var(--sans);
+    font-size: 13px;
+    color: var(--fg);
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    border-radius: 3px;
+    padding: 6px 8px;
+    resize: vertical;
+  }
+  .dc-item textarea:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .dc-meta { display: flex; align-items: center; gap: 10px; margin-top: 6px; font-size: 11px; color: var(--fg-muted); }
+  .dc-meta label { display: flex; align-items: center; gap: 4px; cursor: pointer; }
+  .dc-meta .dc-del { margin-left: auto; color: var(--ink-terracotta); background: none; border: none; font-size: 11px; cursor: pointer; padding: 0; }
+  .dc-meta .dc-del:hover { text-decoration: underline; }
+  #dc-status { font-size: 11px; color: var(--ink-sage); min-height: 16px; margin-top: 8px; }
+
+  #dc-toggle { display: none; }
+  @media (max-width: 1100px) {
+    #dc-sidebar {
+      position: fixed;
+      right: 0;
+      top: 0;
+      width: 320px;
+      max-width: 90vw;
+      transform: translateX(100%);
+      transition: transform 200ms ease-out;
+      z-index: 50;
+      box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
+    }
+    #dc-sidebar.dc-open { transform: translateX(0); }
+    #dc-toggle {
+      display: block;
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      z-index: 51;
+      font-family: var(--sans);
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--cta-foreground);
+      background: var(--cta);
+      border: 1px solid #0a1c42;
+      border-radius: 999px;
+      padding: 9px 15px;
+      cursor: pointer;
+    }
+  }
+  /* replies rendered under a comment (from the comment's `replies` array) */
+  .dc-replies { margin-top: 8px; padding-left: 10px; border-left: 2px solid var(--border-strong); }
+  .dc-reply-author { font-family: var(--sans); font-size: 10px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-navy); }
+  .dc-reply-text { font-size: 12.5px; line-height: 1.5; color: var(--fg); white-space: pre-wrap; margin-top: 2px; }
+  .dc-reply-text a { color: var(--ink-navy); word-break: break-all; }
+  /* ============ DC-COMMENTS END — styles ============ */
+</style>
+</head>
+<body>
+<div class="dc-page">
+<article id="doc">
+
+  <header class="masthead">
+    <span class="eyebrow">Design doc · 17 November 2026 · Final</span>
+    <h1>Pinball Arena</h1>
+    <p class="context">The game design for a two-player browser pinball game with a cogent-built table: how it looks, feels and behaves.</p>
+  </header>
+
+  <section id="summary">
+    <h2>Executive Summary</h2>
+    <p>Pinball Arena is a two-player pinball game that runs in a web browser. The <strong>Flipper player</strong> is a person at the page (keyboard or gamepad) who plays pinball: two
+    flippers (the "paddles" of the request), a plunger and nudges. The <strong>Arena player</strong> is the person's own cogent, their Softmax AI agent. The cogent writes BASIC programs that build and rebuild the table while the ball is in play. The programs also define the rules of the game as small state machines, and table events trigger them (a bumper is hit, a flipper goes up, a ball drains). The Arena player's aim is to make the Flipper player have fun and get better at pinball. All score comes from the Arena player's rules.</p>
+    <p>The page sits next to a chat panel where the person talks to their cogent. The cogent sends new table programs to the page, the page reports back how each Episode (one game of three balls) went, and the cogent revises. The game looks and sounds like a mid-1990s pre-rendered space-themed PC pinball table: one fixed
+    view, a side panel with score and short capital-letter messages, chrome, neon
+    lights and a dark starfield. It is an original table in that style. Where possible, its art and sound are CC0 (a public-domain dedication), and it copies nothing from any existing game. The game is hosted as a public website, not on Softmax's game infrastructure.</p>
+  </section>
+
+  <nav class="toc">
+    <span class="eyebrow">Contents</span>
+    <ol>
+      <li><span class="toc-num">1</span><a href="#players">The two players</a></li>
+      <li><span class="toc-num">2</span><a href="#table">The table</a></li>
+      <li><span class="toc-num">3</span><a href="#flow">Episode flow</a></li>
+      <li><span class="toc-num">4</span><a href="#build">What the Arena player can build</a></li>
+      <li><span class="toc-num">5</span><a href="#rules">Rules: rewards and quests as state machines</a></li>
+      <li><span class="toc-num">6</span><a href="#views">What each player sees and does</a></li>
+      <li><span class="toc-num">7</span><a href="#cogent">The cogent connection</a></li>
+      <li><span class="toc-num">8</span><a href="#look">Look and sound</a></li>
+      <li><span class="toc-num">9</span><a href="#scoring">Scoring</a></li>
+      <li><span class="toc-num">10</span><a href="#alternatives">Alternatives considered</a></li>
+      <li><span class="toc-num">11</span><a href="#risks">Risks and validation</a></li>
+      <li><span class="toc-num">A</span><a href="#appendix-a">Component catalogue</a></li>
+      <li><span class="toc-num">B</span><a href="#appendix-b">Event list</a></li>
+      <li><span class="toc-num">C</span><a href="#appendix-c">Default limits and values</a></li>
+      <li><span class="toc-num">D</span><a href="#appendix-d">AIDE interface compliance</a></li>
+      <li><span class="toc-num">E</span><a href="#appendix-e">Hosting and platform facts</a></li>
+      <li><span class="toc-num">F</span><a href="#appendix-f">Candidate free assets</a></li>
+      <li><span class="toc-num">G</span><a href="#appendix-g">Detail lists</a></li>
+      <li><span class="toc-num">H</span><a href="#appendix-h">Notes for the builder</a></li>
+      <li><span class="toc-num">I</span><a href="#decision-record">Decision Record</a></li>
+      <li><span class="toc-num">J</span><a href="#sources">Sources</a></li>
+    </ol>
+    <p class="fold-controls"><button type="button" data-fold="open">Expand all</button> · <button type="button" data-fold="close">Collapse all</button></p>
+  </nav>
+
+  <!-- ============ 1 ============ -->
+  <section id="players">
+    <details class="fold" open>
+      <summary><h2>1 · The two players</h2></summary>
+      <ul class="key-points">
+        <li>The Flipper player is a person in the browser. The Arena player is a BASIC script from that person's cogent (their Softmax AI agent).</li>
+        <li>The Arena player's aim is to make the Flipper player have fun and improve, not to beat the Flipper player.</li>
+      </ul>
+      <p>The <strong>Flipper player</strong> is a person in the browser. A BASIC script can also drive the flippers. The bundled demo player (attract mode) and the tests use such a script.</p>
+      <p>The <strong>Arena player</strong> is a BASIC script. It comes from the person's cogent through the cogent connection, the link between the page and the cogent (<a href="#cogent">section 7</a>). When nobody is signed in, it is the bundled house script.</p>
+      <p>The whole game runs in the browser, so flipper timing never depends on the network.</p>
+      <p>If the Arena script fails or overruns its BASIC budget <a href="#appendix-c">(Appendix C)</a>, the table freezes as it is and the existing rules keep running. The game reports the failure to the cogent. If a Flipper script fails, the flippers go limp.</p>
+    </details>
+  </section>
+
+  <!-- ============ 2 ============ -->
+  <section id="table">
+    <details class="fold" open>
+      <summary><h2>2 · The table</h2></summary>
+      <ul class="key-points">
+        <li>Three levels, and the ball always rolls on a surface.</li>
+        <li>Ball physics is new, exact fixed-point work.</li>
+      </ul>
+      <p>The playfield is portrait with real-machine proportions: about 20 x 42 in, sloped about 6.5
+      degrees toward the player, with a 1-1/16 in steel ball.<sup class="ref"><a href="#src-11" title="Glossary of pinball terms — https://en.wikipedia.org/wiki/Glossary_of_pinball_terms">11</a></sup><sup class="ref"><a href="#src-13" title="Pinball machine dimensions — https://www.flippers.be/basics/101_pinball_dimensions.html">13</a></sup></p>
+      <p>Some parts are fixed, such as the walls and the flippers. Nothing can be built in the keep-out zones around the flippers, the drain (where balls leave play) and the shooter lane (where the plunger launches each ball) <a href="#appendix-g">(Appendix G)</a>. Everything else is buildable.</p>
+      <p>The table has three levels. Level 1 is the playfield surface, and levels 2 and 3 are
+      raised. The ball always rolls on a surface (no airborne balls), and it only touches components and
+      other balls on its own level. Raised levels hold only track and the small things that sit on
+      track: rollover switches, gates, spinners and lights. Up to 6 balls can be in play at once
+      (multiball).</p>
+
+      <h3>Ball and flipper feel</h3>
+      <p>The ball must feel heavy and fast like a real steel ball. The fidelity target is that real
+      techniques work, such as the cradle (a ball that rests on a held flipper) and the live catch (a timed flip that stops the ball dead).<sup class="ref"><a href="#src-11" title="Glossary of pinball terms — https://en.wikipedia.org/wiki/Glossary_of_pinball_terms">11</a></sup> The control rules are in <a href="#appendix-g">Appendix G</a>.</p>
+      <p>Polyworld (the game engine that this game is built on) has no physics engine, only flat circle collision, so ball physics is new
+      work.<sup class="ref"><a href="#src-1" title="softmax-universe/polyworld at commit be1706dc (2026-11-16): README, src/polyworld/configs.nim, src/polyworld/bodies.nim — https://github.com/softmax-universe/polyworld">1</a></sup> It must be exact, repeatable fixed-point maths so that replays match. This is the largest build risk. The game runs at 120 steps per second, so a flipper press takes effect within about 8 ms.</p>
+    </details>
+  </section>
+
+  <!-- ============ 3 ============ -->
+  <section id="flow">
+    <details class="fold" open>
+      <summary><h2>3 · Episode flow</h2></summary>
+      <ul class="key-points">
+        <li>An Episode is a build phase, then three balls.</li>
+        <li>Two starting tables exist: the Blank table and the House table.</li>
+      </ul>
+      <ol>
+        <li><strong>Build phase.</strong> Before the first ball, the Arena player gets a short window
+        (default 10 s of game time) to build with no edit-rate limit, inside the build
+        budget.</li>
+        <li><strong>Three balls.</strong> The Flipper player plunges each ball. A ball that drains within
+        a few seconds of launch is returned (ball save).</li>
+        <li><strong>End.</strong> The Episode ends when the third ball drains or the game clock reaches
+        8 minutes, whichever is first. The clock exists because the Arena player could build a table that never drains.</li>
+        <li><strong>After the Episode.</strong> The page shows the score. If a cogent is connected, the page sends it a summary of the Episode.</li>
+      </ol>
+      <p>A "ball search" frees a ball that is stuck <a href="#appendix-g">(Appendix G)</a>.</p>
+      <p>On the "Blank table", the Arena player starts from
+      nothing. On the "House table", it starts from a bundled standard layout and rule set, which it can change. A bundled house Arena script and a bundled demo Flipper script ship with the game.</p>
+    </details>
+  </section>
+
+  <!-- ============ 4 ============ -->
+  <section id="build">
+    <details class="fold" open>
+      <summary><h2>4 · What the Arena player can build</h2></summary>
+      <ul class="key-points">
+        <li>The Arena player builds from seven component families, inside a build budget.</li>
+        <li>Each edit appears first as a hologram, then turns solid.</li>
+      </ul>
+      <p>Every component has a position, a rotation (any angle), a size, a level, an optional group tag, and type-specific settings. The group tag makes
+      banks and lets one rule address several parts. The families are bumpers, targets, holes and
+      launchers, magnets, flow control, track, and lights and text
+      <a href="#appendix-a">(Appendix A)</a>. The toggle target, which flips between two faces on each
+      hit, is our reading of "flip targets".</p>
+
+      <h3>Track</h3>
+      <p>Track is two <strong>mouth pieces</strong> (entry and exit pieces) connected by a curve (Figure 3). A mouth piece has a width at each of its two ends, so it can be a funnel or a spreader. Each mouth sits on one of the three levels. Mouths on different levels make a ramp. Mouths on the same raised level make a rail (a wireform, in pinball terms), and mouths on level 1 make a walled lane (more in <a href="#appendix-g">Appendix G</a>).</p>
+      <figure>
+        <svg viewBox="0 0 720 350" role="img" aria-label="Plan view of a track between two mouth pieces, and a side view of the three levels" font-family="'Merriweather Sans', sans-serif">
+          <text x="20" y="26" font-size="11" font-weight="700" fill="#1a3875" letter-spacing="1">PLAN VIEW</text>
+          <text x="470" y="26" font-size="11" font-weight="700" fill="#1a3875" letter-spacing="1">SIDE VIEW</text>
+          <line x1="448" y1="14" x2="448" y2="338" stroke="#e4dac8" stroke-width="1"/>
+          <!-- track body: width blends from throat B (30) to the other throat (20) -->
+          <path d="M75 240 C75 125,225 80,330 80 L330 100 C235 100,105 150,105 240 Z" fill="#eef2f7" stroke="#1a3875" stroke-width="1.5"/>
+          <!-- funnel mouth -->
+          <polygon points="40,300 140,300 105,240 75,240" fill="#fffaf0" stroke="#1a3875" stroke-width="1.5"/>
+          <!-- exit mouth -->
+          <polygon points="330,80 400,72 400,108 330,100" fill="#fffaf0" stroke="#1a3875" stroke-width="1.5"/>
+          <!-- control handles -->
+          <line x1="90" y1="240" x2="90" y2="130" stroke="#d4a853" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <line x1="330" y1="90" x2="230" y2="90" stroke="#d4a853" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <rect x="85" y="125" width="10" height="10" fill="#d4a853"/>
+          <rect x="225" y="85" width="10" height="10" fill="#d4a853"/>
+          <text x="80" y="120" text-anchor="end" font-size="11" fill="#555555">Control point</text>
+          <text x="230" y="68" text-anchor="middle" font-size="11" fill="#555555">Control point</text>
+          <!-- width A dimension -->
+          <line x1="40" y1="314" x2="140" y2="314" stroke="#b36e4e" stroke-width="1.2"/>
+          <line x1="40" y1="308" x2="40" y2="320" stroke="#b36e4e" stroke-width="1.2"/>
+          <line x1="140" y1="308" x2="140" y2="320" stroke="#b36e4e" stroke-width="1.2"/>
+          <text x="90" y="334" text-anchor="middle" font-size="11" fill="#b36e4e">Width A (wide end)</text>
+          <!-- width B -->
+          <line x1="75" y1="240" x2="105" y2="240" stroke="#b36e4e" stroke-width="2.5"/>
+          <line x1="108" y1="243" x2="146" y2="256" stroke="#b36e4e" stroke-width="1"/>
+          <text x="150" y="261" font-size="11" fill="#b36e4e">Width B (narrow end)</text>
+          <text x="150" y="292" font-size="11.5" font-weight="600" fill="#111827">Mouth piece (funnel)</text>
+          <text x="365" y="128" text-anchor="middle" font-size="11.5" font-weight="600" fill="#111827">Mouth piece</text>
+          <text x="188" y="176" font-size="11.5" font-weight="600" fill="#111827">Track curve</text>
+          <text x="188" y="191" font-size="11" fill="#555555">Its width blends</text>
+          <text x="188" y="205" font-size="11" fill="#555555">between the throats</text>
+          <!-- side view -->
+          <line x1="465" y1="290" x2="710" y2="290" stroke="#111827" stroke-width="2"/>
+          <line x1="465" y1="200" x2="710" y2="200" stroke="#d4c9b5" stroke-width="1" stroke-dasharray="5 4"/>
+          <line x1="465" y1="110" x2="710" y2="110" stroke="#d4c9b5" stroke-width="1" stroke-dasharray="5 4"/>
+          <text x="470" y="307" font-size="11" fill="#555555">Level 1 (playfield)</text>
+          <text x="470" y="217" font-size="11" fill="#555555">Level 2</text>
+          <text x="470" y="127" font-size="11" fill="#555555">Level 3</text>
+          <path d="M540 290 L640 200 L700 200" fill="none" stroke="#1a3875" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"/>
+          <text x="604" y="262" font-size="11.5" font-weight="600" fill="#1a3875">Ramp</text>
+          <line x1="530" y1="110" x2="700" y2="110" stroke="#6e8050" stroke-width="4" stroke-linecap="round"/>
+          <text x="615" y="98" text-anchor="middle" font-size="11.5" font-weight="600" fill="#6e8050">Rail, crosses above</text>
+        </svg>
+        <figcaption><span class="fig-label">Figure 3</span>Track. Left, plan view: two mouth pieces joined by a smooth curve that two control points shape. The funnel mouth has a wide catch (width A) and a narrow throat (width B). Right, side view: a track from level 1 to level 2 is a ramp, and a rail on level 3 crosses over it.</figcaption>
+      </figure>
+
+      <h3>Build budget</h3>
+      <p>The build budget caps how much the Arena player can have on the table at once. Each component type has a cost. A placed piece spends its cost, and a deleted piece gives the cost back. The table total is 100 by default. The game rejects an edit that would go over the total.</p>
+      <p>Costs follow how much a piece can do to the ball: a wall or a rubber post costs 1, a pop bumper 4, and a magnet 6. Lamps and text are free. Size does not change cost. Full costs are in <a href="#appendix-a">Appendix A</a>. A cap of 128 pieces also applies, and it counts the free ones.</p>
+
+      <h3>Editing rules: how "at will" works</h3>
+      <p>New and moved pieces <strong>beam in</strong>: a
+      translucent hologram shows for about half a second and then turns solid. A hologram with a ball
+      inside it waits until the ball is clear, so the Flipper player can always see a change before it
+      arrives.</p>
+      <p>A moved piece fades out and beams in at the new place. Solid pieces never slide, so the Arena player cannot shove the ball with a wall: magnets and kickers are the sanctioned ways to push it. A deleted piece that holds a ball releases the ball.</p>
+      <p>A rejected edit (keep-out zone, over budget, overlap) does
+      nothing, and the game reports it to the Arena player.</p>
+      <p>The limits (beam-in time, edit rate, budget, piece cap, build-phase length) are table settings. They have defaults <a href="#appendix-c">(Appendix C)</a>, and each can be changed per table.</p>
+    </details>
+  </section>
+
+  <!-- ============ 5 ============ -->
+  <section id="rules">
+    <details class="fold" open>
+      <summary><h2>5 · Rules: rewards and quests as state machines</h2></summary>
+      <ul class="key-points">
+        <li>Edges name events, and nodes carry results.</li>
+        <li>Only results award or show anything.</li>
+      </ul>
+      <p>A rule is a finite state machine (FSM): nodes joined by edges, with one current node. It has one initial node, and the Arena player can have many FSMs at once (limits in <a href="#appendix-c">Appendix C</a>).</p>
+      <p>An <strong>edge</strong> goes from one node to another and names the event that fires it
+      <a href="#appendix-b">(Appendix B)</a>. It can narrow the event to a specific component or group
+      tag, a level, a minimum hit strength, and a count ("on the 3rd hit"). An edge can also be a timeout
+      ("after 10 s in this node").</p>
+      <p>A <strong>node</strong> carries results that happen when the FSM enters it. The result kinds are score changes, sounds and visuals from fixed libraries, on-screen text, arena reconfiguration, ball actions, and signals to other FSMs <a href="#appendix-g">(Appendix G)</a>.</p>
+      <p>A node with no outgoing edges returns to the initial node straight after its results run. The
+      simplest rule thus repeats on every hit: one edge, "pop bumper hit", leads to a node with the
+      results "+5 score, ping". Figure 2 shows a quest with a time limit. The evaluation order is fixed, and rules cannot loop within one tick.</p>
+      <figure>
+        <svg viewBox="0 0 760 400" role="img" aria-label="The quest state machine with four nodes: Initial, Bank down, Jackpot and Missed" font-family="'Merriweather Sans', sans-serif">
+          <defs>
+            <marker id="f2-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8" fill="none" stroke="#1a3875" stroke-width="1.2"/>
+            </marker>
+            <marker id="f2-arrow-soft" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8" fill="none" stroke="#859ebe" stroke-width="1.2"/>
+            </marker>
+          </defs>
+          <!-- return edges -->
+          <path d="M570 45 H75 V168" fill="none" stroke="#859ebe" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#f2-arrow-soft)"/>
+          <path d="M570 362 H75 V222" fill="none" stroke="#859ebe" stroke-width="1.5" stroke-dasharray="5 4" marker-end="url(#f2-arrow-soft)"/>
+          <text x="320" y="36" text-anchor="middle" font-size="11" fill="#555555">No outgoing edges: back to Initial</text>
+          <text x="320" y="353" text-anchor="middle" font-size="11" fill="#555555">No outgoing edges: back to Initial</text>
+          <!-- Initial -->
+          <rect x="20" y="170" width="110" height="50" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="75" y="192" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">Initial</text>
+          <text x="75" y="208" text-anchor="middle" font-size="10.5" fill="#555555">(no results)</text>
+          <!-- edge 1 -->
+          <line x1="130" y1="195" x2="278" y2="195" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f2-arrow)"/>
+          <text x="204" y="169" text-anchor="middle" font-size="11" fill="#1a3875">Drop target in bank A</text>
+          <text x="204" y="183" text-anchor="middle" font-size="11" fill="#1a3875">drops, count 3</text>
+          <!-- Bank down -->
+          <rect x="280" y="150" width="170" height="90" rx="3" fill="#eef2f7" stroke="#859ebe" stroke-width="1.5"/>
+          <text x="365" y="172" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3875">Bank down</text>
+          <line x1="280" y1="181" x2="450" y2="181" stroke="#859ebe" stroke-width="1"/>
+          <text x="292" y="200" font-size="11.5" fill="#111827">Light ramp lamp</text>
+          <text x="292" y="217" font-size="11.5" fill="#111827">Text: RAMP IS LIT</text>
+          <!-- edge to Jackpot -->
+          <line x1="450" y1="170" x2="568" y2="101" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f2-arrow)"/>
+          <text x="452" y="112" font-size="11" fill="#1a3875">Track R</text>
+          <text x="452" y="126" font-size="11" fill="#1a3875">completed</text>
+          <!-- edge to Missed -->
+          <line x1="450" y1="220" x2="568" y2="299" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f2-arrow)"/>
+          <text x="452" y="294" font-size="11" fill="#1a3875">Timeout 20 s</text>
+          <!-- Jackpot -->
+          <rect x="570" y="30" width="175" height="120" rx="3" fill="#fffaf0" stroke="#6e8050" stroke-width="1.5"/>
+          <text x="657" y="52" text-anchor="middle" font-size="13" font-weight="700" fill="#6e8050">Jackpot</text>
+          <line x1="570" y1="61" x2="745" y2="61" stroke="#6e8050" stroke-width="1"/>
+          <text x="582" y="80" font-size="11.5" fill="#111827">+50,000 score</text>
+          <text x="582" y="97" font-size="11.5" fill="#111827">Flashers</text>
+          <text x="582" y="114" font-size="11.5" fill="#111827">Fanfare</text>
+          <text x="582" y="131" font-size="11.5" fill="#111827">Reset bank A</text>
+          <!-- Missed -->
+          <rect x="570" y="270" width="175" height="105" rx="3" fill="#fffaf0" stroke="#b36e4e" stroke-width="1.5"/>
+          <text x="657" y="292" text-anchor="middle" font-size="13" font-weight="700" fill="#b36e4e">Missed</text>
+          <line x1="570" y1="301" x2="745" y2="301" stroke="#b36e4e" stroke-width="1"/>
+          <text x="582" y="320" font-size="11.5" fill="#111827">Lamp off</text>
+          <text x="582" y="337" font-size="11.5" fill="#111827">Text: TOO SLOW</text>
+          <text x="582" y="354" font-size="11.5" fill="#111827">Reset bank A</text>
+        </svg>
+        <figcaption><span class="fig-label">Figure 2</span>The quest FSM. Solid arrows are edges, labelled with the event that fires them, and each node lists its results under its name. When a drop target in bank A drops (count 3), the FSM enters "Bank down". "Track R completed" then leads to "Jackpot", and a timeout of 20 s leads to "Missed". Dashed arrows show the return to the initial node.</figcaption>
+      </figure>
+      <p>Results are the only way anything is awarded or shown. The Arena script cannot add score
+      directly, but it can raise a "script signal" that an FSM listens for. This keeps one place where
+      rewards live, and it makes replays complete. Score changes can add or subtract, and the Flipper score never goes below 0. Reconfigurations from a node obey the same editing rules as direct edits.</p>
+    </details>
+  </section>
+
+  <!-- ============ 6 ============ -->
+  <section id="views">
+    <details class="fold" open>
+      <summary><h2>6 · What each player sees and does</h2></summary>
+      <ul class="key-points">
+        <li>The Flipper player sees the table but not the FSMs. The Arena player sees both.</li>
+        <li>A person plays with a keyboard or a gamepad. Scripts run in a BASIC virtual machine.</li>
+      </ul>
+      <p>Figure 4 gives the short form of each player's observations and actions (full lists in <a href="#appendix-g">Appendix G</a>). The Flipper player cannot see the FSMs. As on a real machine, the player learns the rules from
+      lamps, messages and results.</p>
+      <figure>
+        <svg viewBox="0 0 760 400" role="img" aria-label="Observations flow from the table to each player, and actions flow from each player to the table" font-family="'Merriweather Sans', sans-serif">
+          <defs>
+            <marker id="f4-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8" fill="none" stroke="#1a3875" stroke-width="1.2"/>
+            </marker>
+          </defs>
+          <!-- Flipper player -->
+          <rect x="10" y="16" width="200" height="368" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="110" y="41" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">Flipper player</text>
+          <text x="22" y="70" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">SEES</text>
+          <text x="22" y="88" font-size="11" fill="#111827">Balls: place, speed, level</text>
+          <text x="22" y="104" font-size="11" fill="#111827">Flipper angles, plunger</text>
+          <text x="22" y="120" font-size="11" fill="#111827">Every component, holograms</text>
+          <text x="22" y="136" font-size="11" fill="#111827">Lamps and messages</text>
+          <text x="22" y="152" font-size="11" fill="#111827">Score, each change's cause</text>
+          <text x="22" y="168" font-size="11" fill="#111827">Ball number, clock, tilt</text>
+          <text x="22" y="252" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">DOES</text>
+          <text x="22" y="270" font-size="11" fill="#111827">Left flipper up, down</text>
+          <text x="22" y="286" font-size="11" fill="#111827">Right flipper up, down</text>
+          <text x="22" y="302" font-size="11" fill="#111827">Plunger pull, release</text>
+          <text x="22" y="318" font-size="11" fill="#111827">Nudge left, right, up</text>
+          <!-- Table -->
+          <rect x="290" y="16" width="180" height="368" rx="3" fill="#eef2f7" stroke="#859ebe" stroke-width="1.5"/>
+          <text x="380" y="41" text-anchor="middle" font-size="13" font-weight="700" fill="#1a3875">Table</text>
+          <text x="380" y="88" text-anchor="middle" font-size="11" fill="#111827">Balls</text>
+          <text x="380" y="104" text-anchor="middle" font-size="11" fill="#111827">Flippers and plunger</text>
+          <text x="380" y="120" text-anchor="middle" font-size="11" fill="#111827">Components and lamps</text>
+          <text x="380" y="136" text-anchor="middle" font-size="11" fill="#111827">Score and clock</text>
+          <rect x="302" y="200" width="156" height="122" rx="3" fill="#fffaf0" stroke="#1a3875" stroke-width="1.5"/>
+          <text x="380" y="222" text-anchor="middle" font-size="12" font-weight="700" fill="#1a3875">FSMs (the rules)</text>
+          <text x="380" y="246" text-anchor="middle" font-size="10.5" fill="#6e8050">Seen by the Arena</text>
+          <text x="380" y="260" text-anchor="middle" font-size="10.5" fill="#6e8050">player</text>
+          <text x="380" y="286" text-anchor="middle" font-size="10.5" fill="#b36e4e">Hidden from the</text>
+          <text x="380" y="300" text-anchor="middle" font-size="10.5" fill="#b36e4e">Flipper player</text>
+          <!-- Arena player -->
+          <rect x="550" y="16" width="200" height="368" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="650" y="41" text-anchor="middle" font-size="13" font-weight="700" fill="#111827">Arena player</text>
+          <text x="562" y="70" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">SEES</text>
+          <text x="562" y="88" font-size="11" fill="#111827">Whole arena, budget left</text>
+          <text x="562" y="104" font-size="11" fill="#111827">Balls: place, speed, level</text>
+          <text x="562" y="120" font-size="11" fill="#111827">Flipper actuation, plunger</text>
+          <text x="562" y="136" font-size="11" fill="#111827">Every FSM's current node</text>
+          <text x="562" y="152" font-size="11" fill="#111827">Score, ball number, clock</text>
+          <text x="562" y="168" font-size="11" fill="#111827">Its rejected edits</text>
+          <text x="562" y="252" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">DOES</text>
+          <text x="562" y="270" font-size="11" fill="#111827">Create, move, rotate,</text>
+          <text x="562" y="286" font-size="11" fill="#111827">resize, delete components</text>
+          <text x="562" y="302" font-size="11" fill="#111827">Change settings</text>
+          <text x="562" y="318" font-size="11" fill="#111827">Create, edit, reset FSMs</text>
+          <text x="562" y="334" font-size="11" fill="#111827">Raise script signals</text>
+          <!-- arrows -->
+          <line x1="290" y1="120" x2="213" y2="120" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f4-arrow)"/>
+          <text x="250" y="111" text-anchor="middle" font-size="10" fill="#1a3875">observations</text>
+          <line x1="470" y1="120" x2="547" y2="120" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f4-arrow)"/>
+          <text x="510" y="111" text-anchor="middle" font-size="10" fill="#1a3875">observations</text>
+          <line x1="210" y1="290" x2="287" y2="290" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f4-arrow)"/>
+          <text x="250" y="281" text-anchor="middle" font-size="10" fill="#1a3875">actions</text>
+          <line x1="550" y1="290" x2="473" y2="290" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f4-arrow)"/>
+          <text x="510" y="281" text-anchor="middle" font-size="10" fill="#1a3875">actions</text>
+        </svg>
+        <figcaption><span class="fig-label">Figure 4</span>Who sees and does what. Observations go from the table to each player, and actions go from each player to the table. The FSMs live inside the table. The Arena player can see them, and the Flipper player cannot.</figcaption>
+      </figure>
+      <p>A person plays in the browser, with a keyboard or a gamepad. Gamepad input uses paddy, a gamepad library by the author of Polyworld that works in browsers.<sup class="ref"><a href="#src-19" title="treeform/paddy README — https://github.com/treeform/paddy">19</a></sup> The control table is in <a href="#appendix-g">Appendix G</a>.</p>
+      <p>BASIC scripts run on Bassy, the BASIC virtual machine that every Polyworld game uses.<sup class="ref"><a href="#src-2" title="treeform/bassy README — https://github.com/treeform/bassy">2</a></sup> The Flipper script decides 60 times per second and the Arena script 12 times per second.</p>
+    </details>
+  </section>
+
+  <!-- ============ 7 ============ -->
+  <section id="cogent">
+    <details class="fold" open>
+      <summary><h2>7 · The cogent connection</h2></summary>
+      <ul class="key-points">
+        <li>The Arena player is the person's own cogent, their Softmax AI agent.</li>
+        <li>The loop is chat, new table program, play, report, revise.</li>
+      </ul>
+      <p>A person can play without signing in. The house Arena script then runs the table. Signing in with a Softmax account connects the page to the person's cogent. A chat panel opens beside the table. The person can talk to the cogent in plain words ("more ramps", "that magnet is unfair", "teach me to cradle").</p>
+      <figure>
+        <svg viewBox="0 0 800 316" role="img" aria-label="The loop between the person, the cogent and the page: chat, new Arena program, load, play, report" font-family="'Merriweather Sans', sans-serif">
+          <defs>
+            <marker id="f5-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+              <path d="M0,0 L8,4 L0,8" fill="none" stroke="#1a3875" stroke-width="1.2"/>
+            </marker>
+          </defs>
+          <!-- A: person chats -->
+          <rect x="20" y="30" width="170" height="56" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="105" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">Person chats</text>
+          <text x="105" y="71" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">with cogent</text>
+          <!-- B: cogent writes -->
+          <rect x="285" y="30" width="200" height="56" rx="3" fill="#eef2f7" stroke="#859ebe" stroke-width="1.5"/>
+          <text x="385" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#1a3875">Cogent writes Arena</text>
+          <text x="385" y="71" text-anchor="middle" font-size="12" font-weight="700" fill="#1a3875">program (BASIC)</text>
+          <!-- C: page loads -->
+          <rect x="610" y="30" width="170" height="56" rx="3" fill="#fffaf0" stroke="#1a3875" stroke-width="1.5"/>
+          <text x="695" y="54" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">Page loads it at</text>
+          <text x="695" y="71" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">the next Episode</text>
+          <!-- D: person plays -->
+          <rect x="610" y="230" width="170" height="56" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="695" y="254" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">Person plays</text>
+          <text x="695" y="271" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">an Episode</text>
+          <!-- E: page reports -->
+          <rect x="285" y="230" width="200" height="56" rx="3" fill="#fffaf0" stroke="#1a3875" stroke-width="1.5"/>
+          <text x="385" y="254" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">Page reports</text>
+          <text x="385" y="271" text-anchor="middle" font-size="12" font-weight="700" fill="#111827">the Episode</text>
+          <!-- side note -->
+          <rect x="20" y="230" width="170" height="56" rx="3" fill="none" stroke="#b36e4e" stroke-width="1.2" stroke-dasharray="5 4"/>
+          <text x="105" y="254" text-anchor="middle" font-size="11" fill="#555555">Signed out: house</text>
+          <text x="105" y="270" text-anchor="middle" font-size="11" fill="#555555">Arena script, no chat</text>
+          <!-- arrows -->
+          <line x1="190" y1="58" x2="282" y2="58" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f5-arrow)"/>
+          <line x1="485" y1="58" x2="607" y2="58" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f5-arrow)"/>
+          <text x="547" y="34" text-anchor="middle" font-size="10" fill="#1a3875">policy.create /</text>
+          <text x="547" y="47" text-anchor="middle" font-size="10" fill="#1a3875">policy.update</text>
+          <line x1="695" y1="86" x2="695" y2="227" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f5-arrow)"/>
+          <line x1="610" y1="258" x2="488" y2="258" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f5-arrow)"/>
+          <line x1="385" y1="230" x2="385" y2="89" stroke="#1a3875" stroke-width="1.5" marker-end="url(#f5-arrow)"/>
+          <text x="395" y="162" font-size="10" fill="#1a3875">surface.event</text>
+        </svg>
+        <figcaption><span class="fig-label">Figure 5</span>The loop. The person chats with the cogent. The cogent writes an Arena program in BASIC, and the page loads it, by default at the next Episode. The person plays an Episode. The page reports the Episode, and the cogent can write the next program. The program goes to the page as a <code>policy.create</code> or <code>policy.update</code> message, and the report goes back to the cogent as a <code>surface.event</code> message. A signed-out person gets the house Arena script and no chat.</figcaption>
+      </figure>
+      <p>The cogent writes an Arena program in BASIC and sends it to the page. The page shows a notice ("NEW TABLE PROGRAM RECEIVED"), stores the program under its name, and loads it. The person does not approve each program. The program itself says when it takes effect: at the start of the next Episode (the default), at the next ball, or at once, with every piece beaming in. A "restart now" button starts a new Episode on the new program. Stored programs appear in a short "table programs" list, so the person can go back to an earlier one.</p>
+      <p>After each Episode the page sends the cogent a summary:</p>
+      <ul>
+        <li>The score.</li>
+        <li>How long each ball lasted.</li>
+        <li>Which components were hit and how often.</li>
+        <li>Which rules fired.</li>
+        <li>Rejected edits.</li>
+        <li>Any script error, with the script's last printed lines.</li>
+      </ul>
+      <p>The cogent can use this summary to revise the program. What the cogent learns from the summary, and when it revises, is outside this design. The task of the page is to follow the AIDE contract described below. For now the cogent does not see the live game. It sees these summaries and what the person says. Live observation and live control by the cogent stay possible later, most likely through the surface messages of the contract (<code>surface.event</code> and <code>surface.act</code>). The cogent learns the Arena BASIC interface from a guide that the page supplies with its messages. If the cogent is asleep, busy, out of model budget or disconnected, the game keeps playing with the current program, and the chat panel says what is happening.</p>
+      <p>AIDE is the Softmax interface that a web page uses to talk to a cogent's workspace. The page follows AIDE version 1.0.0, the published contract between web pages and cogents.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup> The compliance list is <a href="#appendix-d">Appendix D</a>.</p>
+      <p>One rule needs a reading. The contract says that a page deploys a policy (here, the Arena program) and "never runs it in the page". The game runs the program inside its BASIC virtual machine, which has no access to the page, its storage, its cookies or the network. The owners of the contract must confirm this reading (a risk in <a href="#risks">section 11</a>).</p>
+    </details>
+  </section>
+
+  <!-- ============ 8 ============ -->
+  <section id="look">
+    <details class="fold" open>
+      <summary><h2>8 · Look and sound</h2></summary>
+      <ul class="key-points">
+        <li>An original table in the style of mid-1990s pre-rendered space pinball.</li>
+        <li>One fixed view of the whole table, with a chat panel beside it.</li>
+      </ul>
+      <p>The reference is mid-1990s pre-rendered 3D PC pinball with a space theme.<sup class="ref"><a href="#src-14" title="Full Tilt! Pinball — https://en.wikipedia.org/wiki/Full_Tilt!_Pinball">14</a></sup> We take the
+      general look and feel only. The table layout and all names are original. Art and sound come from CC0 libraries where they fit, and we make the rest new. Nothing comes from the reference game or from any commercial table. A licence record kept with the game lists every asset (name, author, link, licence, date fetched). Candidates are in <a href="#appendix-f">Appendix F</a>. The successor of the reference game's publisher holds the rights and
+      appears to enforce them.<sup class="ref"><a href="#src-15" title="Raymond Chen, The Old New Thing, 2012-12-18 — https://devblogs.microsoft.com/oldnewthing/20121218-00/?p=5803">15</a></sup></p>
+      <figure>
+        <svg viewBox="0 0 960 540" role="img" aria-label="Screen layout: the table on the left, the side panel beside it, and the chat panel as a third column on the right" font-family="'Merriweather Sans', sans-serif">
+          <rect x="4" y="4" width="712" height="532" rx="3" fill="#fffaf0" stroke="#d4c9b5" stroke-width="1.5"/>
+          <!-- table outline with top arch -->
+          <path d="M130 510 L130 150 A130 120 0 0 1 390 150 L390 510 Z" fill="#eef2f7" stroke="#1a3875" stroke-width="2"/>
+          <!-- shooter lane -->
+          <line x1="366" y1="170" x2="366" y2="510" stroke="#1a3875" stroke-width="1.5"/>
+          <rect x="372" y="472" width="12" height="32" fill="#b36e4e"/>
+          <circle cx="378" cy="460" r="6" fill="#fffaf0" stroke="#555555" stroke-width="1.5"/>
+          <!-- raised track -->
+          <path d="M340 340 C350 220,350 90,250 80 C190 75,160 110,160 170" fill="none" stroke="#1a3875" stroke-width="10" stroke-linecap="round"/>
+          <path d="M340 340 C350 220,350 90,250 80 C190 75,160 110,160 170" fill="none" stroke="#fffaf0" stroke-width="6" stroke-linecap="round"/>
+          <!-- pop bumpers -->
+          <circle cx="215" cy="150" r="14" fill="#fffaf0" stroke="#1a3875" stroke-width="2"/>
+          <circle cx="275" cy="150" r="14" fill="#fffaf0" stroke="#1a3875" stroke-width="2"/>
+          <circle cx="245" cy="196" r="14" fill="#fffaf0" stroke="#1a3875" stroke-width="2"/>
+          <!-- drop-target bank -->
+          <rect x="224" y="250" width="12" height="8" fill="#6e8050"/>
+          <rect x="240" y="250" width="12" height="8" fill="#6e8050"/>
+          <rect x="256" y="250" width="12" height="8" fill="#6e8050"/>
+          <!-- lamps -->
+          <circle cx="248" cy="300" r="4" fill="#d4a853"/>
+          <circle cx="248" cy="320" r="4" fill="#d4a853"/>
+          <circle cx="248" cy="340" r="4" fill="#d4a853"/>
+          <!-- hologram piece -->
+          <circle cx="200" cy="330" r="14" fill="none" stroke="#859ebe" stroke-width="2" stroke-dasharray="4 3"/>
+          <!-- inlane walls and flippers -->
+          <path d="M160 385 L160 425 L205 448" fill="none" stroke="#1a3875" stroke-width="1.5"/>
+          <path d="M336 385 L336 425 L291 448" fill="none" stroke="#1a3875" stroke-width="1.5"/>
+          <line x1="205" y1="450" x2="240" y2="468" stroke="#1a3875" stroke-width="7" stroke-linecap="round"/>
+          <line x1="291" y1="450" x2="256" y2="468" stroke="#1a3875" stroke-width="7" stroke-linecap="round"/>
+          <text x="248" y="500" text-anchor="middle" font-size="11" fill="#555555">Drain</text>
+          <!-- left labels with leaders -->
+          <g font-size="11" fill="#111827" text-anchor="end">
+            <text x="118" y="104">Raised track</text>
+            <text x="118" y="200">Pop bumpers</text>
+            <text x="118" y="258">Drop-target bank</text>
+            <text x="118" y="334">Beaming in</text>
+            <text x="118" y="462">Flippers</text>
+          </g>
+          <g stroke="#999999" stroke-width="1">
+            <line x1="122" y1="100" x2="175" y2="100"/>
+            <line x1="122" y1="196" x2="229" y2="196"/>
+            <line x1="122" y1="254" x2="221" y2="254"/>
+            <line x1="122" y1="330" x2="184" y2="330"/>
+            <line x1="122" y1="458" x2="200" y2="456"/>
+          </g>
+          <!-- right labels -->
+          <text x="398" y="300" font-size="11" fill="#111827">Shooter</text>
+          <text x="398" y="314" font-size="11" fill="#111827">lane</text>
+          <line x1="394" y1="302" x2="380" y2="302" stroke="#999999" stroke-width="1"/>
+          <text x="398" y="492" font-size="11" fill="#111827">Plunger</text>
+          <line x1="394" y1="488" x2="386" y2="488" stroke="#999999" stroke-width="1"/>
+          <!-- side panel -->
+          <rect x="486" y="14" width="220" height="512" rx="3" fill="#f8f6ef" stroke="#d4c9b5" stroke-width="1.5"/>
+          <g font-size="10" font-weight="700" fill="#555555" letter-spacing="1">
+            <text x="498" y="40">TITLE PLATE</text>
+            <text x="498" y="112">BALL NUMBER</text>
+            <text x="498" y="174">SCORE READOUT</text>
+            <text x="498" y="262">QUEST MESSAGE</text>
+            <text x="498" y="340">AWARD MESSAGE</text>
+            <text x="498" y="418">CLOCK</text>
+          </g>
+          <g fill="#fffdf4" stroke="#1a3875" stroke-width="1.5">
+            <rect x="498" y="46" width="196" height="42" rx="2"/>
+            <rect x="498" y="118" width="196" height="34" rx="2"/>
+            <rect x="498" y="180" width="196" height="58" rx="2"/>
+            <rect x="498" y="268" width="196" height="48" rx="2"/>
+            <rect x="498" y="346" width="196" height="48" rx="2"/>
+            <rect x="498" y="424" width="196" height="38" rx="2"/>
+          </g>
+          <g text-anchor="middle" fill="#1a3875" font-weight="700">
+            <text x="596" y="73" font-size="15">PINBALL ARENA</text>
+            <text x="596" y="140" font-size="13">BALL 2 of 3</text>
+            <text x="596" y="219" font-size="26">50,000</text>
+            <text x="596" y="297" font-size="13">RAMP IS LIT</text>
+            <text x="596" y="375" font-size="13">JACKPOT 50,000</text>
+            <text x="596" y="448" font-size="13">GAME CLOCK</text>
+          </g>
+          <!-- chat panel: third column -->
+          <rect x="728" y="4" width="228" height="532" rx="3" fill="#f8f6ef" stroke="#d4c9b5" stroke-width="1.5"/>
+          <text x="740" y="30" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">CHAT WITH YOUR COGENT</text>
+          <text x="944" y="58" text-anchor="end" font-size="10" fill="#555555">Person</text>
+          <rect x="800" y="64" width="144" height="34" rx="8" fill="#eef2f7" stroke="#859ebe" stroke-width="1.5"/>
+          <text x="872" y="85" text-anchor="middle" font-size="11" fill="#111827">More ramps, please</text>
+          <text x="740" y="122" font-size="10" fill="#555555">Cogent</text>
+          <rect x="740" y="128" width="172" height="34" rx="8" fill="#fffdf4" stroke="#1a3875" stroke-width="1.5"/>
+          <text x="826" y="149" text-anchor="middle" font-size="11" fill="#111827">New table program sent</text>
+          <rect x="740" y="196" width="204" height="32" rx="2" fill="#fffaf0" stroke="#d4a853" stroke-width="2"/>
+          <text x="842" y="216" text-anchor="middle" font-size="9.5" font-weight="700" fill="#111827">NEW TABLE PROGRAM RECEIVED</text>
+          <text x="740" y="412" font-size="10" font-weight="700" fill="#555555" letter-spacing="1">TABLE PROGRAMS</text>
+          <rect x="740" y="420" width="204" height="72" rx="2" fill="#fffdf4" stroke="#1a3875" stroke-width="1.5"/>
+          <line x1="740" y1="456" x2="944" y2="456" stroke="#d4c9b5" stroke-width="1"/>
+          <text x="752" y="443" font-size="11" fill="#111827">ramp-school v3</text>
+          <text x="752" y="479" font-size="11" fill="#111827">house</text>
+        </svg>
+        <figcaption><span class="fig-label">Figure 1</span>Screen layout. The table and its side panel keep the classic 4:3 composition. The table fills about two thirds of that block, with the flippers at the bottom and the shooter lane on the right edge. The dashed piece is a hologram that beams in, and the gold dots are lamps. The side panel holds, from top to bottom, the title plate, ball number, large score readout, two message boxes and clock. The chat panel is a third column on the right, and it can be collapsed. It holds the chat with the cogent, the notice of a new table program, and the list of table programs.</figcaption>
+      </figure>
+      <p>One fixed camera looks from the player's end, slightly above. The whole table is always visible, with no scrolling or camera moves (Figure 1). The game renders at modern resolution and scales to fit.</p>
+      <p>The table and its side panel keep the classic 4:3 composition: the table takes about two thirds and the side panel one third. The chat panel is a third column to the right of that block. It can be collapsed, and on a narrow screen it becomes a drawer.</p>
+      <p>The playfield is a deep navy and purple starfield with chrome rails and glowing lamps. The
+      finish is soft, airbrushed and slightly dithered, as if from a 256-colour pre-rendered sprite.
+      Polyworld's normal look is toon-shaded low-poly, so this needs its own material and lighting treatment <a href="#appendix-g">(Appendix G)</a>.</p>
+      <p>Because the table changes, the playfield artwork is a generic starfield, and component identity
+      comes from the pieces themselves. Lamps are the main way the rules talk to the Flipper player.</p>
+      <p>Sound is short sampled effects from a fixed library, plus optional looping music that is off by
+      default. Sounds come from CC0 packs and CC0 recordings of real machines <a href="#appendix-f">(Appendix F)</a>. Sound never affects the game, because it comes after what is drawn.<sup class="ref"><a href="#src-9" title="polyworld docs/audio.md">9</a></sup></p>
+      <p>Replays show the same view. Text from Arena programs is limited in characters and length <a href="#appendix-c">(Appendix C)</a>. Only the person whose cogent wrote the text sees it.</p>
+    </details>
+  </section>
+
+  <!-- ============ 9 ============ -->
+  <section id="scoring">
+    <details class="fold" open>
+      <summary><h2>9 · Scoring</h2></summary>
+      <ul class="key-points">
+        <li>All score comes from FSM nodes, the Arena player's rules.</li>
+        <li>The Arena player has no score yet, and the game has no ranking.</li>
+      </ul>
+      <p>The table awards nothing by itself, so an Arena program with no rules gives a score of 0.</p>
+      <p>The Flipper score is the sum of score changes. Rules can add or subtract. One change is at most 1,000,000 in size. The Flipper score
+      never goes below 0.</p>
+      <p>The Arena player has no score yet. How to score the Arena player is undecided, and the page shows only the Flipper score. Because the Arena player sets every reward, scores from different table programs are not meant to be compared. The game has no ranking.</p>
+    </details>
+  </section>
+
+  <!-- ============ 10 ============ -->
+  <section id="alternatives">
+    <details class="fold" open>
+      <summary><h2>10 · Alternatives considered</h2></summary>
+      <ul class="key-points">
+        <li>The game runs in the browser, not on a server.</li>
+        <li>The cogent sends programs and does not control the table live.</li>
+      </ul>
+      <ol>
+        <li><strong>Built-in scores on components (a bumper is always worth something), or FSM-only scoring.</strong> The design is FSM-only. It matches the request, gives one place where rewards live, and the house rule set provides normal pinball scoring for anyone who wants it. The cost is that an empty rule set is a dull game.</li>
+        <li><strong>When edits can happen.</strong> (a) Instantly, (b) only between balls, or (c) any time, with beam-in delay, edit rate and budget. The design uses (c). Instant
+        edits let the Arena player teleport a wall onto the ball's path with no chance to react, and they
+        break the ball physics. Between-balls-only loses the live "reconfigure at will" idea.</li>
+        <li><strong>Sliding solid pieces, or fade-and-beam-in moves.</strong> The design uses beam-in.
+        Sliding walls can push or crush the ball and are hard to make feel fair.</li>
+        <li><strong>Full 3D ball flight, or a ball always on a surface with three levels.</strong> The
+        design is surface-only. It matches the request (track at three levels), keeps the fixed view
+        readable, and keeps the physics tractable. The cost is no airballs or jumps.</li>
+        <li><strong>A scrolling or free camera, or one fixed view.</strong> The design uses the fixed
+        view, which is the core of the reference look and keeps a changing table readable.</li>
+        <li><strong>Score direct from the Arena script, or only through FSMs.</strong> The design uses only FSMs, and script signals bridge the gap.</li>
+        <li><strong>The game on a server, or the game in the browser.</strong> The design runs the game in the browser. Flipper timing must not wait on a network, and a static site is simpler to host. The cost is that the Arena program runs on the player's machine, so it must be sandboxed. The BASIC virtual machine is that sandbox.</li>
+        <li><strong>Live control of the table by the cogent, or programs from the cogent.</strong> The design uses programs for now. A model cannot decide 12 times per second, and a program keeps playing when the cogent is asleep. The cost is that the cogent only learns between Episodes. Live observation and control stay possible later through the surface messages.</li>
+      </ol>
+    </details>
+  </section>
+
+  <!-- ============ 11 ============ -->
+  <section id="risks">
+    <details class="fold" open>
+      <summary><h2>11 · Risks and validation</h2></summary>
+      <ul class="key-points">
+        <li>Ball physics is new and carries the whole feel of the game.</li>
+        <li>The cogent connection needs Softmax access that an outside site does not have by default.</li>
+      </ul>
+      <p>Risks:</p>
+      <ul>
+        <li>Ball physics is new, must be exact fixed-point maths, and carries the whole feel of the
+        game.</li>
+        <li>The cogent connection depends on Softmax access that an outside site does not have by default. The site's address must be added to Softmax's list of allowed cogent sites. Sign-in gives an account-wide credential that is meant for sites that Softmax controls.<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="metta docs/specs/0152-cogent-sdk.md:44-49,79-82">23</a></sup></li>
+        <li>The "never runs it in the page" rule needs confirmation for a sandboxed BASIC program.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup></li>
+        <li>The policy and surface messages are new in the contract, and no existing page implements them yet.<sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup> The cogent side must also learn the Arena guide.</li>
+        <li>The 1990s pre-rendered look is far from Polyworld's toon style.</li>
+        <li>A changing table can produce unfair or unplayable states. Keep-out zones, beam-in, ball search
+        and the clock are the guards, and they need playtests.</li>
+        <li>No CC0 plunger-spring or spinner sound was found, and no CC0 3D pinball parts exist. Those are made new <a href="#appendix-f">(Appendix F)</a>.</li>
+      </ul>
+      <p>The design works when:</p>
+      <ul>
+        <li>A person can cradle, live-catch and post-pass on the House table. (A post pass bounces the ball off a post to the other flipper.)</li>
+        <li>A 20-line BASIC Arena program can place a bumper and make it score.</li>
+        <li>The quest in Figure 2 can be written, and it reads clearly from lamps and messages alone.</li>
+        <li>A signed-in person asks the cogent for a change in chat, and the next Episode plays on the changed table.</li>
+        <li>A replay of an Episode matches the original.</li>
+      </ul>
+    </details>
+  </section>
+
+  <!-- ============ Appendices ============ -->
+  <section id="appendix-a" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix A ·</span> Component catalogue</h2></summary>
+      <p>Every component also has a position, a rotation (any angle), a size, a level, an optional group tag, and type-specific settings (kick strength, hold time, lamp colour). Events for most parts come from pinball usage<sup class="ref"><a href="#src-11" title="Glossary of pinball terms — https://en.wikipedia.org/wiki/Glossary_of_pinball_terms">11</a></sup><sup class="ref"><a href="#src-12" title="PinWiki glossary — https://pinwiki.com/wiki/index.php/Glossary">12</a></sup>.</p>
+      <table>
+        <thead>
+          <tr><th>Component</th><th>What it does</th><th>Events</th><th>Adjustable</th><th>Cost</th></tr>
+        </thead>
+        <tbody>
+          <tr><th colspan="5">Bumpers</th></tr>
+          <tr><td>Pop bumper</td><td>Kicks the ball away when touched</td><td>hit (strength)</td><td>size, kick strength, lamp</td><td>4</td></tr>
+          <tr><td>Passive bumper</td><td>Rubber-ringed post, bounces only</td><td>hit</td><td>size</td><td>2</td></tr>
+          <tr><td>Slingshot</td><td>Triangular kicker, slings the ball off its long face</td><td>hit</td><td>size, kick strength</td><td>3</td></tr>
+          <tr><th colspan="5">Targets</th></tr>
+          <tr><td>Standup target</td><td>Upright target that stays up</td><td>hit (strength)</td><td>size, lamp</td><td>2</td></tr>
+          <tr><td>Drop target</td><td>Drops when hit. Stays down until reset. A group tag makes a bank</td><td>drop, bank complete, reset</td><td>size</td><td>2</td></tr>
+          <tr><td>Toggle target</td><td>Flips between two faces on each hit</td><td>flip (new face)</td><td>size, lamp</td><td>2</td></tr>
+          <tr><td>Spinner</td><td>Flag that spins as the ball passes. One event per turn</td><td>spin</td><td>size</td><td>2</td></tr>
+          <tr><td>Rollover switch</td><td>Flat switch the ball rolls over. Lane or button style</td><td>rollover</td><td>size, lamp</td><td>1</td></tr>
+          <tr><td>Captive ball</td><td>A trapped ball the game ball knocks into a switch</td><td>hit (strength)</td><td>lane length</td><td>3</td></tr>
+          <tr><th colspan="5">Holes and launchers</th></tr>
+          <tr><td>Kick-out hole (saucer)</td><td>Holds the ball in view, then ejects it</td><td>captured, released</td><td>eject direction, strength, hold time</td><td>4</td></tr>
+          <tr><td>Scoop and subway</td><td>Swallows the ball and returns it from a paired exit</td><td>captured, released</td><td>exit, travel time, eject strength</td><td>5</td></tr>
+          <tr><td>Ball lock</td><td>Holds a ball until a rule releases it</td><td>locked, released</td><td>capacity</td><td>5</td></tr>
+          <tr><td>Kicker (launcher)</td><td>Fires the ball in a set direction when touched or on command</td><td>fired</td><td>direction, strength</td><td>4</td></tr>
+          <tr><td>Kickback</td><td>Lane kicker that fires only while lit</td><td>fired, used up, relit</td><td>strength</td><td>3</td></tr>
+          <tr><th colspan="5">Magnets</th></tr>
+          <tr><td>Magnet</td><td>Attracts, repels or holds the ball within a radius. Rules can switch it</td><td>grabbed, released</td><td>mode, strength, radius, on/off</td><td>6</td></tr>
+          <tr><th colspan="5">Flow control</th></tr>
+          <tr><td>One-way gate</td><td>Lets the ball through in one direction</td><td>passed</td><td>size</td><td>2</td></tr>
+          <tr><td>Diverter</td><td>Guide that switches between two positions</td><td>passed, switched</td><td>size, position</td><td>3</td></tr>
+          <tr><td>Up-post</td><td>Post that rises from or sinks into the table</td><td>raised, lowered</td><td>size</td><td>2</td></tr>
+          <tr><td>Wall / curved guide</td><td>Steers the ball</td><td>none</td><td>length, curve, bounce (rubber or dead)</td><td>1</td></tr>
+          <tr><td>Rubber post</td><td>Small bouncy peg</td><td>hit</td><td>size</td><td>1</td></tr>
+          <tr><th colspan="5">Track</th></tr>
+          <tr><td>Mouth piece</td><td>Entry or exit of a track. A width at each end</td><td>track entered</td><td>width A, width B, level</td><td>2</td></tr>
+          <tr><td>Track curve</td><td>Connects two mouths. Lane, ramp or rail</td><td>track completed (in at one mouth, out at the other), track failed (rolled back)</td><td>control points</td><td>3</td></tr>
+          <tr><th colspan="5">Lights and text</th></tr>
+          <tr><td>Insert (lamp)</td><td>Light under the playfield. No collision</td><td>none</td><td>colour, off / on / flashing</td><td>0</td></tr>
+          <tr><td>Flasher</td><td>Bright light pulsed for effect</td><td>none</td><td>colour</td><td>0</td></tr>
+          <tr><td>Floating text</td><td>Short text hovering over a spot</td><td>none</td><td>text, colour</td><td>0</td></tr>
+        </tbody>
+      </table>
+      <p>The costs are starting values for playtest. The default table total is 100.</p>
+    </details>
+  </section>
+
+  <section id="appendix-b" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix B ·</span> Event list</h2></summary>
+      <p>An edge can name any component event from <a href="#appendix-a">Appendix A</a>, or one of these
+      table events:</p>
+      <table>
+        <thead>
+          <tr><th>Group</th><th>Events</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Flippers</td><td>flipper up, flipper down, flipper fully raised (left or right)</td></tr>
+          <tr><td>Plunger</td><td>plunger pulled, ball launched</td></tr>
+          <tr><td>Nudge</td><td>nudge, tilt warning, tilt</td></tr>
+          <tr><td>Balls</td><td>ball drained, ball saved, ball added, ball count changed, ball changed level</td></tr>
+          <tr><td>Edits</td><td>component created, component removed, edit rejected</td></tr>
+          <tr><td>Signals</td><td>FSM signal, script signal</td></tr>
+          <tr><td>Time</td><td>timeout in node, clock thresholds</td></tr>
+          <tr><td>Episode</td><td>build phase ended, Episode ending</td></tr>
+          <tr><td>Programs</td><td>table program loaded</td></tr>
+        </tbody>
+      </table>
+    </details>
+  </section>
+
+  <section id="appendix-c" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix C ·</span> Default limits and values</h2></summary>
+      <p>These values are defaults. The editing limits are table settings that can be changed per table.</p>
+      <table>
+        <thead>
+          <tr><th>Item</th><th>Default value</th><th>Context</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Playfield</td><td>520 x 1080 units</td><td>1 unit = 1 mm, about 20 x 42 in</td></tr>
+          <tr><td>Ball diameter</td><td>27 units</td><td>A 1-1/16 in steel ball</td></tr>
+          <tr><td>Slope</td><td>6.5 degrees</td><td>Toward the player</td></tr>
+          <tr><td>Balls per Episode</td><td>3</td><td>The Episode ends when the third ball drains</td></tr>
+          <tr><td>Balls in play</td><td>6 maximum</td><td>Multiball</td></tr>
+          <tr><td>Clock</td><td>8 minutes</td><td>Guards against a table that never drains</td></tr>
+          <tr><td>Build phase</td><td>10 s of game time</td><td>Before the first ball</td></tr>
+          <tr><td>Beam-in</td><td>0.5 s</td><td>Hologram time before a piece is solid</td></tr>
+          <tr><td>Edit rate</td><td>4 per second</td><td>During play. The build phase has no rate limit</td></tr>
+          <tr><td>Build budget</td><td>100</td><td>Total of piece costs on the table</td></tr>
+          <tr><td>Pieces</td><td>128 maximum</td><td>Inside the build budget. The cap counts the free pieces</td></tr>
+          <tr><td>Size range</td><td>50%–200%</td><td>Of the normal size of the component</td></tr>
+          <tr><td>FSMs</td><td>32 maximum</td><td>Active at once</td></tr>
+          <tr><td>Nodes per FSM</td><td>1 initial + 63</td><td>64 nodes in total</td></tr>
+          <tr><td>Edges per FSM</td><td>64</td><td>Maximum</td></tr>
+          <tr><td>Edge count</td><td>1–255</td><td>The "on the Nth hit" value of an edge</td></tr>
+          <tr><td>Signals</td><td>16 FSM + 16 script</td><td>Signals that FSMs can listen for</td></tr>
+          <tr><td>Text</td><td>40 characters</td><td>Text from Arena scripts: capitals, digits and basic punctuation only</td></tr>
+          <tr><td>Score change per node</td><td>Up to 1,000,000</td><td>Add or subtract. The Flipper score floor is 0</td></tr>
+          <tr><td>Sound library</td><td>About 32 cues</td><td>Fixed library that FSM nodes pick from</td></tr>
+          <tr><td>Tilt</td><td>After 2 warnings</td><td>Flippers go dead until the ball drains</td></tr>
+          <tr><td>Flipper decisions</td><td>60 per second</td><td>Every second simulation step</td></tr>
+          <tr><td>Arena decisions</td><td>12 per second</td><td>Every tenth simulation step</td></tr>
+          <tr><td>Simulation</td><td>120 steps per second</td><td>A flipper press takes effect within about 8 ms</td></tr>
+          <tr><td>Arena program size</td><td>256 KiB</td><td>The contract allows up to 1,000,000 characters. Larger programs are refused</td></tr>
+          <tr><td>Stored table programs</td><td>16</td><td>Kept in the browser</td></tr>
+        </tbody>
+      </table>
+      <p>The BASIC budgets are not set yet. They will come from existing Polyworld games, which use
+      64–256 KiB of source, 1–8 MiB of memory and 100,000–300,000 instructions per decision<sup class="ref"><a href="#src-1" title="softmax-universe/polyworld at commit be1706dc (2026-11-16): README, src/polyworld/configs.nim, src/polyworld/bodies.nim — https://github.com/softmax-universe/polyworld">1</a></sup>.</p>
+    </details>
+  </section>
+
+  <section id="appendix-d" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix D ·</span> AIDE interface compliance</h2></summary>
+      <p>The page is an AIDE frontend<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup>. It uses Softmax's client library for the wire format where it can<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup>. The table gives what the page must do.</p>
+      <table>
+        <thead>
+          <tr><th>Rule</th><th>What the page does</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Connection</td><td>Secure WebSocket to the workspace's frontend endpoint, subprotocol <code>aide.1.0.0</code>. Reads the first frame for its connection id and message size limit (1 MiB).</td></tr>
+          <tr><td>Envelopes</td><td>JSON-RPC 2.0, one object per frame, UUID request ids, no batches. Ignores unknown notifications and tolerates missing optional fields.</td></tr>
+          <tr><td>Session</td><td><code>session.open</code> with workspace scope and client <code>{id: "pinball-arena", kind: "web", guide: "pinball-arena"}</code>.</td></tr>
+          <tr><td>Chat (required minimum)</td><td><code>chat.send</code>, <code>chat.history</code>, <code>chat.events</code>, <code>state.get</code> / <code>state.list</code>, <code>chat.cancel</code>. Shows queued, running, waiting, failed and interrupted requests with the wording the contract gives.</td></tr>
+          <tr><td>Reads are authoritative</td><td>Notifications are hints. After a reload or reconnect the page reads the session, then history, then events for each open request from the last cursor. No keepalive reads.</td></tr>
+          <tr><td>Presence</td><td>On <code>aide.presence</code>, rereads open requests.</td></tr>
+          <tr><td>Questions and approvals</td><td>Shows <code>clarification.request</code> in the chat panel and answers with <code>clarification.response</code>. Shows pending approvals and answers with <code>input.respond</code> (once or deny).</td></tr>
+          <tr><td><code>policy.create</code></td><td>Stores and deploys the program under its name, returns <code>{name, version: 1}</code>. Returns <code>conflict</code> if the name exists, <code>too_large</code> over the size limit, <code>unsupported</code> if it cannot deploy. The person is not asked to approve.</td></tr>
+          <tr><td><code>policy.update</code></td><td>Replaces a stored program, returns the next version. Returns <code>not_found</code> for an unknown name.</td></tr>
+          <tr><td>When a program takes effect</td><td>The program text says when: next Episode (the default), next ball, or at once. The policy messages carry only a name and the text, so the choice is a comment directive on the first line of the BASIC source.</td></tr>
+          <tr><td>Policy outcomes</td><td>A program that fails to compile or fails while running is reported in the next <code>surface.event</code>, because the reply only confirms deployment.</td></tr>
+          <tr><td><code>surface.event</code></td><td>One summary per Episode (and one when a program fails), never one per table event, to stay far below the limit of 128 pending requests.</td></tr>
+          <tr><td><code>surface.act</code>, <code>browser.snapshot</code>, <code>browser.act</code></td><td>Returns <code>unsupported</code> for now. The game is a canvas and exposes no page structure. <code>surface.act</code>, with finer <code>surface.event</code> messages, is the planned route for live observation and control by the cogent later.</td></tr>
+          <tr><td>Never replayed</td><td>Policy requests and questions are tied to one connection and are not replayed after a reconnect.</td></tr>
+          <tr><td>Refusals</td><td>Does not retry an <code>unsupported</code> request unchanged. Retries an uncertain state-changing request with the same id.</td></tr>
+          <tr><td>Guide</td><td>The Arena BASIC guide goes with each chat message in the <code>instructions</code> field (limit 64,000 characters).</td></tr>
+        </tbody>
+      </table>
+      <p>One rule needs a reading. The contract says that a page deploys a policy and "never runs it in the page". The game runs the program inside its BASIC virtual machine, which has no access to the page, its storage, its cookies or the network. The owners of the contract must confirm this reading.</p>
+    </details>
+  </section>
+
+  <section id="appendix-e" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix E ·</span> Hosting and platform facts</h2></summary>
+      <p>The design relies on these hosting and platform facts:</p>
+      <ul>
+        <li><strong>Hosting.</strong> A public site on Vercel. The game is a static browser build of the Polyworld fork (WebAssembly). A small server part handles Softmax sign-in and passes the cogent connection through, because a browser cannot attach the sign-in credential to a WebSocket by itself<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup>. Vercel functions support WebSockets and close them when the function reaches its time limit. The page thus reconnects and rereads, as the contract already requires<sup class="ref"><a href="#src-24" title="Vercel Functions WebSocket documentation — https://vercel.com/docs/functions/websockets">24</a></sup>.</li>
+        <li><strong>Softmax side.</strong> The site's address must be on Softmax's list of allowed cogent sites. The credential is account-wide and long-lived, and it is kept in an encrypted cookie that page code cannot read<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="metta docs/specs/0152-cogent-sdk.md:44-49,79-82">23</a></sup>.</li>
+        <li><strong>Signed-out play.</strong> It needs none of this.</li>
+        <li><strong>Polyworld.</strong> A Nim engine with low-poly 3D that runs native and in the browser.
+        Replays re-simulate from recorded actions and check a state hash each tick, so the simulation must
+        be exact<sup class="ref"><a href="#src-1" title="softmax-universe/polyworld at commit be1706dc (2026-11-16): README, src/polyworld/configs.nim, src/polyworld/bodies.nim — https://github.com/softmax-universe/polyworld">1</a></sup>. Read at commit <code>be1706dc</code>. The game is a standalone fork, as Paintbot is.</li>
+        <li><strong>Bassy BASIC.</strong> The BASIC virtual machine that every Polyworld game uses: a QBasic-like dialect with integer and fixed-point numbers. The script runs once per decision, its variables persist, and each decision has a fixed instruction budget. The game provides the observation records and the action calls. No floats, and no built-in maths or random numbers (the game
+        supplies them). PRINT goes to a private per-seat log<sup class="ref"><a href="#src-2" title="treeform/bassy README — https://github.com/treeform/bassy">2</a></sup>.</li>
+        <li><strong>Gamepad.</strong> The paddy library, with native and browser back ends, under the MIT licence<sup class="ref"><a href="#src-19" title="treeform/paddy README — https://github.com/treeform/paddy">19</a></sup>.</li>
+        <li><strong>Audio.</strong> Sound follows what is drawn and never affects the game<sup class="ref"><a href="#src-9" title="polyworld docs/audio.md">9</a></sup>.</li>
+        <li><strong>Contract versions read.</strong> AIDE 1.0.0 at metta commit <code>2519057c1e</code>.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="appendix-f" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix F ·</span> Candidate free assets</h2></summary>
+      <p>These assets are candidates. CC0 is a public-domain dedication, and SIL OFL is an open font licence.</p>
+      <table>
+        <thead>
+          <tr><th>Use</th><th>Asset</th><th>Author</th><th>Licence</th><th>Link</th></tr>
+        </thead>
+        <tbody>
+          <tr><th colspan="5">Sound</th></tr>
+          <tr><td>Sci-fi sweeps, beam-in, kicker thumps</td><td>Sci-fi Sounds</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/sci-fi-sounds">https://kenney.nl/assets/sci-fi-sounds</a></td></tr>
+          <tr><td>Bumper pings, lamp bleeps, bonus count</td><td>Digital Audio</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/digital-audio">https://kenney.nl/assets/digital-audio</a></td></tr>
+          <tr><td>Target thunks, ball on metal</td><td>Impact Sounds</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/impact-sounds">https://kenney.nl/assets/impact-sounds</a></td></tr>
+          <tr><td>Menu and panel sounds</td><td>Interface Sounds</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/interface-sounds">https://kenney.nl/assets/interface-sounds</a></td></tr>
+          <tr><td>Jackpot and game-over stingers</td><td>Music Jingles</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/music-jingles">https://kenney.nl/assets/music-jingles</a></td></tr>
+          <tr><td>Flipper clacks (real 1977 machine)</td><td>pinball-flipper hits</td><td>schafferdavid</td><td>CC0</td><td><a href="https://freesound.org/people/schafferdavid/sounds/450270/">https://freesound.org/people/schafferdavid/sounds/450270/</a></td></tr>
+          <tr><td>Bumper pops, bells, drain (real machine)</td><td>pinball-full game</td><td>schafferdavid</td><td>CC0</td><td><a href="https://freesound.org/s/450269">https://freesound.org/s/450269</a></td></tr>
+          <tr><td>Ball roll, ball in hole</td><td>Ball on table, Ball in hole</td><td>NeatoEnt</td><td>CC0</td><td><a href="https://freesound.org/people/NeatoEnt/sounds/458137/">https://freesound.org/people/NeatoEnt/sounds/458137/</a></td></tr>
+          <tr><td>Kicker solenoid</td><td>12 Volt Solenoid Clicks</td><td>shdwtek</td><td>CC0</td><td><a href="https://freesound.org/people/shdwtek/sounds/679204/">https://freesound.org/people/shdwtek/sounds/679204/</a></td></tr>
+          <tr><td>Music loop candidates</td><td>Space Echo; A start to space</td><td>Centurion_of_war</td><td>CC0, not yet confirmed on the asset page</td><td><a href="https://opengameart.org/content/space-echo">https://opengameart.org/content/space-echo</a></td></tr>
+          <tr><th colspan="5">Art</th></tr>
+          <tr><td>Navy and purple nebula backdrops</td><td>Seamless Space Backgrounds</td><td>Screaming Brain Studios</td><td>CC0</td><td><a href="https://screamingbrainstudios.itch.io/seamless-space-backgrounds">https://screamingbrainstudios.itch.io/seamless-space-backgrounds</a></td></tr>
+          <tr><td>Rails, domes, pipes for table parts</td><td>Space Kit</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/space-kit">https://kenney.nl/assets/space-kit</a></td></tr>
+          <tr><td>Backdrop planets</td><td>Planets</td><td>Kenney</td><td>CC0</td><td><a href="https://kenney.nl/assets/planets">https://kenney.nl/assets/planets</a></td></tr>
+          <tr><td>Planets, ships, props as toys</td><td>Ultimate Space Kit</td><td>Quaternius</td><td>CC0</td><td><a href="https://quaternius.com/packs/ultimatespacekit.html">https://quaternius.com/packs/ultimatespacekit.html</a></td></tr>
+          <tr><td>Chrome, brushed metal, plastic materials</td><td>ambientCG materials</td><td>ambientCG</td><td>CC0</td><td><a href="https://docs.ambientcg.com/license/">https://docs.ambientcg.com/license/</a></td></tr>
+          <tr><td>Studio lighting for chrome reflections</td><td>Poly Haven HDRIs</td><td>Poly Haven</td><td>CC0</td><td><a href="https://polyhaven.com/license">https://polyhaven.com/license</a></td></tr>
+          <tr><th colspan="5">Fonts</th></tr>
+          <tr><td>Segment score display</td><td>DSEG</td><td>keshikan</td><td>SIL OFL 1.1</td><td><a href="https://github.com/keshikan/DSEG">https://github.com/keshikan/DSEG</a></td></tr>
+          <tr><td>Dot-matrix messages</td><td>Doto</td><td>oliverlalan</td><td>SIL OFL 1.1</td><td><a href="https://github.com/oliverlalan/Doto">https://github.com/oliverlalan/Doto</a></td></tr>
+          <tr><td>Capital status text</td><td>Orbitron</td><td>Google Fonts</td><td>SIL OFL</td><td><a href="https://github.com/google/fonts/tree/main/ofl/orbitron">https://github.com/google/fonts/tree/main/ofl/orbitron</a></td></tr>
+        </tbody>
+      </table>
+      <ul>
+        <li><strong>Gaps.</strong> No CC0 plunger-spring or spinner sound was found. Cut them from the real-machine recording or synthesise them. No CC0 3D pinball parts exist. Flippers, bumpers and rails are modelled or built from kit pieces.</li>
+        <li><strong>Licence keeping.</strong> CC0 asks for nothing, but every asset goes in the licence record with name, author, link, licence and date fetched, because pages change. OFL fonts ship with their licence text.</li>
+        <li><strong>Not used.</strong> Anything CC-BY-NC or CC-BY-SA (the detailed "pinball-parts" Blender set is CC BY-SA). "Royalty-free" packs that forbid redistribution of raw files (Sonniss, Pixabay). Anything taken from a commercial game. One CC0-labelled Freesound clip is derived from the reference game and is excluded.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="appendix-g" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix G ·</span> Detail lists</h2></summary>
+      <p>These lists give the full detail behind the short forms in the body.</p>
+
+      <h3>Fixed parts and keep-out zones</h3>
+      <ul>
+        <li><strong>Fixed parts that the Arena player cannot change:</strong> the outer walls and top
+        arch, the two flippers, the inlanes and outlanes (the lanes beside the flippers), the drain, the
+        apron (the cover below the flippers), and the shooter lane with its plunger on the right.</li>
+        <li><strong>Keep-out zones, where nothing can be built:</strong> the area that the flippers sweep
+        plus a margin, the drain mouth, and the shooter lane.</li>
+      </ul>
+
+      <h3>Script failure</h3>
+      <ul>
+        <li>If the Arena script fails or overruns its budget, the table freezes as it is, and the existing rules keep running. The game reports the failure to the cogent.</li>
+        <li>If a Flipper script fails, the flippers go limp.</li>
+      </ul>
+
+      <h3>Stuck balls</h3>
+      <ul>
+        <li>If a ball produces no event and barely moves for several seconds, the table runs a "ball
+        search": it fires kickers and pulses magnets. If that fails, the ball is moved back to the
+        plunger.</li>
+      </ul>
+
+      <h3>Ball feel and controls</h3>
+      <ul>
+        <li><strong>Ball:</strong> it accelerates down the slope, rebounds crisply off rubber, dies on
+        dead surfaces, and can spin off a flipper tip.</li>
+        <li><strong>Flippers:</strong> flip (fast full stroke), hold (stays up while pressed), release
+        (drops).</li>
+        <li><strong>Techniques that must work</strong> (source 11 and research notes)<sup class="ref"><a href="#src-11" title="Glossary of pinball terms — https://en.wikipedia.org/wiki/Glossary_of_pinball_terms">11</a></sup><strong>:</strong>
+        cradle (a ball resting on a held flipper), live catch (a timed flip that stops the ball dead),
+        drop catch (a timed release that does the same), post pass (a bounce off a post that passes the
+        ball to the other flipper).</li>
+        <li><strong>Plunger:</strong> hold to pull back, release to fire. The pull length sets the launch
+        strength.</li>
+        <li><strong>Nudge:</strong> left, right, up. Each nudge shoves the balls slightly. Two warnings,
+        then tilt: the flippers go dead until the ball drains. Tilt is an event that the Arena player's
+        rules can react to.</li>
+      </ul>
+
+      <h3>Track rules</h3>
+      <ul>
+        <li>The curve between two mouths is a smooth path shaped by control points. Its width blends from
+        one mouth's throat width to the other's.</li>
+        <li>A track between mouths on different levels is a ramp. The ball needs enough speed to climb it
+        and rolls back if it does not.</li>
+        <li>Tracks on different levels may cross. Tracks on the same level may not overlap.</li>
+        <li>A ball on a raised track stays on it until it leaves through a mouth. Dropping out of a raised
+        mouth lands the ball on the level below at that spot.</li>
+        <li>Events: track entered, track completed (in at one mouth, out at the other), track failed
+        (rolled back).</li>
+      </ul>
+
+      <h3>Rule evaluation order</h3>
+      <ul>
+        <li>When one event matches several FSMs, each advances once, in the order the FSMs were
+        created.</li>
+        <li>Inside one FSM the first matching edge wins.</li>
+        <li>Signals raised by a node are delivered on the next tick, so rules cannot loop within one
+        tick.</li>
+        <li>A node with no outgoing edges returns to the initial node straight after its results run. A node marked final stops that FSM.</li>
+        <li>Reconfigurations from a node follow the same editing rules as direct edits (beam-in, keep-out, budget). One that cannot be applied is skipped and logged.</li>
+        <li>An FSM has one initial node, up to 63 other nodes, and up to 64 edges. The proposed limit is 32 FSMs at once.</li>
+      </ul>
+
+      <h3>Result kinds of an FSM node</h3>
+      <ul>
+        <li>Score change.</li>
+        <li>Sound effect, chosen from a fixed library.</li>
+        <li>Visuals from a fixed library: set a lamp, pulse flashers, particle burst at a component.</li>
+        <li>On-screen text: a short message in the side panel or floating at a component.</li>
+        <li>Arena reconfiguration: create, move, resize or delete components, or change a setting (open a
+        gate, flip a diverter, switch a magnet, raise a post, reset a drop-target bank).</li>
+        <li>Ball actions: add a ball (multiball), release a held ball, start a ball save, award an extra
+        ball.</li>
+        <li>Raise a signal that other FSMs can listen for, which lets rules be composed.</li>
+      </ul>
+
+      <h3>The quest example of Figure 2</h3>
+      <ul>
+        <li>From the initial node, the edge "drop target in bank A drops, count 3" enters "Bank down":
+        light the ramp lamp, text RAMP IS LIT.</li>
+        <li>From "Bank down", the edge "track R completed" enters "Jackpot": +50,000 score, flashers,
+        fanfare, reset bank A. Then back to the initial node.</li>
+        <li>From "Bank down", the edge "timeout 20 s" enters "Missed": lamp off, text TOO SLOW, reset
+        bank A. Then back to the initial node.</li>
+      </ul>
+
+      <h3>Flipper player</h3>
+      <ul>
+        <li><strong>Sees:</strong> every ball's position, speed and level. Both flippers' angles. The
+        plunger state. Every component (type, place, size, rotation, lamp state, hologram or solid). The
+        current messages. Its score, each score change with the component that caused it, the ball
+        number, the clock and the tilt warnings.</li>
+        <li><strong>Does not see:</strong> the FSMs themselves.</li>
+        <li><strong>Does:</strong> left flipper up or down, right flipper up or down, plunger pull or
+        release, nudge left, right or up.</li>
+      </ul>
+
+      <h3>Arena player</h3>
+      <ul>
+        <li><strong>Sees:</strong> the whole arena state (every component and setting, budget left).
+        Every ball's position, speed and level. The flippers' actuation state (up, down, moving, angle).
+        The plunger state. Every FSM's current node. The score, the ball number and the clock. Which of
+        its edits were rejected.</li>
+        <li><strong>Does:</strong> create, move, rotate, resize and delete components. Change settings.
+        Create and delete FSMs, add nodes and edges, reset an FSM. Raise script signals.</li>
+      </ul>
+
+      <h3>Human controls</h3>
+      <table>
+        <thead>
+          <tr><th>Action</th><th>Keyboard</th><th>Gamepad</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Left flipper</td><td>Z (Left Shift also works)</td><td>Left trigger or bumper</td></tr>
+          <tr><td>Right flipper</td><td>/ (Right Shift also works)</td><td>Right trigger or bumper</td></tr>
+          <tr><td>Plunger</td><td>Space</td><td>Right stick pulled down and released</td></tr>
+          <tr><td>Nudge left</td><td>X</td><td>Left stick flick</td></tr>
+          <tr><td>Nudge right</td><td>.</td><td>Left stick flick</td></tr>
+          <tr><td>Nudge up</td><td>Up</td><td>Left stick flick</td></tr>
+        </tbody>
+      </table>
+      <p>Gamepad input comes from the paddy library<sup class="ref"><a href="#src-19" title="treeform/paddy README — https://github.com/treeform/paddy">19</a></sup>. People play in the browser.</p>
+
+      <h3>Look and sound</h3>
+      <ul>
+        <li><strong>Side panel, top to bottom:</strong> title plate, ball number, large score readout, two
+        message boxes (upper: current quest text, lower: last award or status), clock. Messages are short,
+        capitals, terse ("RAMP IS LIT", "JACKPOT 50,000").</li>
+        <li><strong>View:</strong> the classic 4:3 composition, with the table on the left (about two
+        thirds) and the side panel on the right.</li>
+        <li><strong>Palette and materials:</strong> a deep navy and purple starfield playfield with
+        planets. Chrome rails and wireforms. Grey metal and smoked-plastic ramps. Glowing lamps in yellow,
+        red, green and blue. A chrome ball. Polyworld's normal look is toon-shaded low-poly<sup class="ref"><a href="#src-1" title="softmax-universe/polyworld at commit be1706dc (2026-11-16): README, src/polyworld/configs.nim, src/polyworld/bodies.nim — https://github.com/softmax-universe/polyworld">1</a></sup>.</li>
+        <li><strong>Edits:</strong> beam-in holograms are cyan wireframe ghosts with a short shimmer, and fade-outs dissolve. This fits the theme and makes edits readable.</li>
+        <li><strong>Levels:</strong> they read by height, cast shadow and material. Level 2 track is
+        chrome wire, and level 3 track is tinted clear plastic. Balls on raised track are drawn above the
+        playfield parts that they pass over.</li>
+        <li><strong>Sound effects:</strong> spring-and-whoosh launch, bright bumper pings, mechanical
+        flipper clacks, target thunks, sci-fi sweeps for holes, beam-in and jackpots. The fixed sound
+        library for FSM nodes is proposed at about 32 cues.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="appendix-h" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix H ·</span> Notes for the builder</h2></summary>
+      <p>This appendix is for the engineer or coding agent that builds the game. Read the whole document first. The Decision Record (Appendix I) lists what is settled, so do not reopen those points.</p>
+
+      <h3>Who decides what</h3>
+      <ul>
+        <li>The project owner decides how the game looks, feels and behaves. Bring only such questions to the owner.</li>
+        <li>The builder makes every implementation decision. The guidelines are minimalism, simplicity and no over-engineering. Do not ask the owner implementation questions.</li>
+        <li>The numbers in Appendix A and Appendix C are starting values for playtest.</li>
+      </ul>
+
+      <h3>Starting points</h3>
+      <ul>
+        <li><strong>Engine.</strong> Polyworld, <a href="https://github.com/softmax-universe/polyworld">github.com/softmax-universe/polyworld</a>, read at commit <code>be1706dc</code>. Make a standalone fork, as Paintbot did (<code>softmax-universe/paintbot-pw</code>). The smallest full example game is <code>games/heartleaf/</code>. Its <code>bots.nim</code> shows how a game gives observations and actions to a BASIC script (with <code>src/polyworld/policyhosts.nim</code>). Replays are in <code>src/polyworld/tapes.nim</code>, audio rules in <code>docs/audio.md</code>, and the repeatability test in <code>tests/determinism.nim</code>. The browser build uses <code>-d:emscripten</code>.</li>
+        <li><strong>BASIC.</strong> Bassy, <a href="https://github.com/treeform/bassy">github.com/treeform/bassy</a>.</li>
+        <li><strong>Gamepad.</strong> paddy, <a href="https://github.com/treeform/paddy">github.com/treeform/paddy</a>.</li>
+        <li><strong>AIDE contract.</strong> Entry point <a href="https://softmax.com/docs/aide">softmax.com/docs/aide</a>. Version 1.0.0 has the protocol rules, the AsyncAPI specification and example exchanges (<code>protocol.md</code>, <code>asyncapi.json</code> and <code>examples.json</code> under <code>https://softmax.com/docs/static/aide/1.0.0/</code>). Appendix D is the list of what the page must do.</li>
+        <li><strong>Softmax client code</strong> (in the Softmax monorepo, read at commit <code>2519057c1e</code>). The wire client is the package <code>@softmax-universe/aide</code>, published on GitHub Packages. The sign-in flow, the encrypted cookie and the WebSocket pass-through are the server half of the Cogent SDK in <code>packages/softmax-cogent</code> (design in <code>docs/specs/0152-cogent-sdk.md</code>). The allowed sites list is <code>cogentSiteHosts</code> in <code>workspaces/web/web-client/src/features/identity/identity-search.ts</code>.</li>
+        <li><strong>Assets.</strong> Appendix F. Start the licence record with the first asset that is added.</li>
+      </ul>
+
+      <h3>Suggested build order</h3>
+      <ol>
+        <li>Ball physics, flippers, plunger and nudge on a fixed table, with replays that match. This carries the feel of the game and is the largest risk.</li>
+        <li>Components, the editing rules and the build budget.</li>
+        <li>Track and the three levels.</li>
+        <li>FSM rules and their results.</li>
+        <li>The BASIC interfaces for both players, the house Arena script and the demo Flipper script.</li>
+        <li>Look and sound, with the assets and the licence record.</li>
+        <li>The browser build, gamepad input, the public site on Vercel, and signed-out play.</li>
+        <li>The cogent connection, to the list in Appendix D.</li>
+      </ol>
+      <p>Steps 1 to 7 need nothing from Softmax. The acceptance checks are the "design works when" list in section 11.</p>
+
+      <h3>Still to write</h3>
+      <ul>
+        <li>The Arena BASIC guide: the reference that teaches the cogent the observation records, the action calls, the component and event names, and the first-line directive. It must fit in 64,000 characters.</li>
+        <li>The House table layout and its rule set.</li>
+        <li>The exact names and fields of the BASIC interfaces and of the Episode summary.</li>
+        <li>The shape and art of each component.</li>
+      </ul>
+
+      <h3>Needs someone at Softmax</h3>
+      <ul>
+        <li>Add the address of the site to the allowed cogent sites list.</li>
+        <li>Confirm that a program that runs inside the BASIC virtual machine obeys the "never runs it in the page" rule of the contract.</li>
+        <li>Confirm that the cogent side sends <code>policy.create</code> and <code>policy.update</code>, accepts <code>surface.event</code>, and can be given the Arena BASIC guide.</li>
+      </ul>
+
+      <h3>Not verified</h3>
+      <ul>
+        <li>Whether <code>@softmax-universe/aide</code> version 0.2.0 handles the policy and surface messages. They entered the contract on 16 November 2026.</li>
+        <li>How a page registers an agent guide name on the cogent side. The design sends the guide in the <code>instructions</code> field instead.</li>
+        <li>The Cogent SDK server half expects a Node <code>upgrade</code> handler. Whether it fits the WebSocket support of Vercel functions without an adapter is not tested, and the time limit of those sockets is not confirmed.</li>
+        <li>Whether the Bassy revision in use supports <code>TYPE</code> records. Its README and the Paintbot guide disagree.</li>
+        <li>The file formats inside the Kenney packs, and the licence of the two music loops.</li>
+      </ul>
+
+      <h3>Out of scope for now</h3>
+      <ul>
+        <li>A score for the Arena player.</li>
+        <li>What the cogent learns from and when it revises, including a fun rating.</li>
+        <li>A live view or live control of the game for the cogent.</li>
+        <li>Leagues, ranking and comparable scores.</li>
+        <li>A human Arena editor.</li>
+      </ul>
+    </details>
+  </section>
+
+  <section id="decision-record" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix I ·</span> Decision Record</h2></summary>
+      <div class="decision">
+        <span class="decision-label">D1 · Settled</span>
+        <p><strong>Seat names are Flipper player and Arena player.</strong> "Flipper" replaces "paddle" as the correct pinball term.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D2 · Settled</span>
+        <p><strong>Scoring is FSM-only.</strong> Built-in component scores lost because they duplicate the rule system.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D3 · Settled</span>
+        <p><strong>Edits beam in with a delay.</strong> Instant editing and between-balls-only editing lost (see <a href="#alternatives">Alternatives considered</a>, item 2).</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D4 · Settled</span>
+        <p><strong>Pieces never slide.</strong> Sliding lost because it lets walls shove the ball.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D5 · Settled</span>
+        <p><strong>The ball stays on surfaces.</strong> Full 3D flight lost for readability and tractability.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D6 · Settled</span>
+        <p><strong>Fixed single view.</strong> A scrolling camera lost because it breaks the reference look.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D7 · Settled</span>
+        <p><strong>"Flip targets" is read as drop targets plus a toggle target.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D8 · Settled</span>
+        <p><strong>A human Arena editor is out of scope for now.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D9 · Settled</span>
+        <p><strong>The look is "in the style of".</strong> The table and the names are original.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D10 · Settled</span>
+        <p><strong>The game runs at 120 steps per second.</strong> Polyworld's shared 24 ticks per second lost because a press could land up to 42 ms late.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D11 · Answered question (was Q8)</span>
+        <p><strong>The game lives in a standalone fork of Polyworld, as Paintbot does.</strong> A game folder inside the Polyworld repository lost.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D12 · Settled</span>
+        <p><strong>The game is a public website on Vercel, not a Softmax-hosted league Coworld.</strong> Cloudflare was the other candidate.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D13 · Answered question (was Q1, Q2)</span>
+        <p><strong>No league, no ranking, and scores are not made comparable.</strong> The Arena player's aim is to make the Flipper player have fun and improve. How the Arena player is scored is undecided.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D14 · Settled</span>
+        <p><strong>The Arena player is the person's cogent, connected through AIDE, and it sends BASIC programs.</strong> Pod (container) players were dropped with the Softmax hosting.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D15 · Answered question (was Q3)</span>
+        <p><strong>Rules can subtract score.</strong> The Flipper score floor is 0.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D16 · Answered question (was Q4)</span>
+        <p><strong>The Flipper player cannot read the FSMs.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D17 · Answered question (was Q6)</span>
+        <p><strong>Editing limits are configurable table settings with the listed defaults.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D18 · Answered question (was Q7)</span>
+        <p><strong>Level 1 is the playfield.</strong> Levels 2 and 3 are raised.</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D19 · Settled</span>
+        <p><strong>Gamepad input uses the paddy library.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D20 · Settled</span>
+        <p><strong>Art and sound use CC0 assets where they fit, with a licence record.</strong></p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D21 · Settled</span>
+        <p><strong>The Arena program runs in the browser inside the BASIC virtual machine.</strong> A server-run game lost (see <a href="#alternatives">Alternatives considered</a>, item 7).</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D22 · Settled</span>
+        <p><strong>The cogent decides when a new table program takes effect.</strong> The default is the start of the next Episode. The other choices are the next ball and at once. (Was Q9.)</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D23 · Deferred</span>
+        <p><strong>What the cogent learns from, and when it revises, is not designed yet.</strong> The fun rating and automatic revision after each Episode were dropped. The page sends a plain Episode summary, and the work now is to follow the AIDE contract. (Was Q10.)</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D24 · Settled</span>
+        <p><strong>People can play without signing in.</strong> The house Arena script runs the table, and there is no chat. Sign-in first lost. (Was Q11.)</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D25 · Settled</span>
+        <p><strong>The person does not approve each new table program.</strong> The page accepts it and shows a notice. An approval step, and a setting for one, lost. (Was Q12.)</p>
+      </div>
+      <div class="decision">
+        <span class="decision-label">D26 · Settled</span>
+        <p><strong>A live view of the game for the cogent is not ruled out.</strong> It is not built now. The surface messages of the AIDE contract are the likely route.</p>
+      </div>
+    </details>
+  </section>
+
+  <section id="sources" class="appendix">
+    <details class="fold">
+      <summary><h2><span class="appendix-label">Appendix J ·</span> Sources</h2></summary>
+      <ol class="sources">
+        <li id="src-1" value="1"><span class="cite">softmax-universe/polyworld at commit be1706dc (2026-11-16): README, src/polyworld/configs.nim, src/polyworld/bodies.nim</span> — <a href="https://github.com/softmax-universe/polyworld">https://github.com/softmax-universe/polyworld</a></li>
+        <li id="src-2" value="2"><span class="cite">treeform/bassy README</span> — <a href="https://github.com/treeform/bassy">https://github.com/treeform/bassy</a></li>
+        <li id="src-9" value="9"><span class="cite">polyworld docs/audio.md</span></li>
+        <li id="src-11" value="11"><span class="cite">Glossary of pinball terms</span> — <a href="https://en.wikipedia.org/wiki/Glossary_of_pinball_terms">https://en.wikipedia.org/wiki/Glossary_of_pinball_terms</a></li>
+        <li id="src-12" value="12"><span class="cite">PinWiki glossary</span> — <a href="https://pinwiki.com/wiki/index.php/Glossary">https://pinwiki.com/wiki/index.php/Glossary</a></li>
+        <li id="src-13" value="13"><span class="cite">Pinball machine dimensions</span> — <a href="https://www.flippers.be/basics/101_pinball_dimensions.html">https://www.flippers.be/basics/101_pinball_dimensions.html</a></li>
+        <li id="src-14" value="14"><span class="cite">Full Tilt! Pinball</span> — <a href="https://en.wikipedia.org/wiki/Full_Tilt!_Pinball">https://en.wikipedia.org/wiki/Full_Tilt!_Pinball</a></li>
+        <li id="src-15" value="15"><span class="cite">Raymond Chen, The Old New Thing, 2012-12-18</span> — <a href="https://devblogs.microsoft.com/oldnewthing/20121218-00/?p=5803">https://devblogs.microsoft.com/oldnewthing/20121218-00/?p=5803</a></li>
+        <li id="src-19" value="19"><span class="cite">treeform/paddy README</span> — <a href="https://github.com/treeform/paddy">https://github.com/treeform/paddy</a></li>
+        <li id="src-20" value="20"><span class="cite">AIDE interface 1.0.0 protocol rules</span> — <a href="https://softmax.com/docs/static/aide/1.0.0/protocol.md">https://softmax.com/docs/static/aide/1.0.0/protocol.md</a> (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)</li>
+        <li id="src-21" value="21"><span class="cite">AIDE interface 1.0.0 AsyncAPI specification</span> — <a href="https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">https://softmax.com/docs/static/aide/1.0.0/asyncapi.json</a></li>
+        <li id="src-22" value="22"><span class="cite">metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)</span></li>
+        <li id="src-23" value="23"><span class="cite">metta docs/specs/0152-cogent-sdk.md:44-49,79-82</span></li>
+        <li id="src-24" value="24"><span class="cite">Vercel Functions WebSocket documentation</span> — <a href="https://vercel.com/docs/functions/websockets">https://vercel.com/docs/functions/websockets</a></li>
+      </ol>
+    </details>
+  </section>
+
+
+</article>
+
+<!-- ============ DOC-NAV: folds + in-page links (keep; outside DC-COMMENTS) ============
+     Opens any closed fold that contains a link target (TOC, citation, open-question
+     markers, back-links, URL hash), wires Expand/Collapse all, and opens every
+     fold for printing. -->
+<script>
+(() => {
+  'use strict';
+  const doc = document.getElementById('doc');
+  const folds = () => doc.querySelectorAll('details.fold');
+  function reveal(el) {
+    const own = el.querySelector(':scope > details.fold'); // a TOC link targets the <section> around a fold
+    if (own) own.open = true;
+    for (let n = el; n && n !== doc; n = n.parentElement) {
+      if (n.tagName === 'DETAILS') n.open = true;
+    }
+  }
+  function targetOf(hash) {
+    return hash && hash.length > 1 ? document.getElementById(decodeURIComponent(hash.slice(1))) : null;
+  }
+  // Runs before the browser's own jump, so the target is visible when it scrolls.
+  document.addEventListener('click', e => {
+    const a = e.target.closest('a[href^="#"]');
+    if (a) { const t = targetOf(a.getAttribute('href')); if (t) reveal(t); }
+  });
+  function revealHash() {
+    const t = targetOf(location.hash);
+    if (t) { reveal(t); t.scrollIntoView(); }
+  }
+  window.addEventListener('hashchange', revealHash);
+  revealHash();
+  doc.querySelectorAll('[data-fold]').forEach(b => b.addEventListener('click', () => {
+    const open = b.dataset.fold === 'open';
+    folds().forEach(d => { d.open = open; });
+  }));
+  window.addEventListener('beforeprint', () => folds().forEach(d => { d.open = true; }));
+  // Lets the comment sidebar reveal a comment that sits inside a closed fold.
+  window.dcReveal = reveal;
+})();
+</script>
+
+<!-- ================================================================
+     DC-COMMENTS BEGIN — markup + script (copy verbatim; do not modify)
+     ================================================================ -->
+<aside id="dc-sidebar" aria-label="Comments">
+  <h2 class="dc-title">Comments <span id="dc-count"></span></h2>
+  <div class="dc-actions">
+    <button class="dc-btn" id="dc-export">Export JSON</button>
+    <button class="dc-btn" id="dc-copy">Copy JSON</button>
+    <button class="dc-btn" id="dc-import">Import…</button>
+    <input type="file" id="dc-file" accept=".json,application/json" hidden>
+  </div>
+  <div id="dc-status" role="status"></div>
+  <div id="dc-list"><p class="dc-empty">No comments yet. Select text in the document to add one.</p></div>
+</aside>
+<button id="dc-fab" type="button">+ Comment</button>
+<button id="dc-toggle" type="button">Comments</button>
+<!-- Preload slot: a renderer may put a dc-comments/1 `comments` array here (each comment optionally carrying `replies`). Merged by id into the stored comments on load. Leave empty otherwise. -->
+<script id="dc-preload" type="application/json">[
+ {
+  "id": "cmwl013rh0",
+  "text": "Don't worry about scores being comparable for now. The Arena play won't always score 0, I'm just not sure how I want them to be scored yet.",
+  "created": "2026-11-17T18:01:26.093Z",
+  "resolved": true,
+  "exact": "scores are only comparable between Episodes that used the same Arena\n    player",
+  "prefix": " and controls every\n    reward, ",
+  "suffix": ".Q1Q2\n  \n\n  \n    Contents\n    \n ",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The document no longer tries to make scores comparable. The Scoring section now says the Arena player has no score yet and that how to score it is undecided.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0afh71",
+  "text": "Use the paddy Nim library for this",
+  "created": "2026-11-17T18:08:41.179Z",
+  "resolved": true,
+  "exact": "Gamepad support is an addition to Polyworld",
+  "prefix": "ith a keyboard or a gamepad.518 ",
+  "suffix": ".10\n      BASIC scripts run on B",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Gamepad input uses paddy. It has a browser back end (HTML5 Gamepad API) as well as native ones, so it fits the web build.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0b2xz2",
+  "text": "What's the budget and how does it work?",
+  "created": "2026-11-17T18:09:11.591Z",
+  "resolved": true,
+  "exact": "budget left",
+  "prefix": "    SEES\n          Whole arena, ",
+  "suffix": "\n          Balls: place, speed, ",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "The budget caps how much the Arena player can have on the table at once. Each piece type has a cost (wall 1, pop bumper 4, magnet 6; lamps and text are free). Placing a piece spends its cost and deleting it gives the cost back. The table total is 100 by default, and an edit that would go over is rejected. I added a 'Build budget' part to section 4 and a cost column to the component catalogue.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0f0fw4",
+  "text": "Search for CC-0 sounds for this, make sure we keep the license.",
+  "created": "2026-11-17T18:12:14.972Z",
+  "resolved": true,
+  "exact": "Sound is short sampled effects from a fixed library, plus optional looping music that is off by\n      default",
+  "prefix": "lk to the Flipper player.\n      ",
+  "suffix": ". Sound never affects the game, ",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Appendix F lists CC0 sound candidates: five Kenney packs for sci-fi sweeps, pings, thunks and jingles, and CC0 Freesound recordings of a real 1977 machine for flipper clacks and bumper pops. Every asset goes in a licence record with author, link, licence and date fetched. Gap: no CC0 plunger-spring or spinner sound turned up, so those are cut from the real-machine recording or synthesised.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0feyh5",
+  "text": "Look for CC-0 assets for art and sound, and for other free game art",
+  "created": "2026-11-17T18:12:33.785Z",
+  "resolved": true,
+  "exact": "The table, names, art and sounds are original, with no copied layout,\n      mission names or rank names",
+  "prefix": "    general look and feel only. ",
+  "suffix": ". The successor of the reference",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Appendix F adds CC0 art: nebula backdrops (Screaming Brain Studios), Kenney and Quaternius space kits, ambientCG and Poly Haven materials and lighting, plus three open-licence display fonts. No CC0 3D pinball parts exist, so flippers, bumpers and rails are modelled or built from kit pieces. I excluded share-alike, non-commercial and no-redistribution packs.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0ja8q6",
+  "text": "We're actually not interested in making these scores really comparable. Nor will the Arena scores really be comparable directly, since they will depend on the Flipper player.",
+  "created": "2026-11-17T18:15:34.298Z",
+  "resolved": true,
+  "exact": "Flipper scores are only comparable across Episodes with the\n      same Arena player",
+  "prefix": "equences come from this. First, ",
+  "suffix": ", because an Arena script can ha",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The comparability discussion is removed. The Scoring section states that scores from different table programs are not meant to be compared and that the game has no ranking.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0pwsk7",
+  "text": "Is this a restriction of the Softmax leagues or can we make this a setting? In particular, it'd be good to have two leagues here: one of Flipper players and one of Arena players, that get matched together",
+  "created": "2026-11-17T18:20:43.460Z",
+  "resolved": true,
+  "exact": "Second, league\n      seating gives no entrant a reserved seat, so an entrant can be dealt either\n      seat",
+  "prefix": " hand out a billion on a timer. ",
+  "suffix": ".7Q2 With seat 1 fixed at 0, sea",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "From the seating docs I read, it is how the Softmax ladder works today: no entrant has a reserved game slot, and I found no setting for two role-specific leagues matched against each other. I did not dig further because the league is scrapped, and the league material is removed from the document.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl0wr2m9",
+  "text": "Roughly speaking, the goal of the Arena player is to learn how to get the Flipper play to have fun and get better at pinball. Don't think of it as a league coworld, really. In fact, we probably won't even host it on Softmax's infra.",
+  "created": "2026-11-17T18:26:02.638Z",
+  "resolved": true,
+  "exact": "What is the Arena player trying to achieve, and should Episodes be ranked?",
+  "prefix": "tions\n      \n        \n          ",
+  "suffix": "\n          Context The Arena pla",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The Arena player's aim (make the Flipper player have fun and get better) is now in the summary and section 1, and the document no longer treats this as a league Coworld. This question is closed and recorded in the Decision Record.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl10sg110",
+  "text": "I've decided we shouldn't aim to make this a Softmax-hosted, leauge-friendly coworld. Instead, we'll deploy it somewhere publicly accessible. Let's start by building this on Vercel or Cloudflare hosting, probably Vercel? The flipper player will control from that page, the arena player will be hooked up to the AIDE/cogent system hosted on Softmax via the Softmax SDK.",
+  "created": "2026-11-17T18:29:11.041Z",
+  "resolved": true,
+  "exact": "Coworld runtime. A runtime list accepts file, container and human seats\n        together. The game runs file players itself and must limit them. The hosted Episode limit is\n        20 minutes. A pod player uses the standard Coworld player connection. Results need one score per seat, and a seat can carry a role label3456. Read at metta commit\n        440434c06a.",
+  "prefix": "hey are all file-only1.\n        ",
+  "suffix": "\n        Hosted human play. It u",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The game is now a public website on Vercel that runs entirely in the browser. The Arena player is the person's cogent, connected through AIDE: see the new section 7 and Appendix D (compliance list) and Appendix E (hosting). Three things to know: the site's address must be added to Softmax's allowed cogent sites list, sign-in needs a small server part because a browser cannot attach the credential to a WebSocket, and the contract's 'never runs it in the page' rule needs confirming for our sandboxed BASIC.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl12kzo11",
+  "text": "No, and scrap the league idea, honestly. As I note later, we won't make this a league; at least, not yet.",
+  "created": "2026-11-17T18:30:34.692Z",
+  "resolved": true,
+  "exact": "In a league, must one entry be able to play both seats?",
+  "prefix": " \u00a78\n        \n        \n          ",
+  "suffix": "\n          Context Seats are dea",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. League removed. Recorded in the Decision Record.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl1370112",
+  "text": "Yes, but the score floor is 0",
+  "created": "2026-11-17T18:31:03.217Z",
+  "resolved": true,
+  "exact": "Can rules subtract score, and what are the caps?",
+  "prefix": " \u00a78\n        \n        \n          ",
+  "suffix": "\n          Context FSM nodes are",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Rules can add or subtract, and the Flipper score never goes below 0. Recorded in the Decision Record.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl13fe813",
+  "text": "No",
+  "created": "2026-11-17T18:31:14.096Z",
+  "resolved": true,
+  "exact": "Can the Flipper player read the FSMs?",
+  "prefix": " \u00a78\n        \n        \n          ",
+  "suffix": "\n          Context The FSMs are ",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The Flipper player cannot read the FSMs. Recorded in the Decision Record.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl15mms14",
+  "text": "Make these configurable, but go with these defaults for now.",
+  "created": "2026-11-17T18:32:56.788Z",
+  "resolved": true,
+  "exact": "Are the editing limits right?",
+  "prefix": " \u00a76\n        \n        \n          ",
+  "suffix": "\n          Context The limits ar",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The editing limits are table settings with these defaults (Appendix C), and each can be changed per table.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl18vpj15",
+  "text": "(a) is correct",
+  "created": "2026-11-17T18:35:28.519Z",
+  "resolved": true,
+  "exact": "Is the playfield one of the three levels?",
+  "prefix": " \u00a74\n        \n        \n          ",
+  "suffix": "\n          Context \"Three levels",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Level 1 is the playfield and levels 2 and 3 are raised. Recorded in the Decision Record.",
+    "created": "2026-11-17T19:30:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl21c5i0",
+  "text": "Not yet, at least. Eventually it will. Basically, don't rule this out. We'll probably end up using the `surface.*` operations of the API for this.",
+  "created": "2026-11-17T18:57:36.198Z",
+  "resolved": false,
+  "exact": "It does not see the live game",
+  "prefix": " summary to revise the program. ",
+  "suffix": ". It sees these summaries and wh",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Section 7 now says the cogent does not see the live game for now, and that live observation and control stay possible later through surface.event and surface.act. Appendix D marks surface.act as the planned route, and the Decision Record says a live view is not ruled out.",
+    "created": "2026-11-17T21:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl23nej1",
+  "text": "The cogent can decide, with (a) as the default.",
+  "created": "2026-11-17T18:59:24.091Z",
+  "resolved": false,
+  "exact": "When does a new table program take effect?",
+  "prefix": "     \n      \n        \n          ",
+  "suffix": "\n          Context The cogent ca",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The program itself says when it takes effect: next Episode (the default), next ball, or at once. The policy messages carry only a name and text, so the choice is a comment directive on the first line of the BASIC source.",
+    "created": "2026-11-17T21:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl248au2",
+  "text": "Don't worry about this yet. Just focus on making us compliant with the AIDE API; we'll worry about the cogent later.",
+  "created": "2026-11-17T18:59:51.174Z",
+  "resolved": false,
+  "exact": "What does the cogent learn from, and when does it revise?",
+  "prefix": "ion\n        \n        \n          ",
+  "suffix": "\n          Context The aim is fu",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. The fun rating and automatic revision are removed. The page still sends a plain Episode summary through surface.event, and the document says that what the cogent does with it is outside this design.",
+    "created": "2026-11-17T21:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl25gvi3",
+  "text": "Yes, per (a)",
+  "created": "2026-11-17T19:00:48.942Z",
+  "resolved": false,
+  "exact": "Can people play without signing in?",
+  "prefix": "ion\n        \n        \n          ",
+  "suffix": "\n          Context Sign-in conne",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. Signed-out play with the house Arena script and no chat is now settled.",
+    "created": "2026-11-17T21:00:00.000Z"
+   }
+  ]
+ },
+ {
+  "id": "cmwl25l7h4",
+  "text": "No",
+  "created": "2026-11-17T19:00:54.557Z",
+  "resolved": false,
+  "exact": "Does the person approve each new table program?",
+  "prefix": "ion\n        \n        \n          ",
+  "suffix": "\n          Context The cogent se",
+  "replies": [
+   {
+    "author": "Claude",
+    "text": "Done. No approval step and no setting for one. The page accepts the program and shows a notice.",
+    "created": "2026-11-17T21:00:00.000Z"
+   }
+  ]
+ }
+]</script>
+
+<script>
+(() => {
+  'use strict';
+  const FORMAT = 'dc-comments/1';
+  const CTX = 32; // prefix/suffix context length, chars
+  const doc = document.getElementById('doc');
+  const fab = document.getElementById('dc-fab');
+  const listEl = document.getElementById('dc-list');
+  const countEl = document.getElementById('dc-count');
+  const statusEl = document.getElementById('dc-status');
+  const sidebar = document.getElementById('dc-sidebar');
+  const storeKey = 'dc:' + location.pathname; // per file, so a new draft starts clean
+
+  let comments = []; // {id, exact, prefix, suffix, text, created, resolved}
+  let ranges = new Map(); // id -> Range (null if orphaned)
+  let seq = 0;
+
+  // ---- text indexing: one global string over #doc's text nodes ----
+  function docText() {
+    const r = document.createRange();
+    r.selectNodeContents(doc);
+    return r.toString();
+  }
+  function globalOffset(container, offset) {
+    const r = document.createRange();
+    r.setStart(doc, 0);
+    r.setEnd(container, offset);
+    return r.toString().length;
+  }
+  function offsetsToRange(start, end) {
+    const walker = document.createTreeWalker(doc, NodeFilter.SHOW_TEXT);
+    let pos = 0, range = document.createRange(), haveStart = false;
+    while (walker.nextNode()) {
+      const node = walker.currentNode, len = node.data.length;
+      if (!haveStart && pos + len >= start) {
+        range.setStart(node, start - pos);
+        haveStart = true;
+      }
+      if (haveStart && pos + len >= end) {
+        range.setEnd(node, end - pos);
+        return range;
+      }
+      pos += len;
+    }
+    return null;
+  }
+
+  // ---- anchoring: TextQuoteSelector-style exact + prefix/suffix ----
+  function selectorFromRange(range) {
+    const text = docText();
+    const start = globalOffset(range.startContainer, range.startOffset);
+    const end = globalOffset(range.endContainer, range.endOffset);
+    return {
+      exact: text.slice(start, end),
+      prefix: text.slice(Math.max(0, start - CTX), start),
+      suffix: text.slice(end, end + CTX),
+    };
+  }
+  function locate(c) {
+    const text = docText();
+    let i = text.indexOf(c.prefix + c.exact + c.suffix);
+    if (i >= 0) return offsetsToRange(i + c.prefix.length, i + c.prefix.length + c.exact.length);
+    i = text.indexOf(c.exact);
+    if (i >= 0) return offsetsToRange(i, i + c.exact.length);
+    return null;
+  }
+  function reanchorAll() {
+    ranges = new Map(comments.map(c => [c.id, locate(c)]));
+    paint();
+  }
+
+  // ---- painting via CSS Custom Highlight API ----
+  const hl = typeof Highlight !== 'undefined' ? new Highlight() : null;
+  const hlActive = typeof Highlight !== 'undefined' ? new Highlight() : null;
+  if (hl) { CSS.highlights.set('dc-hl', hl); CSS.highlights.set('dc-hl-active', hlActive); }
+  function paint(activeId) {
+    if (!hl) return;
+    hl.clear(); hlActive.clear();
+    for (const [id, r] of ranges) {
+      if (!r) continue;
+      (id === activeId ? hlActive : hl).add(r);
+    }
+  }
+
+  // ---- persistence (best-effort; file:// storage varies by browser) ----
+  function save() {
+    try { localStorage.setItem(storeKey, JSON.stringify(comments)); } catch (e) { /* unavailable on some file:// setups */ }
+  }
+  function load() {
+    try {
+      const raw = localStorage.getItem(storeKey);
+      if (raw) comments = JSON.parse(raw);
+    } catch (e) { /* ignore */ }
+  }
+
+  // ---- sidebar rendering ----
+  function flash(msg) {
+    statusEl.textContent = msg;
+    setTimeout(() => { if (statusEl.textContent === msg) statusEl.textContent = ''; }, 2500);
+  }
+  function sortedComments() {
+    const pos = c => {
+      const r = ranges.get(c.id);
+      return r ? globalOffset(r.startContainer, r.startOffset) : Infinity; // orphans last
+    };
+    return [...comments].sort((a, b) => pos(a) - pos(b));
+  }
+  function render(editingId) {
+    countEl.textContent = comments.length ? '(' + comments.length + ')' : '';
+    listEl.textContent = '';
+    if (!comments.length) {
+      const p = document.createElement('p');
+      p.className = 'dc-empty';
+      p.textContent = 'No comments yet. Select text in the document to add one.';
+      listEl.appendChild(p);
+      return;
+    }
+    for (const c of sortedComments()) {
+      const item = document.createElement('div');
+      item.className = 'dc-item' + (c.resolved ? ' dc-resolved' : '');
+      item.dataset.id = c.id;
+
+      const quote = document.createElement('div');
+      quote.className = 'dc-quote';
+      quote.textContent = c.exact.length > 90 ? c.exact.slice(0, 90) + '…' : c.exact;
+      if (!ranges.get(c.id)) {
+        const tag = document.createElement('span');
+        tag.className = 'dc-orphan-tag';
+        tag.textContent = 'orphaned';
+        quote.appendChild(tag);
+      }
+      item.appendChild(quote);
+
+      if (c.id === editingId) {
+        const ta = document.createElement('textarea');
+        ta.value = c.text;
+        ta.placeholder = 'Write a comment… (⌘/Ctrl+Enter to save, Esc to cancel)';
+        ta.addEventListener('keydown', e => {
+          if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') commit();
+          if (e.key === 'Escape') cancel();
+        });
+        ta.addEventListener('click', e => e.stopPropagation());
+        const saveBtn = document.createElement('button');
+        saveBtn.className = 'dc-btn';
+        saveBtn.textContent = 'Save';
+        saveBtn.style.marginTop = '6px';
+        saveBtn.addEventListener('click', e => { e.stopPropagation(); commit(); });
+        function commit() {
+          c.text = ta.value.trim();
+          if (!c.text) return cancel();
+          save(); render();
+        }
+        function cancel() {
+          if (!c.text) { comments = comments.filter(x => x.id !== c.id); ranges.delete(c.id); paint(); }
+          save(); render();
+        }
+        item.appendChild(ta);
+        item.appendChild(saveBtn);
+        listEl.appendChild(item);
+        requestAnimationFrame(() => ta.focus());
+        continue;
+      }
+
+      const text = document.createElement('div');
+      text.className = 'dc-text';
+      text.textContent = c.text;
+      item.appendChild(text);
+
+      if (Array.isArray(c.replies) && c.replies.length) {
+        const box = document.createElement('div');
+        box.className = 'dc-replies';
+        for (const r of c.replies) {
+          const who = document.createElement('div');
+          who.className = 'dc-reply-author';
+          who.textContent = 'Reply from ' + (r.author || 'agent') + (r.created ? ' · ' + String(r.created).slice(0, 10) : '');
+          const body = document.createElement('div');
+          body.className = 'dc-reply-text';
+          for (const part of String(r.text || '').split(/(https?:\/\/[^\s)]+)/g)) {
+            if (/^https?:\/\//.test(part)) {
+              const a = document.createElement('a');
+              a.href = part; a.target = '_blank'; a.rel = 'noopener';
+              a.textContent = part;
+              a.addEventListener('click', e => e.stopPropagation());
+              body.appendChild(a);
+            } else body.appendChild(document.createTextNode(part));
+          }
+          box.append(who, body);
+        }
+        item.appendChild(box);
+      }
+
+      const meta = document.createElement('div');
+      meta.className = 'dc-meta';
+      const when = document.createElement('span');
+      when.textContent = c.created.slice(0, 10);
+      const resolved = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.checked = !!c.resolved;
+      cb.addEventListener('click', e => e.stopPropagation());
+      cb.addEventListener('change', () => { c.resolved = cb.checked; save(); render(); });
+      resolved.append(cb, 'resolved');
+      const del = document.createElement('button');
+      del.className = 'dc-del';
+      del.textContent = 'delete';
+      del.addEventListener('click', e => {
+        e.stopPropagation();
+        comments = comments.filter(x => x.id !== c.id);
+        ranges.delete(c.id);
+        paint(); save(); render();
+      });
+      meta.append(when, resolved, del);
+      item.appendChild(meta);
+
+      item.addEventListener('click', () => {
+        const r = ranges.get(c.id);
+        if (!r) return flash('Anchor not found in this version of the document.');
+        if (window.dcReveal) window.dcReveal(r.startContainer.parentElement); // open a closed fold first
+        const rect = r.getBoundingClientRect();
+        window.scrollTo({ top: window.scrollY + rect.top - 160, behavior: 'smooth' });
+        paint(c.id);
+        setTimeout(() => paint(), 2000);
+      });
+      // double-click text to edit
+      text.addEventListener('dblclick', e => { e.stopPropagation(); render(c.id); });
+      listEl.appendChild(item);
+    }
+  }
+
+  // ---- selection -> floating Comment button ----
+  document.addEventListener('mouseup', e => {
+    if (fab.contains(e.target)) return;
+    setTimeout(() => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed || !sel.rangeCount) { fab.style.display = 'none'; return; }
+      const range = sel.getRangeAt(0);
+      if (!doc.contains(range.commonAncestorContainer) || !range.toString().trim()) {
+        fab.style.display = 'none';
+        return;
+      }
+      const rect = range.getBoundingClientRect();
+      fab.style.display = 'block';
+      fab.style.left = Math.min(rect.right + 8 + window.scrollX, window.scrollX + document.documentElement.clientWidth - 120) + 'px';
+      fab.style.top = (rect.top + window.scrollY - 4) + 'px';
+      fab.dataset.pending = '1';
+    }, 0);
+  });
+  fab.addEventListener('click', () => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const c = Object.assign({ id: 'c' + Date.now().toString(36) + (seq++), text: '', created: new Date().toISOString(), resolved: false }, selectorFromRange(range));
+    comments.push(c);
+    ranges.set(c.id, range.cloneRange());
+    paint(c.id);
+    sel.removeAllRanges();
+    fab.style.display = 'none';
+    sidebar.classList.add('dc-open');
+    render(c.id);
+  });
+
+  // ---- export / import ----
+  function payload() {
+    return JSON.stringify({
+      format: FORMAT,
+      doc: document.title,
+      exported: new Date().toISOString(),
+      comments: comments,
+    }, null, 2);
+  }
+  document.getElementById('dc-export').addEventListener('click', () => {
+    const blob = new Blob([payload()], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = (document.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'doc') + '.comments.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    flash('Downloaded.');
+  });
+  document.getElementById('dc-copy').addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(payload()); flash('Copied to clipboard.'); }
+    catch (e) { flash('Clipboard blocked — use Export instead.'); }
+  });
+  document.getElementById('dc-import').addEventListener('click', () => document.getElementById('dc-file').click());
+  document.getElementById('dc-file').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    file.text().then(raw => {
+      const data = JSON.parse(raw);
+      if (data.format !== FORMAT || !Array.isArray(data.comments)) { flash('Not a dc-comments file.'); return; }
+      const byId = new Map(comments.map(c => [c.id, c]));
+      for (const c of data.comments) byId.set(c.id, c);
+      comments = [...byId.values()];
+      reanchorAll(); save(); render();
+      flash('Imported ' + data.comments.length + ' comment(s).');
+    }).catch(() => flash('Could not parse that file.'));
+    e.target.value = '';
+  });
+
+  document.getElementById('dc-toggle').addEventListener('click', () => sidebar.classList.toggle('dc-open'));
+
+  // ---- init ----
+  load();
+  // Merge the renderer's preloaded comments (with replies) by id: a stored
+  // comment keeps its own text/resolved state and takes the preloaded replies.
+  try {
+    const pre = document.getElementById('dc-preload');
+    const preloaded = pre && pre.textContent.trim() ? JSON.parse(pre.textContent) : [];
+    if (Array.isArray(preloaded) && preloaded.length) {
+      const byId = new Map(comments.map(c => [c.id, c]));
+      for (const c of preloaded) {
+        const existing = byId.get(c.id);
+        if (existing) { if (c.replies) existing.replies = c.replies; }
+        else byId.set(c.id, c);
+      }
+      comments = [...byId.values()];
+      save();
+    }
+  } catch (e) { /* malformed preload: ignore */ }
+  reanchorAll();
+  render();
+})();
+</script>
+<!-- ============ DC-COMMENTS END ============ -->
+</div>
+</body>
+</html>

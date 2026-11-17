@@ -1,0 +1,845 @@
+/*
+ * Pinball Arena: the page around the game canvas.
+ *
+ * Three parts. The cabinet is one 4:3 block: the table on the left two thirds, the machine's
+ * display (side panel) on the right third. The chat is a column beside the cabinet, or a drawer
+ * on a narrow window. The cabinet scales to fit the window, so everything inside it is sized in
+ * container units and nothing scrolls.
+ */
+
+@font-face {
+  font-family: 'DSEG7 Classic';
+  src: url('fonts/DSEG7Classic-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Doto';
+  src: url('fonts/Doto-variable.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Orbitron';
+  src: url('fonts/Orbitron-variable.ttf') format('truetype');
+  font-weight: 400 900;
+  font-display: swap;
+}
+
+:root {
+  /* Deep space: navy into purple, darkest first. */
+  --space-950: #070818;
+  --space-900: #0b0c22;
+  --space-850: #10112e;
+  --space-800: #181a42;
+  --violet-700: #2c2263;
+  --violet-500: #5d49b8;
+
+  /* Chrome, brightest first. */
+  --chrome-100: #e4e7f0;
+  --chrome-300: #b4bace;
+  --chrome-500: #7f86a3;
+  --chrome-700: #3d4263;
+
+  /* Lamps. */
+  --lamp-yellow: #ffd23f;
+  --lamp-red: #ff5266;
+  --lamp-green: #4be38a;
+  --lamp-blue: #58bcff;
+  --lamp-white: #eef1fa;
+  /* A segment or dot that is not lit. */
+  --unlit: #1d1f47;
+
+  --font-segments: 'DSEG7 Classic', monospace;
+  --font-dots: 'Doto', monospace;
+  --font-plate: 'Orbitron', sans-serif;
+  --font-reading: system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --chat-width: clamp(280px, 23vw, 380px);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--chrome-700) transparent;
+}
+
+body {
+  height: 100dvh;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: var(--space-950);
+  color: var(--chrome-100);
+  font-family: var(--font-reading);
+  font-size: 15px;
+  line-height: 1.45;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+:focus-visible {
+  outline: 2px solid var(--lamp-blue);
+  outline-offset: 2px;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.lamp-yellow { color: var(--lamp-yellow); }
+.lamp-red { color: var(--lamp-red); }
+.lamp-green { color: var(--lamp-green); }
+.lamp-blue { color: var(--lamp-blue); }
+.lamp-white { color: var(--lamp-white); }
+
+/* ------------------------------------------------------------------------------------------ */
+/* The cabinet: table and display                                                             */
+/* ------------------------------------------------------------------------------------------ */
+
+.stage {
+  container: stage / size;
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  min-height: 0;
+}
+
+.cabinet {
+  container: cabinet / size;
+  /* One hundredth of the cabinet's height: the unit for the display's type and spacing. */
+  --u: 1cqh;
+  width: min(100cqw, 100cqh * 4 / 3);
+  aspect-ratio: 4 / 3;
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  background: var(--space-900);
+  border: 1px solid var(--chrome-700);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+/* The table is taller than its two thirds of the cabinet is wide, so it stands in the middle of
+   a strip of starfield. */
+.table-area {
+  container: table-area / size;
+  position: relative;
+  display: grid;
+  place-items: center;
+  background-color: var(--space-900);
+  background-image:
+    radial-gradient(circle, var(--chrome-300) 0 0.6px, transparent 1.2px),
+    radial-gradient(circle, var(--chrome-500) 0 0.5px, transparent 1px),
+    radial-gradient(circle, var(--violet-500) 0 0.8px, transparent 1.4px);
+  background-size: 173px 197px, 97px 131px, 251px 229px;
+  background-position: 12px 40px, 60px 9px, 130px 120px;
+}
+
+.table {
+  position: relative;
+  height: min(100cqh, 100cqw * 1080 / 520);
+  aspect-ratio: 520 / 1080;
+  background: var(--space-850);
+}
+
+.table canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+}
+
+.floating-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.floating-layer span {
+  position: absolute;
+  translate: -50% -50%;
+  white-space: nowrap;
+  font-family: var(--font-plate);
+  font-weight: 800;
+  font-size: calc(var(--u) * 2);
+  letter-spacing: 0.06em;
+  text-shadow: 0 0 0.5em currentColor, 0 1px 2px var(--space-950);
+}
+
+.table-notice {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 8%;
+  text-align: center;
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: calc(var(--u) * 2.2);
+  letter-spacing: 0.14em;
+  color: var(--chrome-500);
+  pointer-events: none;
+}
+
+.end-screen {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: calc(var(--u) * 1.4);
+  padding: 8%;
+  background: color-mix(in srgb, var(--space-950) 84%, transparent);
+  text-align: center;
+}
+.end-title {
+  font-family: var(--font-plate);
+  font-weight: 900;
+  font-size: calc(var(--u) * 5);
+  letter-spacing: 0.12em;
+  color: var(--chrome-100);
+}
+.end-label {
+  margin-top: calc(var(--u) * 3);
+  font-family: var(--font-plate);
+  font-weight: 600;
+  font-size: calc(var(--u) * 1.7);
+  letter-spacing: 0.22em;
+  color: var(--chrome-500);
+}
+.end-score {
+  width: 100%;
+  margin-bottom: calc(var(--u) * 3);
+}
+
+.lamp-button {
+  font-family: var(--font-plate);
+  font-weight: 800;
+  font-size: calc(var(--u) * 2);
+  letter-spacing: 0.14em;
+  padding: 0.7em 1.4em;
+  border-radius: 4px;
+  background: var(--lamp-yellow);
+  color: var(--space-950);
+}
+.lamp-button:hover {
+  background: var(--lamp-white);
+}
+
+/* Keys and the demo switch, in the starfield left of the table. */
+.table-aside {
+  position: absolute;
+  left: calc(var(--u) * 2);
+  bottom: calc(var(--u) * 2.2);
+  width: calc((100cqw - 100cqh * 520 / 1080) / 2 - var(--u) * 3.4);
+  display: grid;
+  gap: calc(var(--u) * 2);
+  font-family: var(--font-plate);
+  font-size: calc(var(--u) * 1.35);
+  letter-spacing: 0.12em;
+  color: var(--chrome-500);
+}
+.keys {
+  display: grid;
+  gap: calc(var(--u) * 1.1);
+}
+.keys dt {
+  color: var(--chrome-300);
+  font-weight: 700;
+}
+.keys kbd {
+  font: inherit;
+  display: inline-block;
+  min-width: 1.9em;
+  padding: 0.1em 0.4em;
+  text-align: center;
+  border: 1px solid var(--chrome-700);
+  border-radius: 3px;
+}
+.keys dd {
+  margin-top: 0.3em;
+}
+.demo-toggle {
+  justify-self: start;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--chrome-300);
+  padding: 0.5em 0.8em;
+  border: 1px solid var(--chrome-700);
+  border-radius: 3px;
+}
+.demo-toggle:hover,
+.demo-toggle[aria-pressed='true'] {
+  color: var(--lamp-yellow);
+  border-color: currentColor;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The machine display                                                                        */
+/* ------------------------------------------------------------------------------------------ */
+
+.side-panel {
+  display: flex;
+  flex-direction: column;
+  gap: calc(var(--u) * 2.6);
+  padding: calc(var(--u) * 4) calc(var(--u) * 3);
+  background: var(--space-850);
+  border-left: 2px solid var(--chrome-500);
+  min-width: 0;
+}
+
+.title-plate {
+  font-family: var(--font-plate);
+  font-weight: 900;
+  font-size: calc(var(--u) * 4.7);
+  line-height: 1.08;
+  letter-spacing: 0.1em;
+  color: var(--chrome-100);
+  padding-bottom: calc(var(--u) * 2.4);
+  border-bottom: 2px solid var(--violet-500);
+}
+.title-plate span {
+  display: block;
+  color: var(--lamp-yellow);
+}
+
+.ball-line {
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: calc(var(--u) * 2.7);
+  letter-spacing: 0.16em;
+  color: var(--chrome-100);
+}
+
+.label {
+  display: block;
+  margin-bottom: calc(var(--u) * 0.8);
+  font-family: var(--font-plate);
+  font-weight: 600;
+  font-size: calc(var(--u) * 1.45);
+  letter-spacing: 0.24em;
+  color: var(--chrome-500);
+}
+
+/* The lit digits lie over a row of unlit 8s. Both rows are right-aligned in the same box. */
+.score {
+  container-type: inline-size;
+  position: relative;
+  background: var(--space-950);
+  border-radius: 3px;
+  font-family: var(--font-segments);
+  font-weight: 700;
+  line-height: 1;
+}
+.score > span {
+  --digit: 0.82em;
+  --gap: 0.3em;
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--gap);
+  padding: 0.36em 0.3em;
+  /* Sized so that every place fits the box: places times a digit, plus the gaps and padding. */
+  font-size: calc(100cqi / (var(--places) * 0.82 + var(--gaps) * 0.3 + 0.62));
+}
+.score-unlit {
+  color: var(--unlit);
+}
+.score-lit {
+  position: absolute;
+  inset: 0;
+  color: var(--lamp-yellow);
+  text-shadow: 0 0 0.22em color-mix(in srgb, var(--lamp-yellow) 55%, transparent);
+}
+
+.message p {
+  /* Room for two lines, so a long message does not move what is below it. */
+  height: calc(2 * 1.12em + 0.9em);
+  padding: 0.45em 0.5em;
+  overflow: hidden;
+  background: var(--space-950);
+  border-radius: 3px;
+  font-family: var(--font-dots);
+  font-weight: 900;
+  font-size: calc(var(--u) * 3.5);
+  line-height: 1.12;
+  text-transform: uppercase;
+  overflow-wrap: anywhere;
+}
+.message-quest p {
+  color: var(--lamp-blue);
+  text-shadow: 0 0 0.3em color-mix(in srgb, var(--lamp-blue) 50%, transparent);
+}
+.message-award p {
+  color: var(--lamp-yellow);
+  text-shadow: 0 0 0.3em color-mix(in srgb, var(--lamp-yellow) 50%, transparent);
+}
+
+.flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 calc(var(--u) * 2.4);
+  min-height: 1.3em;
+  font-family: var(--font-plate);
+  font-weight: 800;
+  font-size: calc(var(--u) * 1.9);
+  letter-spacing: 0.16em;
+}
+.flags span {
+  text-shadow: 0 0 0.5em currentColor;
+}
+
+.clock {
+  margin-top: auto;
+  padding-top: calc(var(--u) * 2.2);
+  border-top: 1px solid var(--chrome-700);
+  font-family: var(--font-plate);
+  font-weight: 600;
+  font-size: calc(var(--u) * 2.3);
+  letter-spacing: 0.16em;
+  color: var(--chrome-300);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A window taller than it is wide: the display becomes a strip above the table. */
+@container stage (max-aspect-ratio: 1/1) {
+  .cabinet {
+    --u: 0.9cqw;
+    width: 100cqw;
+    height: 100cqh;
+    aspect-ratio: auto;
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .side-panel {
+    order: -1;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    align-items: end;
+    gap: calc(var(--u) * 2) calc(var(--u) * 3);
+    padding: calc(var(--u) * 3);
+    border-left: 0;
+    border-bottom: 2px solid var(--chrome-500);
+  }
+  .title-plate {
+    font-size: calc(var(--u) * 4);
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+  .title-plate span {
+    display: inline;
+  }
+  .ball-line,
+  .clock {
+    font-size: calc(var(--u) * 2.9);
+  }
+  .ball-line {
+    text-align: right;
+  }
+  .label {
+    font-size: calc(var(--u) * 2);
+  }
+  .readout,
+  .flags {
+    grid-column: 1 / -1;
+  }
+  .score > span {
+    padding-block: 0.22em;
+  }
+  .message p {
+    font-size: calc(var(--u) * 4.2);
+  }
+  .flags,
+  .clock {
+    font-size: calc(var(--u) * 2.6);
+  }
+  .flags {
+    grid-column: 1;
+    grid-row: 5;
+  }
+  .clock {
+    grid-column: 2;
+    grid-row: 5;
+    text-align: right;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .keys {
+    display: none;
+  }
+  .table-aside {
+    width: auto;
+    left: calc(var(--u) * 2);
+    bottom: calc(var(--u) * 2);
+    font-size: calc(var(--u) * 2.2);
+  }
+  .floating-layer span {
+    font-size: calc(var(--u) * 3);
+  }
+  .end-title { font-size: calc(var(--u) * 7); }
+  .end-label { font-size: calc(var(--u) * 2.6); }
+  .lamp-button { font-size: calc(var(--u) * 3); }
+  .table-notice { font-size: calc(var(--u) * 3); }
+}
+
+/* ------------------------------------------------------------------------------------------ */
+/* The chat column                                                                            */
+/* ------------------------------------------------------------------------------------------ */
+
+.chat {
+  width: var(--chat-width);
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--space-900);
+  border-left: 1px solid var(--chrome-700);
+}
+body[data-chat='closed'] .chat {
+  display: none;
+}
+
+.chat-open {
+  /* A slim tab at the window's edge, read from top to bottom. */
+  writing-mode: vertical-rl;
+  align-self: start;
+  margin: 12px 8px 0 -4px;
+  padding: 0.9em 0.5em;
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+  color: var(--chrome-100);
+  background: var(--space-800);
+  border: 1px solid var(--chrome-700);
+  border-radius: 4px;
+}
+.chat-open:hover {
+  border-color: var(--chrome-300);
+}
+.chat-open[data-attention='true']::after {
+  content: '';
+  display: inline-block;
+  width: 0.65em;
+  height: 0.65em;
+  margin-top: 0.7em;
+  border-radius: 50%;
+  background: var(--lamp-yellow);
+  box-shadow: 0 0 6px var(--lamp-yellow);
+}
+body[data-chat='open'] .chat-open {
+  display: none;
+}
+
+.chat-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: 16px 18px 10px;
+}
+.chat h2,
+.chat h3 {
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: 12px;
+  letter-spacing: 0.2em;
+  color: var(--chrome-300);
+}
+
+.quiet-button {
+  font-size: 13px;
+  color: var(--chrome-500);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.quiet-button:hover {
+  color: var(--chrome-100);
+}
+
+.conversation {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.cogent-state {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 0 18px 12px;
+  font-size: 13px;
+  color: var(--chrome-300);
+  border-bottom: 1px solid var(--space-800);
+}
+.cogent-state p {
+  flex: 1;
+}
+.cogent-state .quiet-button {
+  white-space: nowrap;
+}
+/* A lamp for the cogent's state. */
+.cogent-state p::before {
+  content: '';
+  display: inline-block;
+  width: 0.6em;
+  height: 0.6em;
+  margin-right: 0.6em;
+  border-radius: 50%;
+  background: var(--chrome-500);
+}
+.cogent-state p[data-cogent='ready']::before { background: var(--lamp-green); }
+.cogent-state p[data-cogent='busy']::before { background: var(--lamp-blue); }
+.cogent-state p[data-cogent='asleep']::before { background: var(--lamp-yellow); }
+.cogent-state p[data-cogent='disconnected']::before { background: var(--lamp-red); }
+
+.chat-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 18px;
+}
+.chat-message {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.from-person {
+  align-self: flex-end;
+  max-width: 88%;
+  padding: 8px 12px;
+  border-radius: 10px 10px 2px 10px;
+  background: var(--violet-700);
+}
+.from-cogent {
+  max-width: 94%;
+  color: var(--chrome-100);
+}
+
+.request-status {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-top: -6px;
+  font-size: 13px;
+  color: var(--chrome-500);
+}
+.from-person + .request-status {
+  justify-content: flex-end;
+}
+.request-status[data-status='queued'],
+.request-status[data-status='running'],
+.request-status[data-status='sending'] {
+  color: var(--lamp-blue);
+}
+.request-status[data-status='waiting'] {
+  color: var(--lamp-yellow);
+}
+.request-status[data-status='failed'],
+.request-status[data-status='interrupted'] {
+  color: var(--lamp-red);
+}
+
+.chat-asks {
+  display: grid;
+  gap: 14px;
+  padding: 0 18px;
+  max-height: 45%;
+  overflow-y: auto;
+}
+.ask {
+  display: grid;
+  gap: 8px;
+  padding: 12px 0 14px 14px;
+  border-left: 2px solid var(--lamp-yellow);
+}
+.ask-kind {
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: var(--lamp-yellow);
+}
+.ask-command {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 12.5px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  color: var(--chrome-300);
+}
+.ask-choices {
+  display: flex;
+  gap: 10px;
+}
+.ask-choices button,
+.send-button {
+  padding: 6px 14px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 14px;
+  background: var(--violet-500);
+  color: var(--lamp-white);
+}
+.ask-choices button:hover,
+.send-button:hover {
+  background: var(--violet-700);
+}
+.ask-choices .choice-deny {
+  background: none;
+  border: 1px solid var(--chrome-700);
+  color: var(--chrome-300);
+}
+.ask .send-button {
+  justify-self: start;
+}
+
+.chat input[type='text'],
+.chat textarea {
+  width: 100%;
+  padding: 9px 11px;
+  font: inherit;
+  color: var(--chrome-100);
+  background: var(--space-950);
+  border: 1px solid var(--chrome-700);
+  border-radius: 6px;
+  resize: none;
+}
+.chat input::placeholder,
+.chat textarea::placeholder {
+  color: var(--chrome-500);
+}
+.chat textarea:disabled {
+  opacity: 0.5;
+}
+
+.composer {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 12px 18px 8px;
+}
+
+.account {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 18px 12px;
+  font-size: 12.5px;
+  color: var(--chrome-500);
+  overflow-wrap: anywhere;
+}
+
+.signed-out {
+  flex: 1;
+  display: grid;
+  align-content: start;
+  gap: 14px;
+  padding: 8px 18px 18px;
+  color: var(--chrome-500);
+  font-size: 14px;
+}
+.sign-in {
+  justify-self: start;
+  padding: 9px 14px;
+  text-align: left;
+  color: var(--chrome-100);
+  border: 1px solid var(--chrome-700);
+  border-radius: 6px;
+}
+.sign-in:hover {
+  border-color: var(--chrome-300);
+}
+
+.programs {
+  padding: 14px 18px 18px;
+  border-top: 1px solid var(--space-800);
+}
+.program-notice {
+  display: grid;
+  gap: 6px;
+  justify-items: start;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: var(--chrome-100);
+}
+.program-notice-title {
+  font-family: var(--font-plate);
+  font-weight: 800;
+  font-size: 12.5px;
+  letter-spacing: 0.14em;
+  color: var(--lamp-green);
+  text-shadow: 0 0 10px color-mix(in srgb, var(--lamp-green) 45%, transparent);
+}
+.program-notice[data-tone='error'] .program-notice-title {
+  color: var(--lamp-red);
+  text-shadow: none;
+}
+.program-notice .lamp-button {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.program-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 8px;
+  max-height: 22dvh;
+  overflow-y: auto;
+}
+.program-list button {
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 0;
+  text-align: left;
+  color: var(--chrome-500);
+}
+.program-list button:hover {
+  color: var(--chrome-100);
+}
+.program-list button[aria-pressed='true'] {
+  color: var(--chrome-100);
+  font-weight: 600;
+  cursor: default;
+}
+.program-list button span {
+  font-family: var(--font-plate);
+  font-weight: 700;
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  color: var(--lamp-green);
+}
+
+/* A narrow or upright window: the chat is a drawer over the table. Matches DRAWER_LAYOUT in main.js. */
+@media (max-width: 1099px), (max-aspect-ratio: 1/1) {
+  .chat {
+    position: fixed;
+    top: 0;
+    right: 0;
+    z-index: 2;
+    width: min(92vw, 380px);
+    box-shadow: -18px 0 40px color-mix(in srgb, var(--space-950) 80%, transparent);
+  }
+  /* The tab keeps its place under the drawer, so opening the drawer does not resize the table. */
+  body[data-chat='open'] .chat-open {
+    display: block;
+  }
+}

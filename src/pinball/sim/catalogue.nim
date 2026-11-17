@@ -84,9 +84,30 @@ proc defaultSettings*(kind: ComponentKind): array[Setting, Fixed] =
   else:
     discard
 
+proc settingRange*(setting: Setting): Slice[Fixed] =
+  ## The values an edit may give a setting. The ranges keep lengths and
+  ## speeds far below the point where `Fixed` wraps. Like the costs, they are
+  ## starting values for playtest.
+  case setting
+  of setStrength: 0'fx .. 3000'fx
+  of setDirection, setCurve: -360'fx .. 360'fx
+  of setHoldTicks, setTravelTicks: 0'fx .. fixed(int32(10 * TicksPerSecond))
+  of setExitX, setControlAX, setControlBX: 0'fx .. fixed(int32(PlayfieldWidth))
+  of setExitY, setControlAY, setControlBY: 0'fx .. fixed(int32(PlayfieldHeight))
+  of setCapacity: 1'fx .. fixed(int32(MaxBallsInPlay))
+  of setRadius: 0'fx .. 200'fx
+  of setMode: 0'fx .. 2'fx
+  of setEnabled, setPosition, setStyle: 0'fx .. 1'fx
+  of setLength: 20'fx .. 400'fx
+  of setBounce: 0'fx .. fixed(int32(ord(high(Surface))))
+  of setWidthA, setWidthB: 30'fx .. 120'fx
+  of setMouthA, setMouthB: 0'fx .. 32767'fx
+  of setColour: 0'fx .. fixed(int32(ord(high(LampColour))))
+  of setLamp: 0'fx .. fixed(int32(ord(high(LampState))))
+
 proc scaled*(length: Fixed, sizePercent: int32): Fixed =
   ## A length at the given size. `sizePercent` is 50 .. 200.
-  length * sizePercent / 100'i32
+  multiplyDivide(length, fixed(sizePercent), 100'fx)  # A long wall times 200 would wrap.
 
 proc footprint*(component: Component): Collider =
   ## The space a piece claims on its level, used to refuse overlapping edits

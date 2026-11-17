@@ -85,10 +85,15 @@ type
     pressed*: bool
     angle*: Fixed            ## Degrees away from the rest position, 0 .. the full stroke.
     angularVelocity*: Fixed  ## Degrees per second. Positive is rising.
+    holding*: bool
+      ## The flipper has reached the top of its stroke since the press, so
+      ## the coil is on its weaker hold power.
 
   Plunger* = object
     pressed*: bool
     pull*: Fixed             ## 0 is at rest and 1 is fully pulled back.
+    fireSpeed*: Fixed        ## Speed of the released tip in mm/s. 0 when not firing.
+    hasLaunched*: bool       ## This firing stroke has already reported its ball.
 
   NudgeDirection* = enum
     nudgeLeft, nudgeRight, nudgeUp
@@ -118,6 +123,7 @@ type
     ballId*, componentId*: int32
     strength*: Fixed         ## Speed into the surface, in mm/s.
     normal*: FixedVec2       ## From the surface toward the ball.
+    passed*: bool            ## The ball went through a one-way collider.
 
   # --- Components ------------------------------------------------------------
 
@@ -155,7 +161,7 @@ type
     setPosition     ## Diverter: 0 or 1.
     setLength       ## Wall length, or the lane length of a captive ball.
     setCurve        ## Wall bend in degrees. 0 is straight.
-    setBounce       ## Wall: 1 is rubber and 0 is dead.
+    setBounce       ## Wall surface: 0 metal, 1 rubber, 2 dead.
     setStyle        ## Rollover: 0 lane style, 1 button style.
     setWidthA       ## Mouth: the width of the open end.
     setWidthB       ## Mouth: the width of the throat that joins the track.
@@ -202,6 +208,12 @@ type
     heldBallIds*: seq[int32]
     timerTicks*: int32      ## Hold, travel or cooldown time left.
     spinsLeft*: int32       ## Spinner: turns still to report.
+    spinBallId*: int32      ## Spinner: the ball that set it turning.
+    handledBallIds*: seq[int32]
+      ## Balls the piece has reacted to (counted, fired, ejected, let go) and
+      ## that have not left it yet. It reacts to a ball again only after the
+      ## ball has gone, so one pass is one event and an ejected ball is not
+      ## caught again on its way out.
     hitCount*: int32        ## For the Episode summary.
     colliders*: seq[Collider]
       ## Derived from the fields above while the piece is solid. Empty otherwise.
@@ -430,6 +442,9 @@ type
     nextComponentId*: int32
     budgetUsed*: int32
     editsThisSecond*: int32   ## Rate-limited edits in the current one-second window.
+    editWindowSecond*: uint32
+      ## Which second of the Episode `editsThisSecond` counts. The windows
+      ## are whole seconds from tick 0.
 
     fsms*: seq[Fsm]
     nextFsmId*: int32
@@ -437,9 +452,13 @@ type
     phase*: EpisodePhase
     endReason*: EndReason
     ballNumber*: int32            ## 1 .. 3 while playing.
+    ballStartTick*: uint32        ## When the current ball number was first served.
     extraBalls*: int32
     ballSaveTicks*: int32         ## Ticks of ball save left.
     tiltWarnings*: int32
+    tiltMeterTicks*: int32
+      ## How shaken the table is. Each nudge adds to it and it falls by one
+      ## every tick. A nudge that takes it over the limit warns or tilts.
     tilted*: bool                 ## Flippers are dead until the ball drains.
     score*: int64
     questText*, awardText*: string
@@ -498,3 +517,16 @@ proc fsmIndex*(table: Table, id: int32): int =
     if fsm.id == id:
       return index
   -1
+
+const TextCharacters = {'A' .. 'Z', '0' .. '9', ' ',
+                        '!', '?', '.', ',', ':', ';', '\'', '"', '-', '+', '*', '/',
+                        '%', '&', '#', '=', '<', '>', '(', ')'}
+
+proc isValidText*(text: string): bool =
+  ## The rule for all text that comes from an Arena script (Appendix C).
+  if text.len > MaxTextLength:
+    return false
+  for character in text:
+    if character notin TextCharacters:
+      return false
+  true

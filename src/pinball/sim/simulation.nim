@@ -67,13 +67,13 @@ proc step*(table: var Table) =
   if table.phase == episodeOver:
     return
 
-  table.advanceEpisode()
   table.advanceBeamIns()
   table.applyForces()
   table.stepPhysics()
   table.stepTracks()
   table.resolveContacts()
   table.advanceComponents()
+  table.advanceEpisode()
   table.runRules()
   inc table.tick
 

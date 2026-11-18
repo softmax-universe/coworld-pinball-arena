@@ -20,6 +20,10 @@
 import types, geometry
 
 const
+  SlopeGravity* = 1250'fx
+    ## mm/s^2 down the table. The slope alone gives g x sin(6.5 degrees), about
+    ## 1110. It is set a little higher so the ball feels heavy.
+
   FlipperStroke* = 50'fx
     ## How far a flipper turns from rest to fully raised, in degrees. A starting
     ## value: tune it together with the flipper geometry.
@@ -44,14 +48,14 @@ const
   PlungerRadius = 4'fx
 
   FlipperCentreX = 240'fx       ## The flippers and guides mirror about this line.
-  FlipperPivotOffset = 90'fx    ## From the centre line out to each pivot.
+  FlipperPivotOffset = 83'fx    ## From the centre line out to each pivot.
   FlipperPivotY = 950'fx
-  FlipperLength* = 78'fx        ## Pivot to the centre of the round tip.
+  FlipperLength* = 70'fx        ## Pivot to the centre of the round tip.
   FlipperRadius* = 6'fx
   FlipperRestAngle = 30'fx      ## Degrees below level at rest.
 
   GuideRadius = 3'fx
-  GuideSlopeLength = 124'fx     ## The part that continues the line of the resting flipper.
+  GuideSlopeLength = 132'fx     ## The part that continues the line of the resting flipper.
   GuideUprightLength = 80'fx    ## The part above it, beside the outlane.
 
   DrainY* = 1045'fx             ## A ball whose centre is below this has drained.
@@ -59,7 +63,7 @@ const
   # Keep-out zones.
   ApronTopY = 1005'fx           ## Nothing is built below the flippers.
   FlipperZone = Collider(
-    a: FixedVec2(x: 150'fx, y: 956'fx), b: FixedVec2(x: 330'fx, y: 956'fx),
+    a: FixedVec2(x: 157'fx, y: 956'fx), b: FixedVec2(x: 323'fx, y: 956'fx),
     radius: 52'fx)              ## The sweep of both flippers plus about 12 mm.
   LaneZone = Collider(
     a: FixedVec2(x: 498.5'fx, y: 310'fx), b: FixedVec2(x: 498.5'fx, y: 1080'fx),

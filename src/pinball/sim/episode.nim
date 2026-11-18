@@ -162,7 +162,8 @@ proc handleDrains(table: var Table) =
     table.balls.delete index
     table.emit Event(kind: evBallDrained, ballId: ball.id)
     table.emit Event(kind: evBallCountChanged, value: table.ballsInPlay)
-    if table.ballSaveTicks > 0:
+    # A tilt costs the ball: no save brings a tilted ball back.
+    if table.ballSaveTicks > 0 and not table.tilted:
       table.emit Event(kind: evBallSaved, ballId: ball.id)
       table.serveBall()
       if table.launchSave == launchSaveRunning:
@@ -205,22 +206,12 @@ proc searchForStuckBalls(table: var Table) =
   if searchNow:
     table.ballSearch()
 
-proc expireFloatingMessages(table: var Table) =
-  var index = 0
-  while index < table.floatingMessages.len:
-    dec table.floatingMessages[index].ticksLeft
-    if table.floatingMessages[index].ticksLeft <= 0:
-      table.floatingMessages.delete index
-    else:
-      inc index
-
 proc advanceEpisode*(table: var Table) =
   ## One tick of Episode bookkeeping: end the build phase and serve the first
   ## ball, handle drained balls, serve the next ball, run the clock, search
   ## for stuck balls, and end the Episode.
   if table.phase == episodeOver:
     return
-  table.expireFloatingMessages()
   if table.phase == episodeBuild:
     if table.tick >= uint32(table.settings.buildPhaseTicks):
       table.endBuildPhase()

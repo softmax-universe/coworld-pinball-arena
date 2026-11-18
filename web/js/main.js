@@ -43,7 +43,6 @@ const sidePanel = createSidePanel({
   award: byId('award'),
   flags: byId('flags'),
   clock: byId('clock'),
-  floating: byId('floating'),
 })
 
 const tableNotice = byId('table-notice')
@@ -69,8 +68,6 @@ game.on('hud', (hud) => {
   if (hud.phase === 'over') episodeIsOver = true
   else if (episodeIsOver) newEpisodeStarted()
 })
-
-game.on('floating', ({ items }) => sidePanel.showFloating(items))
 
 game.on('episode', ({ summary }) => {
   session?.reportEpisode(summary)

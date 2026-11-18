@@ -198,7 +198,7 @@ suite "rules":
     game.ticks(6)
     check game.score == 101
 
-  test "visual and text results land in the table":
+  test "visual results land in the table":
     var game = Table()
     game.addPiece(20, ckInsert, group = 3)
     game.addPiece(21, ckInsert, group = 3)
@@ -209,8 +209,6 @@ suite "rules":
       NodeResult(kind: resultLamp, targetGroup: 3, lamp: lampFlashing)).accepted
     check game.addResult(fsmId, node,
       NodeResult(kind: resultBurst, targetId: Bumper)).accepted
-    check game.addResult(fsmId, node,
-      NodeResult(kind: resultFloatText, targetId: Bumper, text: "NICE SHOT!")).accepted
     check game.addEdge(fsmId, edgeOn(0, node, evHit)).accepted
 
     game.tick(hit(Bumper))
@@ -218,11 +216,6 @@ suite "rules":
     check game.lampOf(21) == lampValue(lampFlashing)
     check game.lampOf(22) == lampValue(lampOff)
     check game.cues == @[ViewCue(kind: cueKindBurst, componentId: Bumper)]
-    check game.floatingMessages.len == 1
-    if game.floatingMessages.len == 1:
-      check game.floatingMessages[0].componentId == Bumper
-      check game.floatingMessages[0].text == "NICE SHOT!"
-      check game.floatingMessages[0].ticksLeft > 0
 
   test "one event advances every matching FSM once, in creation order":
     var game = Table()
@@ -542,13 +535,9 @@ suite "rule limits and validation":
 
     proc panelText(text: string): NodeResult =
       NodeResult(kind: resultPanelText, slot: slotAward, text: text)
-    proc floatText(text: string): NodeResult =
-      NodeResult(kind: resultFloatText, targetId: Bumper, text: text)
 
     check game.addResult(fsmId, node, panelText("JACKPOT! +50,000.")).accepted
     check game.addResult(fsmId, node, panelText(repeat('A', MaxTextLength))).accepted
     check game.addResult(fsmId, node, panelText(repeat('A', MaxTextLength + 1))).reason == rejectBadValue
     check game.addResult(fsmId, node, panelText("Ramp is lit")).reason == rejectBadValue
     check game.addResult(fsmId, node, panelText("TWO\nLINES")).reason == rejectBadValue
-    check game.addResult(fsmId, node, floatText(repeat('A', MaxTextLength + 1))).reason == rejectBadValue
-    check game.addResult(fsmId, node, floatText("nice")).reason == rejectBadValue

@@ -9,7 +9,7 @@ type
     cost*: int32          ## Build budget spent while the piece is on the table.
     radius*: Fixed        ## Footprint radius at 100% size, in millimetres.
     isLong*: bool         ## The footprint is a capsule along `setLength`, not a circle.
-    hasFootprint*: bool   ## False for lamps and text, which may sit under anything.
+    hasFootprint*: bool   ## False for lamps, which may sit under anything.
     allowedRaised*: bool  ## May be placed on level 2 or 3.
 
 const KindInfos*: array[ComponentKind, KindInfo] = [
@@ -37,8 +37,7 @@ const KindInfos*: array[ComponentKind, KindInfo] = [
   ckMouth:         KindInfo(cost: 2, radius: 30'fx, hasFootprint: true, allowedRaised: true),
   ckTrack:         KindInfo(cost: 3, allowedRaised: true),
   ckInsert:        KindInfo(cost: 0, radius: 10'fx, allowedRaised: true),
-  ckFlasher:       KindInfo(cost: 0, radius: 14'fx, allowedRaised: true),
-  ckFloatingText:  KindInfo(cost: 0, allowedRaised: true)
+  ckFlasher:       KindInfo(cost: 0, radius: 14'fx, allowedRaised: true)
 ]
 
 proc defaultSettings*(kind: ComponentKind): array[Setting, Fixed] =

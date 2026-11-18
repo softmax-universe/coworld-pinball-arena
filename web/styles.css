@@ -167,31 +167,6 @@ button {
   outline: none;
 }
 
-.floating-layer {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-.floating-layer span {
-  position: absolute;
-  translate: -50% -50%;
-  white-space: nowrap;
-  font-family: var(--font-plate);
-  font-weight: 800;
-  font-size: calc(var(--u) * 2);
-  letter-spacing: 0.06em;
-  text-shadow: 0 0 0.5em currentColor, 0 1px 2px var(--space-950);
-}
-/* A rule's message is the loudest. A score change is small and sits just above its piece. */
-.floating-layer span[data-kind='message'] {
-  font-size: calc(var(--u) * 2.6);
-}
-.floating-layer span[data-kind='score'] {
-  translate: -50% -150%;
-  font-size: calc(var(--u) * 1.6);
-  font-weight: 700;
-}
-
 .table-notice {
   position: absolute;
   inset: 0;
@@ -500,11 +475,6 @@ button {
     bottom: calc(var(--u) * 2);
     font-size: calc(var(--u) * 2.2);
   }
-  .floating-layer span {
-    font-size: calc(var(--u) * 3);
-  }
-  .floating-layer span[data-kind='message'] { font-size: calc(var(--u) * 3.6); }
-  .floating-layer span[data-kind='score'] { font-size: calc(var(--u) * 2.4); }
   .end-title { font-size: calc(var(--u) * 7); }
   .end-label { font-size: calc(var(--u) * 2.6); }
   .lamp-button { font-size: calc(var(--u) * 3); }

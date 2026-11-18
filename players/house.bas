@@ -82,11 +82,13 @@ sub buildlowerfield()
   create(kind_rollover, 418, 850, 90, 100, 1, grp_inlanes)
 
   ' A kickback at the top of each outlane. While it is lit it shoots the ball
-  ' back up the table: 270 is straight up, and these lean a little inward.
+  ' back up the table. 270 is straight up, and these lean 16 degrees inward:
+  ' a ball shot straight up meets the underside of the slanted guide above,
+  ' which turns it back into the outlane.
   kickleft = create(kind_kickback, 24, 800, 0, 100, 1, grp_kickbacks)
-  setting(kickleft, set_direction, 275)
+  setting(kickleft, set_direction, 286)
   kickright = create(kind_kickback, 452, 800, 0, 100, 1, grp_kickbacks)
-  setting(kickright, set_direction, 265)
+  setting(kickright, set_direction, 254)
 
   ' A rubber post over the top of each lane guide. It turns back a ball that
   ' a slingshot throws straight across the table at the far outlane.
@@ -157,7 +159,7 @@ sub buildramp()
 end sub
 
 sub buildlamps()
-  ' Lamps, flashers and text cost nothing and may sit under other pieces.
+  ' Lamps and flashers cost nothing and may sit under other pieces.
   ramplamp = create(kind_insert, 362, 660, 0, 100, 1, 0)
   setting(ramplamp, set_colour, colour_red)
   for i = 0 to 1
@@ -168,9 +170,6 @@ sub buildlamps()
   next
   create(kind_flasher, 70, 210, 0, 100, 1, 0)
   create(kind_flasher, 390, 180, 0, 100, 1, 0)
-  text(400, 655, colour_red, "JACKPOT RAMP")
-  text(410, 290, colour_blue, "MULTIBALL")
-  text(240, 690, colour_white, "EXTRA BALL")
 end sub
 
 ' --- Rules -------------------------------------------------------------------
@@ -222,7 +221,6 @@ sub rulesquest()
   dolamp(quest, jackpot, ramplamp, lamp_off)
   domessage(quest, jackpot, slot_quest, "DROP 3 TARGETS TO LIGHT THE RAMP")
   domessage(quest, jackpot, slot_award, "JACKPOT 50,000")
-  dofloat(quest, jackpot, ramplamp, "50,000")
   doflash(quest, jackpot)
   dosound(quest, jackpot, cue_jackpot)
   doresetgroup(quest, jackpot, grp_bank)

@@ -1,8 +1,8 @@
 /**
  * A stand-in for the game build, for working on the page without it. Open the page with
  * `?fake-game` (see main.js) and this script plays the game's part of the bridge described in
- * `web/js/game-bridge.js`: it draws a ball bouncing in the canvas, sends `hud`, `floating`,
- * `episode` and `programLoaded` messages, and obeys `program`, `restart` and `flipper`.
+ * `web/js/game-bridge.js`: it draws a ball bouncing in the canvas, sends `hud`, `episode`
+ * and `programLoaded` messages, and obeys `program`, `restart` and `flipper`.
  *
  * A program whose name starts with `broken` gets a `programError` instead of `programLoaded`.
  * `window.fakeGame.endEpisode()` ends the Episode at once, and `window.fakeGame.keys` lists the
@@ -43,14 +43,12 @@
 
   function startEpisode() {
     episode = { ball: 1, ballSeconds: 0, score: 0, award: '', clock: 420, over: false, x: 0.3, y: 0.2, dx: 0.004, dy: 0.006 }
-    send({ type: 'floating', items: [] })
     sendHud()
   }
 
   function endEpisode() {
     if (episode.over) return
     episode.over = true
-    send({ type: 'floating', items: [] })
     sendHud()
     send({ type: 'episode', summary: { score: episode.score, ballSeconds: [12, 12, 12], hits: { bumper: 14 }, rulesFired: ['jackpot'] } })
   }
@@ -62,14 +60,6 @@
     if (episode.ballSeconds % 3 === 0) {
       episode.award = AWARDS[Math.floor(Math.random() * AWARDS.length)]
       episode.score += 12500 * (1 + Math.floor(Math.random() * 40))
-      send({
-        type: 'floating',
-        items: [
-          { x: episode.x, y: episode.y, text: episode.award, colour: 'yellow' },
-          { x: 0.5, y: 0.12, text: 'BONUS', colour: 'green' },
-          { x: 0.22, y: 0.62, text: '2X', colour: 'red' },
-        ],
-      })
     }
     if (episode.ballSeconds >= SECONDS_PER_BALL) {
       episode.ball += 1

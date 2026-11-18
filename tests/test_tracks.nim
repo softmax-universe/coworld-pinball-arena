@@ -10,7 +10,7 @@ import std/[math, unittest]
 import pinball/sim/[types, catalogue, tracks]
 
 const
-  SlopeGravity = 1110.0   ## mm/s^2 along +y, as in the physics tests.
+  SlopeGravity = toFloat64(layout.SlopeGravity)   ## mm/s^2 along +y, as in the physics tests.
   BallId = 1'i32
   TrackId = 10'i32
   MouthAId = 11'i32

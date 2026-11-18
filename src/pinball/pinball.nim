@@ -88,7 +88,6 @@ proc advance(app: var App, audible = true) =
   ## One tick of the game, and everything that follows a tick.
   app.game.tick()
   app.view.observe(app.game.table)
-  app.bridge.noteTick(app.game.table)
   if audible:
     playTickSounds(app.game.table)
   for message in app.game.takeMessages():
@@ -96,7 +95,7 @@ proc advance(app: var App, audible = true) =
 
 proc frame(app: var App, seconds: float32) =
   app.view.draw(app.game.table, app.window.size, seconds)
-  app.bridge.publish(app.game, app.view, seconds)
+  app.bridge.publish(app.game)
 
 proc saveScreenshot(app: var App) =
   for tick in 0 ..< app.options.ticks:

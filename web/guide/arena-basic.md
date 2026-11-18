@@ -44,7 +44,7 @@ After every Episode, an `episode.summary` event:
 
 A program that fails also raises a `program.failed` event at once: `{name, version, stage, message, output}`.
 
-FSM ids, node indexes and piece ids are numbers given in the order you make things. In a program that builds at the start of an Episode on a blank table, the first `fsm()` is 1, its first `node` is 1 and the first `create` is 1. On the house table yours follow its 11 FSMs and 41 pieces.
+FSM ids, node indexes and piece ids are numbers given in the order you make things. In a program that builds at the start of an Episode on a blank table, the first `fsm()` is 1, its first `node` is 1 and the first `create` is 1. On the house table yours follow its 11 FSMs and 38 pieces.
 
 ## 2. How a program runs
 
@@ -86,7 +86,7 @@ Bassy BASIC is close to QBasic, with these differences. Each is a rule.
 | `/` is fixed-point division, `\` integer division, `mod` the remainder | `7 / 2` is 3.5, `7 \ 2` is 3 |
 | Comparisons give -1 (true) or 0. `AND`, `OR`, `NOT` are bitwise and evaluate both sides | `if a > 3 and b < 10 then` works |
 | View flags are 1 or 0, and `not 1` is -2, which is true. Never write `not flag` | `if tilted = 0 then` |
-| A name of the view, a constant or a call cannot be a variable (compile error). So no variable named `score`, `tick`, `phase`, `left`, `right`, `node`, `edge`, `track`, `text`, `move`, `reset`, `signal`, `final`, `timeout`, `min`, `max` ... | `ramp = track(...)` |
+| A name of the view, a constant or a call cannot be a variable (compile error). So no variable named `score`, `tick`, `phase`, `left`, `right`, `node`, `edge`, `track`, `move`, `reset`, `signal`, `final`, `timeout`, `min`, `max` ... | `ramp = track(...)` |
 | `+` joins strings only. `str$(5)` is `" 5"`, with a leading space | `"HITS" + str$(n)` |
 
 The control flow (`IF/ELSEIF/ELSE/END IF`, one-line `IF`, `FOR/NEXT/STEP`, `WHILE/WEND`, `DO/LOOP`, `SELECT CASE`, `GOSUB`, `EXIT FOR/DO/SUB`), `'` comments and the string functions (`LEN LEFT$ MID$ INSTR STR$` ...) work as in QBasic.
@@ -105,34 +105,34 @@ Because the program runs again 12 times a second, a loop that waits for somethin
 | Top arch | A circle about (220, 300) with inner radius 296: its top is at `y` = 4, it joins the right wall at `y` = 300 and meets the left wall in a corner at `y` = 95 |
 | Shooter lane | Right of a divider at `x` = 478 that runs from `y` = 330 down. The ball rests on the plunger at (498, 972). A one-way gate closes the top of the lane |
 | Launch path | A launched ball goes up the lane, through the gate and anticlockwise along the arch. If nothing stops it, the corner at the top left throws it down across the table. A wall against the arch stops it (section 10) |
-| Flippers | Pivots at (150, 950) and (330, 950), 78 long. Tips at rest (217, 989) and (263, 989), 33 mm apart. Tips raised at `y` = 923 |
-| Lane guides | A rail on each side: upright at `x` = 44 (left) and `x` = 436 (right) from `y` = 805 to 885, then sloping down to the flipper pivot. A ball inside the rail rolls onto the flipper. Outside it is the outlane, 36 mm wide, which leads to the drain |
+| Flippers | Pivots at (157, 950) and (323, 950), 70 long. Tips at rest (218, 985) and (262, 985), 33 mm apart. Tips raised at `y` = 926 |
+| Lane guides | A rail on each side: upright at `x` = 44 (left) and `x` = 436 (right) from `y` = 801 to 881, then sloping down to the flipper pivot. A ball inside the rail rolls onto the flipper. Outside it is the outlane, 36 mm wide, which leads to the drain |
 | Drain | A ball below `y` = 1045 is lost |
 
 **Keep-out zones.** Every piece has a footprint: a circle of the radius in section 5, times its size. For a wall or a captive ball, which are long, both ends count. With footprint radius `r`, an edit is refused (`reject_keepout`) unless all of these hold:
 
 1. `4 + r <= x <= 516 - r` and `4 + r <= y <= 1005 - r`.
 2. Where `y` < 300: the distance to (220, 300) is at most `296 - r`.
-3. Flippers: at least `52 + r` from the line (150, 956) to (330, 956).
+3. Flippers: at least `52 + r` from the line (157, 956) to (323, 956).
 4. Shooter lane: at least `30 + r` from the line `x` = 498.5, `y` >= 310. So for `y` >= 310: `x <= 468.5 - r`.
 
-Lamps and text obey the zones too. A track does not: it has no place of its own.
+Lamps obey the zones too. A track does not: it has no place of its own.
 
-**Overlap.** Two footprints on the same level may not overlap (`reject_overlap`): round pieces must be at least `r1 + r2` apart. Inserts, flashers, text and tracks have no footprint.
+**Overlap.** Two footprints on the same level may not overlap (`reject_overlap`): round pieces must be at least `r1 + r2` apart. Inserts, flashers and tracks have no footprint.
 
 **Room for the ball.** The footprint is only for these checks. The solid shape is often smaller (a target is a thin plate). Between the solid parts of two pieces, or of a piece and a wall, leave 30 mm or more, or less than 5. A gap in between, or a pocket that narrows downward, traps the ball. When a ball lies still for 5 seconds the table fires its kickers and releases held balls, and after 10 seconds it puts the ball back on the plunger.
 
-**Levels.** Level 1 is the playfield. Levels 2 and 3 are raised and hold only track and the things that sit on track: `mouth`, `track`, `rollover`, `spinner`, `gate`, `insert`, `flasher`, `floatingtext`. A ball touches only pieces on its own level.
+**Levels.** Level 1 is the playfield. Levels 2 and 3 are raised and hold only track and the things that sit on track: `mouth`, `track`, `rollover`, `spinner`, `gate`, `insert`, `flasher`. A ball touches only pieces on its own level.
 
 **Limits.**
 
 | Limit | Value |
 | --- | --- |
 | Build budget | 100. Each piece spends its cost (section 5) while it is on the table. Size does not change the cost. Over the budget: `reject_overbudget` |
-| Pieces | 128, lamps and text included: `reject_toomanypieces` |
+| Pieces | 128, lamps included: `reject_toomanypieces` |
 | Size | 50..200 percent. Rotation -360..360 |
 | Beam-in | A new or moved piece is a hologram for 0.5 s, then solid. A hologram waits while a ball is inside its footprint. A moved piece first fades out for 0.5 s. Pieces made in the build phase are solid before the first ball |
-| Edit rate | During play at most 4 of `create`, `move`, `rotate`, `resize`, `remove`, `removegroup` per second (`track` and `text` count as one): `reject_ratelimit`. No limit in the build phase. Settings, `reset`, `settext`, rule calls and edits made by rule results are never limited |
+| Edit rate | During play at most 4 of `create`, `move`, `rotate`, `resize`, `remove`, `removegroup` per second (`track` counts as one): `reject_ratelimit`. No limit in the build phase. Settings, `reset`, rule calls and edits made by rule results are never limited |
 | Rules | 32 FSMs. Per FSM 64 nodes (node 0 and 63 more) and 64 edges: `reject_limit` |
 | Text | At most 40 characters from `A-Z 0-9`, space and `! ? . , : ; ' " - + * / % & # = < > ( )`. Lower case is refused: `reject_badvalue` |
 | Balls | 3 per Episode, at most 6 in play |
@@ -168,7 +168,6 @@ Lamps and text obey the zones too. A track does not: it has no place of its own.
 | `kind_track` | 3 | - | Made with `track(...)`, not `create` | `ev_trackentered`, `ev_trackcompleted`, `ev_trackfailed` | Set by `track(...)` |
 | `kind_insert` | 0 | 10 | A lamp in the playfield | none | `set_lamp`, `set_colour` |
 | `kind_flasher` | 0 | 14 | A bright lamp that `doflash` pulses | none | `set_lamp`, `set_colour` |
-| `kind_floatingtext` | 0 | 0 | Made with `text(...)`, not `create` | none | `set_colour` |
 
 Notes:
 
@@ -210,7 +209,6 @@ A rule is a finite state machine (FSM): nodes joined by edges, with one current 
 | `doflash(f, n)` | Pulse the flashers |
 | `doburst(f, n, component)` | Particle burst at a piece |
 | `domessage(f, n, slot, text$)` | Show text in a side-panel box: `slot_quest` (upper) or `slot_award` (lower). It stays until replaced |
-| `dofloat(f, n, component, text$)` | Float text at a piece for 2 seconds |
 | `dosignal(f, n, number)` | Raise FSM signal 0..15 |
 | `docreate(f, n, kind, x, y, rotation, size, level, group)` | As `create` |
 | `domove(f, n, id, x, y)` | As `move` |
@@ -258,8 +256,6 @@ The page plays a sound by itself for every physical event (hits, drops, spins, r
 | `setting(id, which, value)`, `groupsetting(group, which, value)` | Set one setting, at once and with no beam-in. `which` is a `set_` constant |
 | `reset(id)`, `resetgroup(group)` | Raise drop targets again, relight kickbacks |
 | `track(moutha, mouthb, cax, cay, cbx, cby)` | Make a track between two mouth pieces. Returns the track id, or the reason of the first refused step |
-| `text(x, y, colour, text$)` | Make a floating text. Returns the piece id |
-| `settext(id, text$)` | Change a floating text |
 
 **Rules.** `edge`, `edgex`, `timeout` and `final` are in section 6. Also: `fsm()` returns the id of a new FSM. `node(f)` returns the index of a new node (1, 2, ...). `fsmreset(f)` puts an FSM back in node 0 with its counts cleared and running. `fsmremove(f)` deletes it. `signal(number)` raises script signal 0..15. `fsmnode(f)` gives the current node of an FSM, or -1.
 
@@ -430,7 +426,7 @@ The bundled program `house` is the full example: a classic layout with ordinary 
 | --- | --- | --- |
 | 2 slingshots (2), strength 550 | (112, 835) rotation 70, (368, 835) rotation -70 | 10 a hit |
 | 2 inlane rollovers (6) | (62, 850), (418, 850) | 250 |
-| 2 kickbacks (7) | (24, 800) direction 275, (452, 800) direction 265 | 1,000 when one fires. It is then used up, and 5 standup hits relight it |
+| 2 kickbacks (7) | (24, 800) direction 286, (452, 800) direction 254 | 1,000 when one fires. It is then used up, and 5 standup hits relight it |
 | 2 rubber posts. 2 guide walls, size 75 | (50, 778), (430, 778). (33, 625) rotation 56, (448, 625) rotation 124 | |
 | 3 pop bumpers (1) | (175, 255), (285, 255), (230, 345) | 100 a hit |
 | 3 drop targets (3) | (198, 455), (230, 455), (262, 455) | 500 a drop. All three light the ramp for 20 s: `RAMP IS LIT` |
@@ -442,7 +438,7 @@ The bundled program `house` is the full example: a classic layout with ordinary 
 | Ramp: 2 mouths and a track | In at (400, 600) rotation 120. Out on level 2 at (66, 810) rotation 90, above the left inlane. Control points (450, 380), (66, 300) | 5,000. 50,000 more while lit: `JACKPOT 50,000`. Not in time: `TOO SLOW` |
 | Lamps: ramp, 2 saucer (8), 2 extra ball (9) | (362, 660). (398, 380), (422, 380). (225, 650), (255, 650) | |
 
-The house uses groups 1 to 9, FSM signals 1 and 2, no script signals, 41 pieces and 11 FSMs: scoring 1, quest 2, the three lanes 3 to 5, lane bonus 6, extra ball 7, multiball 8, kickbacks 9 and 10, messages 11 (these ids hold when the Episode starts on the house table). To change a house piece, use the group calls (`groupsetting(1, set_strength, 1100)`, `resetgroup(3)`) or find its id in `pieces` by kind and place.
+The house uses groups 1 to 9, FSM signals 1 and 2, no script signals, 38 pieces and 11 FSMs: scoring 1, quest 2, the three lanes 3 to 5, lane bonus 6, extra ball 7, multiball 8, kickbacks 9 and 10, messages 11 (these ids hold when the Episode starts on the house table). To change a house piece, use the group calls (`groupsetting(1, set_strength, 1100)`, `resetgroup(3)`) or find its id in `pieces` by kind and place.
 
 The house pays every ordinary hit from one FSM whose branches are nodes with no outgoing edge. Each top lane has a small FSM that lights the lane, raises FSM signal 1 and waits in its "lit" node; one more FSM counts three of those signals, pays, and raises signal 2, which sends the lanes back to node 0 (whose result puts the lamp out) and steps the extra-ball FSM. Its multiball shows how to add a ball:
 
@@ -486,5 +482,5 @@ end sub
 - **Do not build a table that never drains.** Two strong kickers that face each other pass the ball back and forth for minutes: the house slingshots are turned down to 550 for that reason. The clock ends such an Episode after 8 minutes, and that is no fun.
 - **Check every gap** against the 27 mm ball (section 4) and every edit: a call that returns a negative number did nothing. Read `rejectedEdits` in the summary.
 - **The game is exactly repeatable.** The same plunge always takes the same path, and a full pull is easy to repeat. Do not put a big award at the end of that path.
-- **Read the summary.** Balls under 15 seconds mean the table drains too easily: with no flipping at all a ball lasts about 14 seconds on the house table. A piece with no hits cannot be reached. A node that never fired is a goal that is too hard, or one the person does not know about.
+- **Read the summary.** Balls under 15 seconds mean the table drains too easily: with no flipping at all a ball lasts about 13 seconds on the house table. A piece with no hits cannot be reached. A node that never fired is a goal that is too hard, or one the person does not know about.
 - **Teach.** A learner wants wide targets, long time limits and a ball save (`dosave`). Make the goals harder as the summaries improve.

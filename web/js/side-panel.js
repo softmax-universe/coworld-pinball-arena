@@ -1,14 +1,10 @@
 /**
- * The machine's display beside the table: ball number, score, the two message boxes, the clock,
- * and the floating texts over the table. It shows what the game's `hud` and `floating` messages
- * say and decides nothing itself.
+ * The machine's display beside the table: ball number, score, the two message boxes and the
+ * clock. It shows what the game's `hud` messages say and decides nothing itself.
  */
 
 /** The display has this many digit places until a score needs more. */
 const SCORE_PLACES = 7
-const FLOATING_COLOURS = ['yellow', 'red', 'green', 'blue', 'white']
-/** What a floating text is: a text piece of the table, a rule's message, or a score change. */
-const FLOATING_KINDS = ['text', 'message', 'score']
 
 /**
  * The score's digits in groups of three, `50000` as `['50', '000']`. The segment font has no
@@ -37,14 +33,6 @@ export function flagsOf(hud) {
   return flags
 }
 
-/** The colour class and the kind of one floating item. Anything unknown shows as a plain white text. */
-export function floatingLook({ colour, kind }) {
-  return {
-    className: `lamp-${FLOATING_COLOURS.includes(colour) ? colour : 'white'}`,
-    kind: FLOATING_KINDS.includes(kind) ? kind : 'text',
-  }
-}
-
 function spans(className, texts) {
   const row = document.createElement('span')
   row.className = className
@@ -68,7 +56,7 @@ export function drawScore(element, score) {
   element.replaceChildren(spans('score-unlit', unlit), spans('score-lit', groups))
 }
 
-/** `elements` holds the display's parts: `ballLine`, `score`, `quest`, `award`, `flags`, `clock`, `floating`. */
+/** `elements` holds the display's parts: `ballLine`, `score`, `quest`, `award`, `flags`, `clock`. */
 export function createSidePanel(elements) {
   drawScore(elements.score, 0)
 
@@ -85,25 +73,6 @@ export function createSidePanel(elements) {
           flag.className = `lamp-${tone}`
           flag.textContent = text
           return flag
-        }),
-      )
-    },
-
-    /**
-     * `items` is the full set of texts hovering over the table, placed by fractions of its size.
-     * styles.css gives each kind its own look through `data-kind`.
-     */
-    showFloating(items) {
-      elements.floating.replaceChildren(
-        ...items.map(({ x, y, text, ...item }) => {
-          const look = floatingLook(item)
-          const label = document.createElement('span')
-          label.className = look.className
-          label.dataset.kind = look.kind
-          label.style.left = `${x * 100}%`
-          label.style.top = `${y * 100}%`
-          label.textContent = text
-          return label
         }),
       )
     },

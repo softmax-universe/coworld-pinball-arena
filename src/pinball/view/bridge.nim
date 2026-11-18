@@ -3,13 +3,8 @@
 ##
 ## Game to page: the game calls `Module.pinballMessage(json)` if the page
 ## defined it. The page draws all text, so besides the game's own messages
-## the bridge sends two of its own, each only when its content changed:
-##
-## - `hud`: the numbers and messages of the side panel.
-## - `floating`: every piece of text that hovers over the table, with the
-##   place of each on the canvas as fractions 0 .. 1 of its width and height
-##   and its `kind`: `text` (a floating-text piece), `message` (from a rule)
-##   or `score` (a score change at the piece that caused it).
+## the bridge sends `hud`, the numbers and messages of the side panel, each
+## time its content changed.
 ##
 ## Page to game: the page pushes strings onto the array `Module.pinballInbox`
 ## and the game takes them all once per frame. The game pulls, the page does
@@ -19,15 +14,9 @@
 ## The native build has no page: it prints the game's messages and has no inbox.
 
 import
-  std/[json, math, strutils],
-  vmath,
+  std/json,
   ../sim/types,
-  ../game,
-  tableview
-
-const
-  ScorePopupSeconds = 1.2'f32
-  ColourNames: array[LampColour, string] = ["yellow", "red", "green", "blue", "white"]
+  ../game
 
 when defined(emscripten):
   {.emit: """
@@ -47,15 +36,8 @@ when defined(emscripten):
   proc pinballTakeMessage(): cstring {.importc, nodecl.}
   proc free(memory: pointer) {.importc, header: "<stdlib.h>".}
 
-type
-  ScorePopup = object
-    text: string
-    at: Vec3
-    secondsLeft: float32
-
-  Bridge* = object
-    lastHud, lastFloating: string
-    popups: seq[ScorePopup]
+type Bridge* = object
+  lastHud: string
 
 proc sendToPage*(json: string) =
   when defined(emscripten):
@@ -73,20 +55,6 @@ proc deliverInbox*(game: Game) =
       game.receiveMessage($message)
       free(message)
 
-proc signedAmount(amount: int32): string =
-  ## 5000 -> "+5,000".
-  (if amount < 0: "-" else: "+") & insertSep($abs(amount), ',')
-
-proc noteTick*(bridge: var Bridge, table: Table) =
-  ## Call after every tick: each score change of the tick becomes a
-  ## short-lived text at the component that caused it. A change with no
-  ## component on the table (a timeout, a signal) has no place to show, and
-  ## the side panel shows the score anyway.
-  for change in table.scoreChanges:
-    if table.componentIndex(change.componentId) >= 0:
-      bridge.popups.add ScorePopup(text: signedAmount(change.amount),
-        at: pieceAnchor(table, change.componentId), secondsLeft: ScorePopupSeconds)
-
 proc hudMessage(table: Table): string =
   const PhaseNames: array[EpisodePhase, string] = ["build", "play", "over"]
   $(%*{
@@ -103,41 +71,10 @@ proc hudMessage(table: Table): string =
     "ballSaveActive": table.ballSaveTicks > 0
   })
 
-proc floatingItem(view: TableView, at: Vec3, text, colour, kind: string): JsonNode =
-  let place = view.project(at)
-  %*{"x": round(place.x.float64 * 1000) / 1000, "y": round(place.y.float64 * 1000) / 1000,
-     "text": text, "colour": colour, "kind": kind}
-
-proc floatingMessage(bridge: Bridge, table: Table, view: TableView): string =
-  var items = newJArray()
-  for piece in table.components:
-    if piece.kind == ckFloatingText and piece.phase == phaseSolid and piece.text.len > 0:
-      let colour = LampColour(clamp(toInt(piece.settings[setColour]), 0, ord(high(LampColour))))
-      items.add view.floatingItem(pieceAnchor(table, piece.id), piece.text,
-        ColourNames[colour], "text")
-  for message in table.floatingMessages:
-    items.add view.floatingItem(pieceAnchor(table, message.componentId), message.text,
-      "white", "message")
-  for popup in bridge.popups:
-    items.add view.floatingItem(popup.at, popup.text, "yellow", "score")
-  $(%*{"type": "floating", "items": items})
-
-proc publish*(bridge: var Bridge, game: Game, view: TableView, seconds: float32) =
-  ## Call once per frame, after drawing: the view's camera is then the one
-  ## the frame was drawn with. The native build has no page to tell.
-  var index = 0
-  while index < bridge.popups.len:
-    bridge.popups[index].secondsLeft -= seconds
-    if bridge.popups[index].secondsLeft <= 0:
-      bridge.popups.delete index
-    else:
-      inc index
+proc publish*(bridge: var Bridge, game: Game) =
+  ## Call once per frame. The native build has no page to tell.
   when defined(emscripten):
     let hud = hudMessage(game.table)
     if hud != bridge.lastHud:
       bridge.lastHud = hud
       sendToPage(hud)
-    let floating = bridge.floatingMessage(game.table, view)
-    if floating != bridge.lastFloating:
-      bridge.lastFloating = floating
-      sendToPage(floating)

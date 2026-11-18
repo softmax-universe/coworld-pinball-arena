@@ -166,7 +166,7 @@ suite "shapes":
       for collider in shape:
         check collider.componentId == 7
 
-    for kind in [ckMouth, ckTrack, ckInsert, ckFlasher, ckFloatingText]:
+    for kind in [ckMouth, ckTrack, ckInsert, ckFlasher]:
       checkpoint $kind
       check shapeOf(kind).len == 0
     check shapeOf(ckPopBumper, phase = phaseBeamingIn).len == 0

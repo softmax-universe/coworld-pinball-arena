@@ -224,12 +224,6 @@ proc aimCamera(view: TableView, framebufferSize: IVec2) =
   view.toon.cameraPosition = eye
   view.viewProjection = view.toon.proj * view.toon.view
 
-proc project*(view: TableView, point: Vec3): Vec2 =
-  ## Where a point in the world shows on the canvas, as fractions of its
-  ## width and height from the top left corner.
-  let clip = view.viewProjection * vec4(point, 1)
-  vec2(clip.x / clip.w * 0.5 + 0.5, 0.5 - clip.y / clip.w * 0.5)
-
 # --- Pieces ------------------------------------------------------------------------
 
 proc shapeSignature(table: Table, piece: Component): Hash =
@@ -380,19 +374,6 @@ proc partTransform(piece: Component, pieceView: PieceView, part: Part): Mat4 =
       translate(-part.pivot)
   of motionSwing:
     result = result * placed(vec3(0, 0, 0), pieceView.swing)
-
-proc pieceAnchor*(table: Table, componentId: int32): Vec3 =
-  ## A point just above a component, for text that belongs to it. The middle
-  ## of the table when there is no such component. A track has no place of
-  ## its own (it runs between its mouths), so its point is half way along it.
-  let index = table.componentIndex(componentId)
-  if index < 0:
-    return vec3(PlayfieldWidth / 2, 30, PlayfieldHeight * 0.45)
-  let piece = table.components[index]
-  let place =
-    if piece.kind == ckTrack: table.trackPoint(piece, table.trackLength(piece) / 2'i32)
-    else: piece.pos
-  place.onTable(levelY(piece.level) + 30)
 
 # --- Balls -------------------------------------------------------------------------
 
@@ -563,7 +544,7 @@ proc collectPieces(view: TableView, table: Table, items: var seq[DrawItem]) =
         item.material.emissive = scaledColour(HologramColour, 0.5 * phaseShare)
       items.add item
 
-    if piece.kind in {ckTrack, ckFloatingText}:
+    if piece.kind == ckTrack:
       continue
     case piece.phase
     of phaseBeamingIn:

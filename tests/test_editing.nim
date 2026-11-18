@@ -316,9 +316,8 @@ suite "rejected edits":
     game.checkRejected(createEdit(ckPassiveBumper, PlaceA), rejectOverlap)
     game.checkRejected(Edit(kind: editMove, targetId: rollover, pos: PlaceA), rejectOverlap)
 
-    # Lamps and text sit under anything, and a raised piece is above the playfield.
+    # Lamps sit under anything, and a raised piece is above the playfield.
     discard game.create(ckInsert, PlaceA)
-    discard game.create(ckFloatingText, PlaceA)
     discard game.create(ckRollover, PlaceB, level = 2)
     game.checkRejected(createEdit(ckRollover, PlaceB, level = 2), rejectOverlap)
     check game.piece(post).phase == phaseSolid
@@ -357,17 +356,9 @@ suite "rejected edits":
     # A rubber post belongs on the playfield. Only some kinds may be raised.
     game.checkRejected(createEdit(ckRubberPost, PlaceA, level = 2), rejectBadValue)
 
-    var badText = createEdit(ckFloatingText, PlaceA)
-    badText.text = "lower case"
-    game.checkRejected(badText, rejectBadValue)
-
     let post = game.createSolid(ckRubberPost, PlaceA)
     game.checkRejected(Edit(kind: editResize, targetId: post, sizePercent: MaxSizePercent + 1),
                        rejectBadValue)
-    game.checkRejected(Edit(kind: editText, targetId: post, text: "HELLO"), rejectBadValue)
-
-    let label = game.create(ckFloatingText, PlaceB)
-    game.checkRejected(Edit(kind: editText, targetId: label, text: "lower case"), rejectBadValue)
 
 suite "edit rate":
   test "script edits are limited during play, and the window moves on after a second":
@@ -381,7 +372,7 @@ suite "edit rate":
     game.checkRejected(Edit(kind: editDelete, targetId: first.id), rejectRateLimit,
                        limited = true)
 
-    # Setting, text and reset edits never count, and rule results are not limited.
+    # Setting and reset edits never count, and rule results are not limited.
     check game.applyEdit(Edit(kind: editSetting, targetId: first.id, setting: setLamp,
                               value: 1'fx), rateLimited = true).accepted
     check game.applyEdit(createEdit(ckInsert, PlaceA), rateLimited = false).accepted
@@ -398,22 +389,15 @@ suite "edit rate":
       check game.applyEdit(createEdit(ckInsert, PlaceA), rateLimited = true).accepted
     check game.components.len == 3 * TestSettings.editsPerSecond
 
-suite "settings, text and groups":
-  test "a setting or text change takes effect at once, with no beam-in":
+suite "settings and groups":
+  test "a setting change takes effect at once, with no beam-in":
     var game = newGame()
-    let
-      magnet = game.createSolid(ckMagnet, PlaceA)
-      label = game.createSolid(ckFloatingText, PlaceB)
+    let magnet = game.createSolid(ckMagnet, PlaceA)
 
     check game.applyEdit(Edit(kind: editSetting, targetId: magnet, setting: setEnabled,
                               value: 0'fx), rateLimited = false).accepted
     check game.piece(magnet).settings[setEnabled] == 0'fx
     check game.piece(magnet).phase == phaseSolid
-
-    check game.applyEdit(Edit(kind: editText, targetId: label, text: "JACKPOT!"),
-                         rateLimited = false).accepted
-    check game.piece(label).text == "JACKPOT!"
-    check game.piece(label).phase == phaseSolid
 
   test "a group edit reaches every piece of the group and no other":
     var game = newGame()

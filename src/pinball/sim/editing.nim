@@ -58,7 +58,6 @@ proc placedPiece(table: Table, edit: Edit): Component =
       level: max(edit.level, 1),
       group: edit.group,
       settings: defaultSettings(edit.componentKind),
-      text: edit.text,
       phase: phaseBeamingIn,
       phaseTicks: table.settings.beamInTicks
     )
@@ -113,16 +112,12 @@ proc rejectReason(table: Table, edit: Edit, rateLimited: bool): RejectReason =
   of editCreate:
     let info = KindInfos[edit.componentKind]
     if edit.componentKind == ckNone or edit.level notin 0 .. LevelCount or
-        (edit.level > 1 and not info.allowedRaised) or edit.group < 0 or
-        not isValidText(edit.text):
+        (edit.level > 1 and not info.allowedRaised) or edit.group < 0:
       return rejectBadValue
     if table.pieceCount >= table.settings.maxPieces:
       return rejectTooManyPieces
     if table.budgetUsed + info.cost > table.settings.buildBudget:
       return rejectOverBudget
-  of editText:
-    if table.components[targets[0]].kind != ckFloatingText or not isValidText(edit.text):
-      return rejectBadValue
   of editSetting:
     if edit.value notin settingRange(edit.setting):
       return rejectBadValue
@@ -204,8 +199,6 @@ proc applyEdit*(table: var Table, edit: Edit, rateLimited: bool): CommandOutcome
       let oldValue = table.components[index].settings[edit.setting]
       table.components[index].settings[edit.setting] = edit.value
       table.settingChanged(index, edit.setting, oldValue)
-  of editText:
-    table.components[targets[0]].text = edit.text
   of editReset:
     if edit.targetGroup != 0:
       table.resetTargets(0, edit.targetGroup)

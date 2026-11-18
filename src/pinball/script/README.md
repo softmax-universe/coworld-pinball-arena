@@ -115,7 +115,7 @@ generated from the enums in `sim/types.nim`, which is the list to trust.
 
 | Prefix | Enum | Names, numbered from 0 |
 | --- | --- | --- |
-| `kind_` | `ComponentKind` | `none popbumper passivebumper slingshot standuptarget droptarget toggletarget spinner rollover captiveball saucer scoop balllock kicker kickback magnet gate diverter uppost wall rubberpost mouth track insert flasher floatingtext` |
+| `kind_` | `ComponentKind` | `none popbumper passivebumper slingshot standuptarget droptarget toggletarget spinner rollover captiveball saucer scoop balllock kicker kickback magnet gate diverter uppost wall rubberpost mouth track insert flasher` |
 | `ev_` | `EventKind` | `none hit drop bankcomplete reset flip spin rollover captured released locked fired usedup relit grabbed passed switched raised lowered trackentered trackcompleted trackfailed flipperup flipperdown flipperfullyraised plungerpulled balllaunched nudge tiltwarning tilt balldrained ballsaved balladded ballcountchanged ballchangedlevel componentcreated componentremoved editrejected fsmsignal scriptsignal clockthreshold buildphaseended episodeending programloaded` |
 | `set_` | `Setting` | `strength direction holdticks travelticks exitx exity capacity radius mode enabled position length curve bounce style widtha widthb moutha mouthb controlax controlay controlbx controlby colour lamp` |
 | `cue_` | `SoundCue` | `none ping bell chime thunk clack pop sling spinner rollover drop resetbank launch drain ballsave extraball kick hole lock magnet gate beamin fadeout sweepup sweepdown fanfare jackpot queststart questfail warning tilt gameover programloaded` |
@@ -196,12 +196,6 @@ Each is one command unless it says otherwise.
 | `reset(id)` | Raise a drop target again, or relight a kickback |
 | `resetgroup(group)` | The same for every piece of a group |
 | `track(moutha, mouthb, cax, cay, cbx, cby)` | Make a track between two mouth pieces, with the two control points of its curve. All four control values 0 give a straight line. Seven commands: the track piece, then `set_moutha`, `set_mouthb`, `set_controlax`, `set_controlay`, `set_controlbx`, `set_controlby`. Returns the track id, or the reason of the first rejected command; a track piece made before that stays on the table |
-| `text(x, y, colour, text$)` | Make a floating text. Two commands: the piece, then its `set_colour`. Returns the piece id |
-| `settext(id, text$)` | Change the text of a floating text |
-
-Text is at most 40 characters from capitals, digits, space and
-`! ? . , : ; ' " - + * / % & # = < > ( )`. Other text is rejected with
-`reject_badvalue`.
 
 A rejected edit (from a piece call, or from a rule result when it runs) is
 logged in the table and counted in `rejectcount`.
@@ -237,7 +231,6 @@ one command and returns 1.
 | `doflash(f, n)` | Pulse the flashers |
 | `doburst(f, n, component)` | Particle burst at a piece |
 | `domessage(f, n, slot, text$)` | Show text in a side-panel box: `slot_quest` or `slot_award` |
-| `dofloat(f, n, component, text$)` | Float text at a piece for 2 seconds |
 | `dosignal(f, n, number)` | Raise FSM signal 0..15 (`ev_fsmsignal`, seen on the next tick) |
 | `docreate(f, n, kind, x, y, rotation, size, level, group)` | The edit `create` makes |
 | `domove(f, n, id, x, y)` | The edit `move` makes |
@@ -253,7 +246,9 @@ one command and returns 1.
 | `doextraball(f, n)` | Award an extra ball |
 
 Adding a result checks only its own values (score size, signal number,
-text). The pieces it names are not checked then, because a rule may name a
+text). Text is at most 40 characters from capitals, digits, space and
+`! ? . , : ; ' " - + * / % & # = < > ( )`; other text is rejected with
+`reject_badvalue`. The pieces it names are not checked then, because a rule may name a
 piece that is built later. An edit result is checked when it runs, by the
 same rules as a direct edit except the edit rate; one that cannot be applied
 is skipped and counted in `rejectcount`.

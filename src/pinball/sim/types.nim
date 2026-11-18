@@ -141,8 +141,8 @@ type
     ckGate, ckDiverter, ckUpPost, ckWall, ckRubberPost
     # Track
     ckMouth, ckTrack
-    # Lights and text
-    ckInsert, ckFlasher, ckFloatingText
+    # Lights
+    ckInsert, ckFlasher
 
   Setting* = enum
     ## The type-specific settings of a component. Each kind uses a few of
@@ -171,7 +171,7 @@ type
     setControlAY
     setControlBX
     setControlBY
-    setColour       ## A `LampColour`, for lamps, flashers and text.
+    setColour       ## A `LampColour`, for lamps and flashers.
     setLamp         ## A `LampState`.
 
   LampState* = enum
@@ -194,7 +194,6 @@ type
     level*: int32
     group*: int32           ## 0 is no group. Pieces that share a number form a bank.
     settings*: array[Setting, Fixed]
-    text*: string           ## Only floating text uses this.
 
     phase*: ComponentPhase
     phaseTicks*: int32      ## Ticks left in the current phase.
@@ -257,7 +256,6 @@ type
   EditKind* = enum
     editCreate, editMove, editRotate, editResize, editDelete
     editSetting   ## Change one setting. Takes effect at once, with no beam-in.
-    editText      ## Change the text of a floating text.
     editReset     ## Raise a drop target again, or relight a kickback.
 
   Edit* = object
@@ -274,7 +272,6 @@ type
     group*: int32
     setting*: Setting
     value*: Fixed
-    text*: string
 
   RejectReason* = enum
     rejectNone
@@ -314,13 +311,13 @@ type
 
   ResultKind* = enum
     resultScore, resultSound, resultLamp, resultFlashers, resultBurst
-    resultPanelText, resultFloatText, resultEdit, resultBallAction, resultSignal
+    resultPanelText, resultEdit, resultBallAction, resultSignal
 
   NodeResult* = object
     ## One thing that happens when an FSM enters a node.
     kind*: ResultKind
     amount*: int32        ## Score change, signal number, or ball-save ticks.
-    targetId*: int32      ## The component a lamp, burst, text or release is aimed at.
+    targetId*: int32      ## The component a lamp, burst or release is aimed at.
     targetGroup*: int32
     lamp*: LampState
     sound*: SoundCue
@@ -426,11 +423,6 @@ type
     sound*: SoundCue
     componentId*: int32
 
-  FloatingMessage* = object
-    componentId*: int32
-    text*: string
-    ticksLeft*: int32
-
   RuleFiring* = object
     fsmId*, nodeIndex*, count*: int32
 
@@ -476,7 +468,6 @@ type
     tilted*: bool                 ## Flippers are dead until the ball drains.
     score*: int64
     questText*, awardText*: string
-    floatingMessages*: seq[FloatingMessage]
 
     # Outputs of the current tick. `step` clears them at the start of a tick.
     events*: seq[Event]

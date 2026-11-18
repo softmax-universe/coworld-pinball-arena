@@ -128,7 +128,6 @@ Game to page, through `Module.pinballMessage(json)`:
 | `type` | Sent | Fields |
 | --- | --- | --- |
 | `hud` | When it changes | `phase`, `ballNumber`, `ballsPerEpisode`, `score`, `quest`, `award`, `clockSeconds` (left), `tiltWarnings`, `tilted`, `ballSaveActive` |
-| `floating` | When it changes | `items`: `x`, `y` (fractions of the canvas), `text`, `colour`, `kind` (`text`, `message`, `score`) |
 | `episode` | Once per Episode | `summary` |
 | `programLoaded` | A program compiled | `name`, `version`, `effect` |
 | `programError` | Once per failure | `name`, `version`, `stage` (`compile`, `run`, `budget`), `message`, `output` |
@@ -174,6 +173,7 @@ The server part is described in [`server/README.md`](../server/README.md).
 | A ball lock holds a ball until a rule releases it. | Also: locking the only ball in play serves a new ball, and locked balls do not keep a ball number alive. | Otherwise a lock can stall the Episode. |
 | Post pass must work. | No test covers it. | It needs a person at the table. |
 | Sounds from CC0 packs and recordings of real machines. | Kenney CC0 packs only. | Freesound downloads need an account. |
+| A floating text component and a floating-text rule result. | Not built. Rules write text only to the display: the two message boxes of the side panel. | The owner asked for this after play: text on the table obstructs the view. |
 | A pre-rendered, airbrushed look. | Lit procedural solids, fake chrome, glow from additive discs. No bloom. | Kept to simple means. |
 
 The BASIC budgets the design left open are set in `script/hosts.nim`: 200,000 instructions per

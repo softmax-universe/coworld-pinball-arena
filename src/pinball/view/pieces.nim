@@ -476,5 +476,5 @@ proc buildParts*(table: Table, piece: Component): seq[Part] =
   of ckMouth: shape.buildMouth(piece, size)
   of ckTrack: shape.buildTrack(table, piece)
   of ckInsert, ckFlasher: shape.buildLamp(piece, radius)
-  of ckNone, ckFloatingText: discard
+  of ckNone: discard
   shape.parts

@@ -148,7 +148,7 @@ proc shapeOf(piece: Component): seq[Collider] =
     if isOn: @[circle(piece.pos, radius, surfaceRubber)] else: @[]
   of ckWall:
     wallShape(piece, radius)
-  of ckNone, ckMagnet, ckMouth, ckTrack, ckInsert, ckFlasher, ckFloatingText:
+  of ckNone, ckMagnet, ckMouth, ckTrack, ckInsert, ckFlasher:
     @[]
 
 proc rebuildColliders*(component: var Component) =

@@ -16,9 +16,6 @@
 
 import types, editing, episode, components
 
-const FloatTextTicks = 2 * TicksPerSecond
-  ## How long a floating message from a rule stays on screen.
-
 # --- Building FSMs -----------------------------------------------------------
 
 const UnknownTarget = CommandOutcome(reason: rejectUnknownTarget)
@@ -82,7 +79,7 @@ proc isWithinLimits(nodeResult: NodeResult): bool =
     abs(nodeResult.amount) <= MaxScoreChange
   of resultSignal:
     nodeResult.amount in 0 ..< SignalCount
-  of resultPanelText, resultFloatText:
+  of resultPanelText:
     isValidText(nodeResult.text)
   of resultBallAction:
     nodeResult.ballAction != ballActionSave or nodeResult.amount >= 0
@@ -131,9 +128,6 @@ proc applyResult(table: var Table, nodeResult: NodeResult, eventComponentId: int
     case nodeResult.slot
     of slotQuest: table.questText = nodeResult.text
     of slotAward: table.awardText = nodeResult.text
-  of resultFloatText:
-    table.floatingMessages.add FloatingMessage(
-      componentId: nodeResult.targetId, text: nodeResult.text, ticksLeft: FloatTextTicks)
   of resultSignal:
     table.emitNext Event(kind: evFsmSignal, value: nodeResult.amount)
   of resultEdit:

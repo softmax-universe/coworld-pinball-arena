@@ -9,7 +9,7 @@ import std/[math, unittest]
 import pinball/sim/[simulation, physics, layout]
 
 const
-  SlopeGravity = 1110.0   ## mm/s^2 along +y: g * sin(6.5 degrees).
+  SlopeGravity = toFloat64(layout.SlopeGravity)   ## mm/s^2 along +y: g * sin(6.5 degrees).
   WallX = 250.0           ## Test obstacles are upright walls at this x.
 
 type
@@ -124,10 +124,11 @@ proc circleAt(position: Point, radius = 5.0): Collider =
   Collider(a: vec(position.x, position.y), b: vec(position.x, position.y),
     radius: toFixed(radius))
 
-proc reboundFrom(collider: Collider, approachSpeed: float): float =
+proc reboundFrom(collider: Collider, approachSpeed: float, tilted = false): float =
   ## Sends a ball square into an upright wall and returns how fast it comes
   ## back. Negative means it is still travelling into the wall.
   var game = initTable()
+  game.tilted = tilted
   game.addObstacle(7, collider)
   game.addBall(150, 400, velX = approachSpeed)
   game.run(20)
@@ -271,6 +272,11 @@ suite "ball":
     var kicker = uprightWall(surfaceRubber)
     kicker.kickSpeed = 900'fx
     check reboundFrom(kicker, 800) > 1.2 * 800
+
+  test "a tilted table is dead: a kicking collider only bounces":
+    var kicker = uprightWall(surfaceRubber)
+    kicker.kickSpeed = 900'fx
+    check reboundFrom(kicker, 800, tilted = true) < 800
 
   test "a one-way collider lets the ball through one way only":
     var gate = uprightWall()

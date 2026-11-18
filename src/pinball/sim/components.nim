@@ -204,7 +204,7 @@ proc fire(table: var Table, index, ballAt: int, inTick: bool) =
   ## A kicker or a lit kickback shoots the ball away. Firing uses a kickback up.
   template launcher: untyped = table.components[index]
   template ball: untyped = table.balls[ballAt]
-  if not launcher.isArmed:
+  if not launcher.isArmed or table.tilted:   # A tilted table is dead.
     return
   ball.vel = heading(launcher.settings[setDirection]) * launcher.settings[setStrength]
   launcher.handledBallIds.add ball.id

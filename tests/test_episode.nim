@@ -143,6 +143,16 @@ suite "episode":
     doAssert game.balls.len == 1
     check game.balls[0].atPlunger
 
+  test "a tilt costs the ball: a tilted ball is not saved, and the tilt ends with it":
+    var game = startedGame()
+    game.launch()
+    game.tilted = true
+    game.advance(Second)
+    let events = game.drainFreeBalls()
+    check events.count(evBallSaved) == 0
+    check game.ballNumber == 2
+    check not game.tilted
+
   test "the automatic save returns one ball for each ball number, however often it is launched":
     var game = startedGame()
     game.launch()
@@ -357,17 +367,6 @@ suite "episode":
     rolling.balls[0].vel = fixedVec2(0'fx, 300'fx)
     rolling.advance(LongestBallSearch)
     check rolling.balls[0].pos == OpenPlayfield
-
-  test "floating messages expire":
-    var game = startedGame()
-    game.floatingMessages.add FloatingMessage(componentId: 1, text: "SHORT", ticksLeft: 3)
-    game.floatingMessages.add FloatingMessage(componentId: 2, text: "LONG", ticksLeft: 10)
-    game.advance(3)
-    doAssert game.floatingMessages.len == 1
-    check game.floatingMessages[0].text == "LONG"
-    check game.floatingMessages[0].ticksLeft == 7
-    game.advance(7)
-    check game.floatingMessages.len == 0
 
   test "an ended Episode stays ended":
     var game = startedGame()

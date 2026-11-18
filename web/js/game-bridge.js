@@ -7,7 +7,7 @@
  * before the script loads, so what the page sends early (the program to play) is there for the
  * game's first frame.
  *
- * Game to page, by `type`: `hud`, `floating`, `episode`, `programLoaded`, `programError`.
+ * Game to page, by `type`: `hud`, `episode`, `programLoaded`, `programError`.
  * Page to game: `program`, `restart`, `flipper`.
  */
 

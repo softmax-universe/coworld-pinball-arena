@@ -13,15 +13,13 @@
 ## while the ball is inside mouth A and a little above the length of the curve
 ## while it is inside mouth B.
 
-import types, catalogue, geometry
+import types, catalogue, geometry, layout
 
 const
   ThroatDepth = 30'fx
     ## Millimetres from the open end of a mouth back to its throat, at 100% size.
   CurveSegments = 32
     ## The curve is sampled into this many straight pieces.
-  SlopeGravity = 1110'fx
-    ## mm/s^2 along +y, from the tilt of the table. Keep in step with physics.
   FullGravity = 9800'fx
     ## mm/s^2 straight down. A ramp turns a share of it against the climb.
   LevelHeight = 25'fx

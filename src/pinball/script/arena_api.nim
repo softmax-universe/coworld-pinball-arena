@@ -1,6 +1,6 @@
 ## The calls of the Arena seat: edit the pieces, build the rules.
 ##
-## Each call makes one command (`track` and `text` make several) and returns
+## Each call makes one command (`track` makes several) and returns
 ## what `give` returns. The edits that a rule node can also make as a result
 ## (`docreate`, `domove`, ...) take the same arguments after the FSM and the
 ## node, so each of those edits is built by one small proc that both use.
@@ -55,20 +55,6 @@ proc giveTrack(script: Script, args: openArray[Value]): int32 =
     if outcome < 0:
       return outcome
 
-proc giveText(script: Script, args: openArray[Value]): int32 =
-  ## x, y, colour, text$. Two commands: the piece, then its colour.
-  let
-    colour = toEnum[LampColour](args[2])
-    text = script.runtime.getString(args[3])
-  result = script.giveEdit Edit(kind: editCreate, componentKind: ckFloatingText,
-    pos: fixedVec2(args[0].asFixed, args[1].asFixed), sizePercent: 100, level: 1, text: text)
-  if result < 0:
-    return
-  let outcome = script.giveEdit Edit(kind: editSetting, targetId: result, setting: setColour,
-                                     value: fixed(int32(ord(colour))))
-  if outcome < 0:
-    return outcome
-
 # --- Rules -------------------------------------------------------------------
 
 proc eventEdge(args: openArray[Value]): Edge =
@@ -111,10 +97,6 @@ proc addArenaCalls*(host: var Host, script: Script) =
   host.call("reset", 1): script.giveEdit Edit(kind: editReset, targetId: args[0].asInt)
   host.call("resetgroup", 1): script.giveEdit Edit(kind: editReset, targetGroup: args[0].asInt)
   host.call("track", 6): script.giveTrack(args)
-  host.call("text", 4): script.giveText(args)
-  host.call("settext", 2):
-    script.giveEdit Edit(kind: editText, targetId: args[0].asInt,
-                         text: script.runtime.getString(args[1]))
 
   # Rules: FSMs, their nodes and edges.
   host.call("fsm", 0): script.give Command(kind: cmdFsmCreate)
@@ -147,8 +129,6 @@ proc addArenaCalls*(host: var Host, script: Script) =
   nodeResult "doburst", 1, NodeResult(kind: resultBurst, targetId: args[2].asInt)
   nodeResult "domessage", 2, NodeResult(kind: resultPanelText, slot: toEnum[PanelSlot](args[2]),
                                         text: script.runtime.getString(args[3]))
-  nodeResult "dofloat", 2, NodeResult(kind: resultFloatText, targetId: args[2].asInt,
-                                      text: script.runtime.getString(args[3]))
   nodeResult "dosignal", 1, NodeResult(kind: resultSignal, amount: args[2].asInt)
 
   editResult "docreate", 7, createEdit(resultArgs)

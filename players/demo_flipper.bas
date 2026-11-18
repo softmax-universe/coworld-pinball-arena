@@ -4,9 +4,9 @@
 ' ball is about to reach it, lets go again, and nudges now and then. It is
 ' meant to keep a ball going and show the table, not to play well.
 '
-' The flippers mirror about x = 240. Each turns about a pivot 90 mm from that
-' line at y = 950, lies 30 degrees below level at rest, and reaches 78 mm
-' toward the middle. The arrays below hold one value per flipper, at index
+' The flippers mirror about x = 240. Each turns about a pivot 83 mm from that
+' line at y = 950, lies 30 degrees below level at rest, and is 70 mm long, so
+' its tip is 61 mm toward the middle. A full stroke takes about 4 ticks. The arrays below hold one value per flipper, at index
 ' "left" (0) and "right" (1).
 
 dim want(1)   ' 1 when a ball is about to reach the flipper.
@@ -41,13 +41,13 @@ want(left) = 0
 want(right) = 0
 for i = 0 to ballcount - 1
   if balls(i).state = state_free and balls(i).level = 1 and balls(i).vy > -150 then
-    aheadx = balls(i).x + balls(i).vx * 0.03
-    aheady = balls(i).y + balls(i).vy * 0.03
+    aheadx = balls(i).x + balls(i).vx * 0.02
+    aheady = balls(i).y + balls(i).vy * 0.02
     side = left
     if aheadx > 240 then side = right
-    reach = 90 - abs(aheadx - 240)    ' Along the table, from the pivot toward the middle.
+    reach = 83 - abs(aheadx - 240)    ' Along the table, from the pivot toward the middle.
     blade = 950 + reach * 0.577       ' The height of the resting blade there.
-    if reach > aim(side) and reach < 85 and aheady > blade - 42 and aheady < blade + 10 then want(side) = 1
+    if reach > aim(side) and reach < 78 and aheady > blade - 42 and aheady < blade + 10 then want(side) = 1
   end if
 next
 work(left, leftpressed)
@@ -57,7 +57,7 @@ sub work(side, pressed)
   ' Press when wanted and hold for a short time after. A flipper that has
   ' been up for most of a second is let down for a moment, so a ball it has
   ' caught rolls toward the tip and is shot on the next flip.
-  if aim(side) = 0 then aim(side) = 40
+  if aim(side) = 0 then aim(side) = 36
   if rest(side) > 0 then
     rest(side) = rest(side) - 1
   elseif want(side) = 1 then
@@ -79,7 +79,7 @@ sub letgo(side)
   ' to different parts of the table.
   flip(side, 0)
   held(side) = 0
-  aim(side) = 25 + rnd(36)
+  aim(side) = 22 + rnd(33)
 end sub
 
 ' --- Nudge -------------------------------------------------------------------

@@ -21,12 +21,11 @@ import types, layout, geometry
 const
   SubstepsPerSecond = TicksPerSecond * SubstepsPerTick
 
-  SlopeGravity = 1110'fx        ## mm/s^2 down the table: g x sin(6.5 degrees).
   MaxBallSpeed = 5000'fx        ## mm/s. Keeps the maths in range and walls solid.
 
   # How much of the speed into a surface comes back out.
   SurfaceBounce: array[Surface, Fixed] = [
-    surfaceMetal: 0.5'fx, surfaceRubber: 0.75'fx, surfaceDead: 0.1'fx]
+    surfaceMetal: 0.42'fx, surfaceRubber: 0.62'fx, surfaceDead: 0.1'fx]
   BallBounce = 0.9'fx           ## Steel ball against steel ball.
   RestingSpeed = 60'fx
     ## mm/s. A ball that meets a surface slower than this does not bounce, so
@@ -38,7 +37,10 @@ const
     ## this, so a ball leaning on a bumper is left alone.
 
   # Flipper drive, in degrees per second gained each tick.
-  FlipperStrokeGain = 320'fx    ## The power stroke. Full stroke in about 6 ticks.
+  FlipperStrokeGain = 1200'fx   ## The power stroke: at full speed within two ticks.
+  FlipperMaxSpeed = 2200'fx
+    ## Degrees per second. The stroke tops out here, so the flipper starts at
+    ## once without throwing the ball harder. Full stroke in about 4 ticks.
   FlipperHoldGain = 100'fx      ## The hold, after the flipper first reaches the top.
   FlipperReturnGain = 150'fx    ## The return spring.
   FlipperStopBounce = 0.15'fx   ## The share of its speed a flipper keeps off the top stop.
@@ -109,7 +111,8 @@ proc advanceFlipper(table: var Table, side: FlipperSide) =
     if not flipper.pressed: -FlipperReturnGain
     elif flipper.holding: FlipperHoldGain
     else: FlipperStrokeGain
-  flipper.angularVelocity += gain / SubstepsPerTick
+  flipper.angularVelocity = min(flipper.angularVelocity + gain / SubstepsPerTick,
+    FlipperMaxSpeed)
   flipper.angle += flipper.angularVelocity / SubstepsPerSecond
   if flipper.angle >= FlipperStroke:
     flipper.angle = FlipperStroke
@@ -163,7 +166,7 @@ proc report(contacts: var seq[Contact], firstOfTick: int, contact: Contact) =
   contacts.add contact
 
 proc touch(ball: var Ball, collider: Collider, surfaceVelocity: FixedVec2,
-    contacts: var seq[Contact], firstOfTick: int): bool =
+    contacts: var seq[Contact], firstOfTick: int, kicks = true): bool =
   ## Pushes the ball out of the collider and bounces it. `surfaceVelocity` is
   ## how fast the collider itself moves where the ball meets it. Returns true
   ## when the collider pushed the ball.
@@ -196,7 +199,7 @@ proc touch(ball: var Ball, collider: Collider, surfaceVelocity: FixedVec2,
     var push = approach
     if approach > RestingSpeed:
       push += approach * SurfaceBounce[collider.surface]
-    if approach > KickMinSpeed:
+    if kicks and approach > KickMinSpeed:
       push += collider.kickSpeed
     let
       tangent = perpendicular(normal)
@@ -285,7 +288,9 @@ proc stepPhysics*(table: var Table) =
       for component in table.components:
         if component.level == ball.level:
           for collider in component.colliders:
-            discard ball.touch(collider, FixedVec2Zero, table.contacts, firstContact)
+            # A tilted table is dead: bumpers and slingshots do not kick.
+            discard ball.touch(collider, FixedVec2Zero, table.contacts, firstContact,
+              kicks = not table.tilted)
 
       ball.keepInCabinet()
       ball.limitSpeed()

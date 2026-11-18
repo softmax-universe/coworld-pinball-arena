@@ -186,7 +186,7 @@ suite "house table and demo flipper":
     check unplayed.game.ballTicks.len >= BallsPerEpisode
     if demo.game.ballTicks.len > 0 and unplayed.game.ballTicks.len > 0:
       # The margin is half again as long. In the experiments behind this
-      # table the demo kept a ball about four times as long.
+      # table the demo kept a ball about three and a half times as long.
       check demo.game.meanBallSeconds > 1.5 * unplayed.game.meanBallSeconds
 
   test "the same Episode played twice ends on the same score":

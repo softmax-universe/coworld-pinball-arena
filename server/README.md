@@ -85,24 +85,27 @@ On the Softmax side:
 
 On the Vercel side:
 
-- Set `COGENT_SECRET` and `SITE_ORIGIN` as environment variables of the project.
+- `COGENT_SECRET` and `SITE_ORIGIN` are set as production environment variables of the
+  project `pinball-arena` (`SITE_ORIGIN` is `https://pinball-arena.vercel.app`).
 - One deployment address only. Every Vercel preview deployment has its own hostname, and both the
   allowed-sites list and `SITE_ORIGIN` need an exact match, so sign-in works on the one production
   hostname (and on localhost) and nowhere else.
 - WebSockets on Vercel need Fluid compute, which is the default for projects created since April 2025.
-- `web/game/` (the WebAssembly build) is in `.gitignore`. A deployment from git will not contain
-  the game unless the build output gets there some other way. That is not solved here.
+- `web/game/` (the WebAssembly build) is in `.gitignore`, so the site is deployed from a
+  machine that has built it, with `vercel deploy --prod`. `.vercelignore` makes the CLI upload
+  the build. A deployment from git would not contain the game.
 
 ## Not tested
 
-Nothing has been deployed to Vercel. `api/cogent.js` and `vercel.json` follow Vercel's documented
-conventions (a function that exports a Node http server receives `upgrade` events), but:
+The site is deployed at `https://pinball-arena.vercel.app`. Checked there: `whoami` answers
+through the function (so the function sees the `/softmax-cogent/...` path after the rewrite),
+the sign-in redirect points at softmax.com with the right callback, and the socket route gets the
+`upgrade` event and refuses a missing cookie (401) and a foreign origin (403). Not checked:
 
 - **The WebSocket pass-through on Vercel.** The SDK writes the handshake reply onto the raw socket
   and pipes bytes to softmax.com. Vercel's examples all use the `ws` library. Whether the raw
   approach works there is not known. If it does not, the pass-through needs a small adapter or a
   different host for this one route.
-- That the function still sees the `/softmax-cogent/...` path after the rewrite in `vercel.json`.
 - The time limit after which Vercel closes a WebSocket. The page must reconnect and reread in any
   case, as the AIDE contract requires.
 - A full sign-in, and a real cogent connection through the pass-through, even locally. What was

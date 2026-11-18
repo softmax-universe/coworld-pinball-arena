@@ -7,12 +7,10 @@
  * WebSockets (https://vercel.com/docs/functions/websockets): Vercel delivers requests as `request`
  * events and WebSocket handshakes as `upgrade` events.
  *
- * UNTESTED ON VERCEL. This has never been deployed. In particular:
- *   - The WebSocket pass-through. Vercel's examples hand the `upgrade` event to the `ws` library.
+ * Deployed, and both events arrive with the /softmax-cogent/... path. NOT YET TESTED ON VERCEL:
+ *   - An accepted WebSocket. Vercel's examples hand the `upgrade` event to the `ws` library.
  *     The cogent server instead writes the "101 Switching Protocols" reply onto the raw socket
  *     itself and pipes bytes to softmax.com. Whether Vercel's runtime allows that is not known.
- *   - That `req.url` is still the /softmax-cogent/... path after the rewrite, for both events.
- *     The cogent server ignores any other path.
  *   - Vercel closes a WebSocket when the function reaches its time limit. The page must reconnect.
  */
 import { createServer } from 'node:http'

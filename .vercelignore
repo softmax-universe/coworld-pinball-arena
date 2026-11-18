@@ -1,0 +1,12 @@
+# What a Vercel deployment uploads. When this file exists the Vercel CLI uses it
+# in place of .gitignore, so the built game in web/game/ (git-ignored) is uploaded.
+# Everything is left out except the page, the one function and what it imports.
+/*
+!/web
+!/api
+!/server
+!/vercel.json
+!/package.json
+/server/test
+/web/test
+/web/game/test.html

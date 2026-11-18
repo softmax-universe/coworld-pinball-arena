@@ -7,8 +7,9 @@ With no cogent connected, the bundled house program runs the table.
 ![The page: the table, the side panel and the cogent panel](docs/images/pinball-arena.png)
 
 The game is a standalone fork of [Polyworld](https://github.com/softmax-universe/polyworld)
-(Nim, compiled to WebAssembly). It is built and plays locally. It is **not deployed**, and the
-cogent connection has only been tested against fakes; see [What is not verified](#what-is-not-verified).
+(Nim, compiled to WebAssembly). It is live at **https://pinball-arena.vercel.app** for signed-out
+play. Sign-in does not work there yet, and the cogent connection has only been tested against
+fakes; see [What is not verified](#what-is-not-verified).
 
 ## Start here
 
@@ -65,6 +66,20 @@ nim r src/pinball/pinball.nim --demo      # the demo program plays the flippers
 nim r src/pinball/pinball.nim --demo --screenshot shot.png --ticks 4200 --size 620x1000
 ```
 
+## Deploy
+
+The site is the Vercel project `pinball-arena`. Vercel cannot build the game, so a deployment
+is made from a machine that has built it:
+
+```sh
+tools/build_web.sh
+vercel deploy --prod
+```
+
+`.vercelignore` decides what is uploaded: `web/` (with the built `web/game/`), `api/`,
+`server/`, `vercel.json` and `package.json`. The project has `COGENT_SECRET` and `SITE_ORIGIN`
+set for production; see [`server/README.md`](server/README.md).
+
 ## Try a table program without a browser
 
 ```sh
@@ -109,9 +124,9 @@ tests/, web/test/, server/test/
 - **A real cogent.** Sign-in, the WebSocket pass-through, and `policy.create` /
   `policy.update` / `surface.event` with a real workspace have never run. The page's client
   and session are tested against a fake socket built from the AIDE 1.0.0 contract files.
-- **Vercel.** Nothing is deployed. `vercel.json` and `api/cogent.js` follow Vercel's documented
-  conventions, but the WebSocket pass-through there is untested, and `web/game/` is
-  git-ignored, so a deployment must include a built bundle.
+- **The WebSocket pass-through on Vercel.** The deployed function answers the cogent routes,
+  and refuses a WebSocket with no session (401) or a foreign origin (403). An accepted
+  connection has never been made there, because sign-in needs the Softmax side below.
 - **Softmax side** (Appendix H of the design): the site's hostname is not on the allowed
   cogent sites list, and nobody has confirmed that running the program inside the BASIC
   virtual machine satisfies the contract's "never runs it in the page" rule.

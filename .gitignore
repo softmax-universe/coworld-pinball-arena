@@ -23,3 +23,5 @@ node_modules/
 
 # Browser automation logs.
 .playwright-mcp/
+.vercel
+.env*

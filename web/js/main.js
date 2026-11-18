@@ -15,8 +15,6 @@ import { createProgramsPanel, effectLine, failureLine } from './programs-panel.j
 import { createProgramStore, effectOf } from './programs.js'
 import { createSidePanel, drawScore } from './side-panel.js'
 
-/** What the cogent is told with every chat message, in this order. */
-const GUIDE_URLS = ['guide/game-api.md', 'guide/arena-basic.md', 'guide/flipper-basic.md']
 /** Below this the chat is a drawer over the table instead of a column beside it. Matches styles.css. */
 const DRAWER_LAYOUT = '(max-width: 1099px), (max-aspect-ratio: 1/1)'
 
@@ -195,16 +193,13 @@ setChatOpen(!matchMedia(DRAWER_LAYOUT).matches)
 
 function startChat(email) {
   chatPanel.showSignedIn(email, 'Finding your cogent…')
-  const guides = GUIDE_URLS.map((url) => fetch(url).then((response) => (response.ok ? response.text() : '')))
-
-  Promise.all([findWorkspaceId(), ...guides]).then(([workspaceId, ...guideTexts]) => {
+  findWorkspaceId().then((workspaceId) => {
     if (workspaceId === null) {
       chatPanel.showSignedIn(email, 'No cogent workspace was found for this account. Start one at softmax.com, then reload.')
       return
     }
     const connection = connectCogent({
       workspaceId,
-      guide: guideTexts.join('\n\n'),
       api,
       storage: localStorage,
       onUnreachable: chatPanel.setUnreachable,

@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 
 import { conversationItems, cogentWording } from '../js/chat-panel.js'
 import { nextResumeTime, reconnectDelay } from '../js/cogent-connection.js'
@@ -131,12 +130,4 @@ test('program notices name the program and say when it plays or how it failed', 
     failureLine({ name: 'ramp-school', version: 3, stage: 'compile', message: 'Line 12: NEXT without FOR' }),
     'ramp-school v3 could not be read: Line 12: NEXT without FOR',
   )
-})
-
-test('the three guides together fit the instructions of a chat message', () => {
-  // main.js joins them in this order. protocol.md: `instructions` is at most 64000 characters.
-  const guides = ['game-api.md', 'arena-basic.md', 'flipper-basic.md'].map((name) =>
-    readFileSync(new URL(`../guide/${name}`, import.meta.url), 'utf8'),
-  )
-  assert.ok(guides.join('\n\n').length <= 64000)
 })

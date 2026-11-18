@@ -47,9 +47,9 @@ export function findWorkspaceId() {
  * Opens the connection and returns `{ session, tryAgain }`. `onUnreachable(flag)` tells the page
  * when repeated connections have failed, and when one works again.
  */
-export function connectCogent({ workspaceId, guide, api, storage, onUnreachable }) {
+export function connectCogent({ workspaceId, api, storage, onUnreachable }) {
   const client = createAideClient((subprotocol) => new WebSocket(cogentSocketUrl(workspaceId), subprotocol))
-  const session = createCogentSession({ client, storage, guide, api })
+  const session = createCogentSession({ client, storage, api })
 
   let failures = 0
   let reconnectTimer = null

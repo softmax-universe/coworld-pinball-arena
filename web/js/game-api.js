@@ -1,7 +1,7 @@
 /**
  * The game API: what the cogent can do to the game beyond chat. `cogent-session.js` brings its
  * requests here from the AIDE connection and sends the game's messages back.
- * `web/guide/game-api.md` describes all of it for the cogent.
+ * `docs/cogent/game-api.md` describes all of it for the cogent.
  *
  * A program arrives as an AIDE policy (`policy.create`, `policy.update`): `create` and `update`
  * below store it and make it active.

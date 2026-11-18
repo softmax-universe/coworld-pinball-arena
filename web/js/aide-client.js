@@ -2,10 +2,9 @@
  * The wire layer for AIDE 1.0.0, the Softmax interface between a web page and a cogent's workspace:
  * one WebSocket carrying JSON-RPC 2.0, one JSON object per text frame.
  *
- * This module knows the envelope and nothing about chat or table programs. It sends requests and
- * matches their replies, passes notifications on, and answers the requests the agent sends to the
- * page. `cogent-session.js` builds the conversation on top of it, and `programs.js` is where that
- * conversation stores the table programs. No DOM.
+ * This module knows the envelope and nothing about chat, programs or the game. It sends requests
+ * and matches their replies, passes notifications on, and answers the requests the agent sends to
+ * the page. `cogent-session.js` builds the conversation on top of it. No DOM.
  *
  * The contract: https://softmax.com/docs/aide (protocol.md and asyncapi.json, version 1.0.0).
  */
@@ -182,8 +181,9 @@ export function createAideClient(createSocket) {
       notificationListeners[method].push(listener)
     },
     /**
-     * `handler(params, id)` answers a request from the agent: it returns the result at once, or
-     * throws an AideError to refuse. A method with no handler is answered with `unsupported`.
+     * `handler(params, id)` answers a request from the agent: it returns the result, or a promise
+     * of it, or throws an AideError (or rejects with one) to refuse. A method with no handler is
+     * answered with `unsupported`.
      */
     handle: (method, handler) => void (requestHandlers[method] = handler),
   }

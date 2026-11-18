@@ -18,7 +18,6 @@ import { AideError } from './aide-client.js'
 const SESSION_KEY = 'pinball-arena.session'
 const SCOPE = { scope: 'workspace', coworld: null, league: null }
 const CLIENT = { id: 'pinball-arena', kind: 'web', guide: 'pinball-arena' }
-const MAX_GUIDE_CHARACTERS = 64000
 
 const OPEN_STATUSES = ['queued', 'running', 'waiting']
 const FINISHED_STATUSES = ['completed', 'cancelled', 'failed', 'interrupted']
@@ -65,15 +64,13 @@ export function requestWording(request) {
 
 /**
  * `client` is an AIDE client, `storage` is localStorage (it remembers the session id across
- * reloads), `guide` is the text sent with every chat message as its instructions (the guides of
- * the game) and `api` is the game API from `createGameApi`.
+ * reloads) and `api` is the game API from `createGameApi`.
+ *
+ * A chat message carries the person's words and nothing from the game. The cogent learns how the
+ * game works from the repository (`docs/cogent/`).
  * The caller connects the client; the session starts work each time the client reports a connection.
  */
-export function createCogentSession({ client, storage, guide, api }) {
-  if (guide.length > MAX_GUIDE_CHARACTERS) {
-    throw new Error(`The guide is ${guide.length} characters; chat.send allows ${MAX_GUIDE_CHARACTERS}.`)
-  }
-
+export function createCogentSession({ client, storage, api }) {
   const state = {
     /** `connecting`, `ready`, `busy`, `asleep` or `disconnected`. */
     cogent: 'connecting',
@@ -463,7 +460,6 @@ export function createCogentSession({ client, storage, guide, api }) {
         session_id: state.sessionId,
         messages: [{ role: 'user', content: text }],
         scope: SCOPE,
-        instructions: guide,
       }),
       onResult() {
         // A notification may already have reported a later status.

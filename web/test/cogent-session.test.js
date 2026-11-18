@@ -8,7 +8,6 @@ import { createCogentSession, requestWording } from '../js/cogent-session.js'
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const WORKSPACE_SCOPE = { scope: 'workspace', coworld: null, league: null }
-const GUIDE = 'Arena BASIC guide: PLACE puts a piece on the table. RULE adds a state machine.'
 
 const RUNNING_ID = '55555555-5555-4555-8555-555555555555'
 const RESUMED_ID = '66666666-6666-4666-8666-666666666666'
@@ -214,7 +213,7 @@ function start(options = {}) {
   const client = options.client ?? fakeClient()
   const storage = options.storage ?? fakeStorage()
   const api = fakeApi()
-  const session = createCogentSession({ client, storage, guide: options.guide ?? GUIDE, api })
+  const session = createCogentSession({ client, storage, api })
   return { client, storage, session, api }
 }
 
@@ -421,7 +420,7 @@ test('on aide.presence the page rereads each open request, but not one held unti
 // Chat
 // ---------------------------------------------------------------------------------------------
 
-test('a chat message goes out with chat.send and carries the guide as instructions', async () => {
+test('a chat message goes out with chat.send and carries only what the person wrote', async () => {
   const { client, session } = await startBound()
   const id = session.send('more ramps')
   await settle()
@@ -429,21 +428,14 @@ test('a chat message goes out with chat.send and carries the guide as instructio
   const [sent] = client.sent('chat.send')
   assert.match(id, UUID)
   assert.equal(sent.id, id)
-  // asyncapi.json `chat_sendParams`; examples.json "Chat with page context and instructions".
+  // asyncapi.json `chat_sendParams`. `instructions` is optional, and the game puts nothing in the chat.
   assert.deepEqual(sent.params, {
     session_id: 'session-1',
     messages: [{ role: 'user', content: 'more ramps' }],
     scope: WORKSPACE_SCOPE,
-    instructions: GUIDE,
   })
   assert.equal(requestState(session, id).status, 'queued')
   assert.equal(session.state.cogent, 'busy')
-})
-
-test('a guide longer than 64,000 characters is refused when the session is made', () => {
-  // asyncapi.json `chat_sendParams.instructions`: maxLength 64000.
-  assert.throws(() => start({ guide: 'x'.repeat(64001) }))
-  assert.doesNotThrow(() => start({ guide: 'x'.repeat(64000) }))
 })
 
 test('a request moves through queued, running, waiting and completed as the workspace reports it', async () => {

@@ -87,8 +87,9 @@ BASIC call that changes the table becomes a `Command`, is applied at once, and i
 `script.issued`. A run-time error or a budget overrun stops the program for good: an Arena
 program's table freezes and its rules keep running; a Flipper program's flippers go limp.
 
-[`script/README.md`](../src/pinball/script/README.md) is the exact interface. The constants a
-program sees (`kind_popbumper`, `ev_hit`, ...) are generated from the Nim enums.
+[`script/README.md`](../src/pinball/script/README.md) has the notes for changing the hosts.
+What a program can see and call is documented for its authors in
+[`docs/cogent/`](cogent/README.md).
 
 ## The driver (`src/pinball/game.nim`)
 
@@ -140,13 +141,18 @@ Game to page, through `Module.pinballMessage(json)`:
 
 | `type` | Sent | Fields |
 | --- | --- | --- |
-| `hud` | When it changes | `phase`, `ballNumber`, `ballsPerEpisode`, `score`, `quest`, `award`, `clockSeconds` (left), `tiltWarnings`, `tilted`, `ballSaveActive` |
+| `hud` | When it changes | The numbers and messages of the side panel |
 | `events` | After a tick that had table events | `tick`, `events` |
 | `episode` | Once per Episode | `summary` |
 | `programLoaded` | A program compiled | `seat`, `name`, `version`, `effect` |
 | `programError` | Once per failure | `seat`, `name`, `version`, `stage` (`compile`, `run`, `budget`), `message`, `output` |
 | `ran` | The answer to `run` | `id`, `output`, `error` |
 | `state` | The answer to `state` | `id`, `state` |
+
+The page passes `hud`, `events` and `programLoaded` on to a subscribed cogent unchanged, and
+`episode` and `programError` as its two reports, so their fields are listed once, in
+[`docs/cogent/game-api.md`](cogent/game-api.md#what-the-page-sends-you). The fields of
+`state` are there too.
 
 Page to game, pushed onto `Module.pinballInbox` and taken by the game once per frame (the
 game pulls because its main loop is suspended between frames):
@@ -197,9 +203,10 @@ closes. And a page may have few requests pending, so only one `game.messages` ev
 at a time; what the game says meanwhile goes together in the next one.
 
 `run` and `state` take one frame to answer, because the page and the game exchange messages
-once per frame. [`web/guide/game-api.md`](../web/guide/game-api.md) is the reference of the
-methods and messages. The page sends it to the cogent with each chat message, followed by
-the two seat guides.
+once per frame. [`docs/cogent/game-api.md`](cogent/game-api.md) is the reference of the
+messages, the methods, and what the page expects in reply to a `surface.event`. The page
+sends the cogent no instructions: a chat message carries only what the person wrote, and the
+cogent learns the game from [`docs/cogent/`](cogent/README.md).
 
 ## Where the build departs from the design
 
@@ -207,6 +214,7 @@ the two seat guides.
 | --- | --- | --- |
 | `policy.create` / `policy.update` carry a name and the text. | The params are `{name, scope, blob: {kind: "text", text}}`. | The AIDE 1.0.0 contract says so. |
 | The cogent only deploys table programs. `surface.act` is unsupported. | A policy can be a Flipper program (`' @seat flipper`). `surface.act` carries game API requests: run BASIC calls at once for either seat, read the table, manage the stored programs, subscribe. `surface.event` carries the game's messages to a subscribed cogent. | Owner's decision: the cogent should be able to hold either seat, act directly and see the table. |
+| The Arena BASIC guide goes with each chat message in the `instructions` field. | Nothing goes with a chat message. The guides are in `docs/cogent/`, for the cogent to read in the repository. | Owner's decision: the chat is the person and the cogent only. |
 | The Flipper player is a person; a script plays only in attract mode and tests. | The cogent can play the flippers with a program or by direct control. | The same decision. |
 | The page uses Softmax's client library for the wire format. | A hand-written client. | The released client cannot receive policy or surface messages. |
 | The side panel is part of the game's view. | The side panel and all text are HTML; the canvas is the table only. | No font atlas or engine HUD, and crisp text at any size. |

@@ -1,13 +1,16 @@
-# Pinball Arena: the Arena BASIC guide
+# The Arena seat
 
-As the **Arena player** you build the table that the Flipper player plays on and you make all of its rules, in BASIC. Your aim is that the Flipper player has fun and gets better at pinball. You are not trying to beat them, and there is no score for you.
+How to build a table and its rules. As the **Arena player** you build the table that the Flipper player plays on and you make all of its rules, in BASIC. Your aim is that the Flipper player has fun and gets better at pinball. You are not trying to beat them, and there is no score for you.
 
 The loop: the person talks to you in the chat. You write a table program and deploy it. The person plays an Episode: a short build phase, then three balls, 8 minutes of play at most. The page sends you a summary of the Episode, and you revise the program.
 
-## 1. Deploying a program
+This page has the Arena seat only. Beside it: [README.md](README.md) (start here), [game-api.md](game-api.md) (how to deploy a program and what the page sends back), [basic.md](basic.md) (the BASIC dialect, the view, the constants, failure and limits, for both seats) and [flipper.md](flipper.md) (the other seat).
 
-- Deploy with `policy.create` (a new name) or `policy.update` (a stored name), as the game API guide says. The page stores the program and makes it the table's program. The person is not asked to approve.
-- Two directive lines say when and how the program takes over. They are comments of exactly two words, in either order, among the comment lines at the very top (before the first line of code):
+## Taking the table
+
+Deploy a table program with `policy.create` or `policy.update` ([game-api.md](game-api.md#programs)). The page makes it the table's program.
+
+Two directive lines say when and how the program takes over. They are comments of exactly two words, in either order, among the comment lines at the very top (before the first line of code):
 
 ```basic
 ' @effect next-episode
@@ -17,38 +20,17 @@ The loop: the person talks to you in the chat. You write a table program and dep
 | Directive | Values |
 | --- | --- |
 | `' @effect` | `next-episode` (the default): at the start of the next Episode. `next-ball`: when the next ball number is served. `now`: at once |
-| `' @table` | `blank` (the default): start from an empty table. `house`: the bundled house program first lays its table and rules (section 10), then your program runs on top of it |
+| `' @table` | `blank` (the default): start from an empty table. `house`: the bundled house program first lays its table and rules ([The house table](#the-house-table)), then your program runs on top of it |
 
 When a program takes over during an Episode, every piece and rule of the program before it is removed. The score, the ball number and the clock go on. A program always starts with fresh variables.
 
-A program that does not compile is not loaded and the program before it stays. You get a failure report.
-
-Everything in this guide that a program can call, the `run` method of the game API can call too, once and at once. Use it to try a call, or to change one thing on the table without loading a new program.
-
-### What the page reports
-
-After every Episode, an `episode.summary` with these fields:
-
-| Field | Holds |
-| --- | --- |
-| `program` | `{name, version}` of the program that held the Arena seat |
-| `score` | The Flipper player's final score |
-| `endReason` | `lastBallDrained` or `clock` |
-| `balls` | One `{seconds}` per ball: how long it lasted |
-| `components` | One `{id, kind, group, hits}` per piece on the table that the ball touched. `id` is what `create` returned, `kind` is as in BASIC without the prefix (`popbumper`). Untouched and removed pieces are not listed |
-| `rules` | One `{fsm, node, count}` per rule node that was entered, with how often |
-| `rejectedEdits` | One `{second, reason, edit}` per refused edit, such as `{"second": 0.0, "reason": "keepOut", "edit": "create"}` |
-| `scriptError` | `null`, or `{stage, message, output}`: `stage` is `compile`, `run` or `budget`, and `output` is the last 16 lines the program printed |
-| `flipper` | `null` when a person played the flippers, else `{name, version, scriptError}` of the Flipper program |
-
-A program that fails also raises a `program.failed` at once: `{seat, name, version, stage, message, output}`.
+A program that does not compile is not loaded and the program before it stays.
 
 FSM ids, node indexes and piece ids are numbers given in the order you make things. In a program that builds at the start of an Episode on a blank table, the first `fsm()` is 1, its first `node` is 1 and the first `create` is 1. On the house table yours follow its 11 FSMs and 38 pieces.
 
-## 2. How a program runs
+## How a table program is built
 
-- The program runs from its first line to its last **12 times a second** (one "decision" every 10 ticks; a tick is 1/120 s). The first decision is at the start of the build phase.
-- **Variables and arrays keep their values between decisions.** A variable that was never assigned is 0. So build once behind a flag:
+An Arena program runs from its first line 12 times a second ([basic.md](basic.md#how-a-program-runs)). Build once behind a flag, and say when the table is built:
 
 ```basic
 if built = 0 then
@@ -58,44 +40,13 @@ if built = 0 then
 end if
 ```
 
-- A call that changes the table takes effect at once and returns its outcome: a positive number when accepted (the new piece id, FSM id or node index, or 1), and `-reason` when refused, where `reason` is a `reject_` constant.
-- The view (section 8) is filled before each decision. A piece you create shows up in `pieces` on the next decision.
 - Rules live in the table, not in the program. After the build most programs do nothing more.
-- One decision may use 200,000 instructions. The program has 2 MiB of memory.
-- **Failure.** A run-time error (division by zero, array index out of range, a bad argument) or a decision over the instruction budget stops the program for good. The table stays as it is and its rules keep running. You get the error message, without a line number for run-time errors.
-- `PRINT` is for debugging. Nobody sees it on screen. The last 16 printed lines come back in `scriptError.output`, only when the program fails. One decision may print 2,048 bytes.
+- A call that is refused returns a negative number and does nothing. Check what `create` returns.
+- Everything on this page that a program can call, the `run` request can call too, once and at once ([game-api.md](game-api.md#direct-control)). Use it to try a call, or to change one thing on the table without deploying a new program.
 
-## 3. The BASIC dialect
+## The table
 
-Bassy BASIC is close to QBasic, with these differences. Each is a rule.
-
-| Rule | Example |
-| --- | --- |
-| No `FUNCTION` or `DEF FN`. A `SUB` returns a value by writing a global | `sub area(w, h)` / `result = w * h` / `end sub` |
-| A `SUB` needs brackets in its header and in every call, also with no parameters | `sub build()` ... `build()` |
-| Only parameters are local. Every other variable in a `SUB` is global, `FOR` counters too: a `SUB` called inside `for i` must not use `i` | |
-| Parameters are passed by value. A string parameter ends in `$` | `sub tell(words$)` |
-| A `SUB` may be called above its definition, so put the main code first | |
-| `DIM` only at the top level, one dimension, a literal bound, indexes 0..n | `dim lamp(2)` has 3 cells |
-| No `CONST`, `DATA`/`READ`, `SWAP`, `REDIM`, `ON ERROR`, `INPUT`, `VAL`, `PRINT USING`, `^`, type suffixes (`%`, `&`, `!`, `#`) or `DIM x AS INTEGER` | `maxhits = 5`, `x * x` |
-| The only maths calls are `abs min max floor sqrt sin cos atan2 rnd` (section 7). No `int`, `sqr`, `sgn`, `atn`, `timer` | `floor(x)` |
-| `rnd(n)` needs its argument and gives an integer 0..n-1, the same numbers in every Episode | `rnd(6) + 1` |
-| A misspelled or missing function compiles, then fails at run time: `BASIC indexed value must be a returned array` | |
-| Numbers are 32-bit integers or fixed-point (16.16, about -32768..32767). A literal with a `.` is fixed-point. No floats | `0.5` |
-| An integer outside -32768..32767 cannot be mixed with a fixed-point number: run-time error. Keep fixed-point results in that range too | `score * 0.5` fails at 100000: use `score \ 2` |
-| `/` is fixed-point division, `\` integer division, `mod` the remainder | `7 / 2` is 3.5, `7 \ 2` is 3 |
-| Comparisons give -1 (true) or 0. `AND`, `OR`, `NOT` are bitwise and evaluate both sides | `if a > 3 and b < 10 then` works |
-| View flags are 1 or 0, and `not 1` is -2, which is true. Never write `not flag` | `if tilted = 0 then` |
-| A name of the view, a constant or a call cannot be a variable (compile error). So no variable named `score`, `tick`, `phase`, `left`, `right`, `node`, `edge`, `track`, `move`, `reset`, `signal`, `final`, `timeout`, `min`, `max` ... | `ramp = track(...)` |
-| `+` joins strings only. `str$(5)` is `" 5"`, with a leading space | `"HITS" + str$(n)` |
-
-The control flow (`IF/ELSEIF/ELSE/END IF`, one-line `IF`, `FOR/NEXT/STEP`, `WHILE/WEND`, `DO/LOOP`, `SELECT CASE`, `GOSUB`, `EXIT FOR/DO/SUB`), `'` comments and the string functions (`LEN LEFT$ MID$ INSTR STR$` ...) work as in QBasic.
-
-Because the program runs again 12 times a second, a loop that waits for something never ends: it uses up the budget and stops the program. Test the condition once per decision with `IF`.
-
-## 4. The table
-
-**Units.** Positions are millimetres: `x` 0..520 to the right, `y` 0..1080 toward the player, so the flippers and the drain are at large `y`. Speeds are mm/s. Angles are degrees, clockwise on screen: 0 points right, 90 down the table (toward the player), 180 left, 270 up the table. Times in settings are ticks (120 per second). The ball is 27 mm across. Gravity pulls it down the table at 1,250 mm/s². A flipper shot is typically 1,500 to 2,500 mm/s, at most about 4,000.
+**Units** are in [basic.md](basic.md#numbers-and-units): millimetres with `y` growing toward the player, mm/s, degrees clockwise from the right, ticks. The ball is 27 mm across. Gravity pulls it down the table at 1,250 mm/s². A flipper shot is typically 1,500 to 2,500 mm/s, at most about 4,000.
 
 **Fixed parts.** You cannot change these.
 
@@ -104,12 +55,12 @@ Because the program runs again 12 times a second, a loop that waits for somethin
 | Side walls | Inner faces at `x` = 4 and `x` = 516 |
 | Top arch | A circle about (220, 300) with inner radius 296: its top is at `y` = 4, it joins the right wall at `y` = 300 and meets the left wall in a corner at `y` = 95 |
 | Shooter lane | Right of a divider at `x` = 478 that runs from `y` = 330 down. The ball rests on the plunger at (498, 972). A one-way gate closes the top of the lane |
-| Launch path | A launched ball goes up the lane, through the gate and anticlockwise along the arch. If nothing stops it, the corner at the top left throws it down across the table. A wall against the arch stops it (section 10) |
+| Launch path | A launched ball goes up the lane, through the gate and anticlockwise along the arch. If nothing stops it, the corner at the top left throws it down across the table. A wall against the arch stops it ([The house table](#the-house-table)) |
 | Flippers | Pivots at (157, 950) and (323, 950), 70 long. Tips at rest (218, 985) and (262, 985), 33 mm apart. Tips raised at `y` = 926 |
 | Lane guides | A rail on each side: upright at `x` = 44 (left) and `x` = 436 (right) from `y` = 801 to 881, then sloping down to the flipper pivot. A ball inside the rail rolls onto the flipper. Outside it is the outlane, 36 mm wide, which leads to the drain |
 | Drain | A ball below `y` = 1045 is lost |
 
-**Keep-out zones.** Every piece has a footprint: a circle of the radius in section 5, times its size. For a wall or a captive ball, which are long, both ends count. With footprint radius `r`, an edit is refused (`reject_keepout`) unless all of these hold:
+**Keep-out zones.** Every piece has a footprint: a circle of the radius in [Pieces](#pieces), times its size. For a wall or a captive ball, which are long, both ends count. With footprint radius `r`, an edit is refused (`reject_keepout`) unless all of these hold:
 
 1. `4 + r <= x <= 516 - r` and `4 + r <= y <= 1005 - r`.
 2. Where `y` < 300: the distance to (220, 300) is at most `296 - r`.
@@ -130,7 +81,7 @@ Lamps obey the zones too. A track does not: it has no place of its own.
 
 | Limit | Value |
 | --- | --- |
-| Build budget | 100. Each piece spends its cost (section 5) while it is on the table. Size does not change the cost. Over the budget: `reject_overbudget` |
+| Build budget | 100. Each piece spends its cost ([Pieces](#pieces)) while it is on the table. Size does not change the cost. Over the budget: `reject_overbudget` |
 | Pieces | 128, lamps included: `reject_toomanypieces` |
 | Size | 50..200 percent. Rotation -360..360 |
 | Beam-in | A new or moved piece is a hologram for 0.5 s, then solid. A hologram waits while a ball is inside its footprint. A moved piece first fades out for 0.5 s. Pieces made in the build phase are solid before the first ball |
@@ -141,7 +92,7 @@ Lamps obey the zones too. A track does not: it has no place of its own.
 | Clock | The Episode ends 8 minutes after the build phase ended |
 | Build phase | Lasts until you call `ready()` and every piece is solid, 10 seconds at most. Call `ready()` when your table is built, or the person waits the full 10 seconds for the first ball |
 
-## 5. Pieces
+## Pieces
 
 `create(kind, x, y, rotation, size, level, group)` makes a piece with the default settings below, and `setting(id, which, value)` changes one. "r" is the footprint radius in mm at size 100.
 
@@ -184,7 +135,7 @@ Notes:
 - **Locked balls.** A ball in a lock stays until a rule runs `dorelease`, and the person always has a ball to play. When a ball is locked and no other ball is in play, the table serves a new ball to the plunger by itself, on the same ball number: do not add one with `doaddball` as well. When the last ball that is not in a lock drains, the ball ends as usual (the next ball number is served, or the Episode ends) and the locked balls stay locked. `ev_ballcountchanged` counts locked balls too.
 - **A holding magnet is different.** A ball it holds counts as in play and no new ball is served, so always give a holding magnet a rule that lets go again (a `timeout` that switches it off).
 
-## 6. Rules
+## Rules
 
 Nothing scores, sounds, lights or shows text by itself. Rules do all of it. A table with no rules gives a score of 0.
 
@@ -231,7 +182,7 @@ The page plays a sound by itself for every physical event (hits, drops, spins, r
 
 | Event | When. Value |
 | --- | --- |
-| The piece events of section 5 | They carry the piece and its group |
+| The piece events of [Pieces](#pieces) | They carry the piece and its group |
 | `ev_trackentered`, `ev_trackcompleted`, `ev_trackfailed` | The piece is the track. Value: the mouth id |
 | `ev_flipperup`, `ev_flipperdown`, `ev_flipperfullyraised` | A flipper button pressed or released, a flipper at the top of its stroke. Value: 0 left, 1 right |
 | `ev_plungerpulled`, `ev_balllaunched` | The plunger. A launch starts an 8 second ball save by itself |
@@ -246,7 +197,7 @@ The page plays a sound by itself for every physical event (hits, drops, spins, r
 | `ev_episodeending` | The Episode is over |
 | `ev_programloaded` | A table program took the table, at the start of an Episode or during one. The rules a program builds in its first run hear it for the program itself |
 
-## 7. Other calls
+## Piece and rule calls
 
 **Pieces.** Each is one edit unless it says otherwise.
 
@@ -260,52 +211,11 @@ The page plays a sound by itself for every physical event (hits, drops, spins, r
 | `reset(id)`, `resetgroup(group)` | Raise drop targets again, relight kickbacks |
 | `track(moutha, mouthb, cax, cay, cbx, cby)` | Make a track between two mouth pieces. Returns the track id, or the reason it was refused (`-reject_overlap` when a piece stands in its way); a refused track leaves nothing behind |
 
-**Rules.** `edge`, `edgex`, `timeout` and `final` are in section 6. Also: `fsm()` returns the id of a new FSM. `node(f)` returns the index of a new node (1, 2, ...). `fsmreset(f)` puts an FSM back in node 0 with its counts cleared and running. `fsmremove(f)` deletes it. `signal(number)` raises script signal 0..15. `ready()` ends the build phase early: call it once your table is built. `fsmnode(f)` gives the current node of an FSM, or -1.
+**Rules.** `edge`, `edgex`, `timeout` and `final` are in [Rules](#rules). The others: `fsm()` returns the id of a new FSM. `node(f)` returns the index of a new node (1, 2, ...). `fsmreset(f)` puts an FSM back in node 0 with its counts cleared and running. `fsmremove(f)` deletes it. `signal(number)` raises script signal 0..15. `ready()` ends the build phase early: call it once your table is built. `fsmnode(f)` gives the current node of an FSM, or -1.
 
-Arguments that are ids, groups, nodes, counts, levels, sizes, amounts and constants must be whole numbers: a fraction is a run-time error. So is a number that is not one of the constants where a kind, event, setting, cue, lamp state, colour or slot is expected. Positions, rotations, setting values and seconds may have fractions. A wrong number of arguments is a compile error.
+The rules about arguments and return values are in [basic.md](basic.md#arguments-and-return-values).
 
-**Maths.** `abs(x)`, `min(a, b)`, `max(a, b)`, `floor(x)`, `sqrt(x)`, `sin(degrees)`, `cos(degrees)`, `atan2(y, x)` (degrees, -180..180), `rnd(n)` (integer 0..n-1). `sqrt`, `sin`, `cos` and `atan2` need arguments within -32768..32767.
-
-## 8. The view
-
-Read-only numbers, filled before each decision.
-
-| Name | Meaning |
-| --- | --- |
-| `tick` | Ticks since the Episode began |
-| `phase` | 0 build phase, 1 play, 2 over |
-| `ballnumber` | 1..3 while playing, 0 in the build phase |
-| `score`, `clockseconds` | The Flipper score. Whole seconds left on the clock |
-| `ballcount`, `piececount` | How many entries of `balls` (0..6) and `pieces` (0..128) are current |
-| `leftangle`, `rightangle` | Flipper angle in degrees above rest, 0..50 (fixed-point) |
-| `leftpressed`, `rightpressed` | 1 while the flipper button is held |
-| `plungerpull` | 0 at rest .. 1 fully pulled (fixed-point) |
-| `tiltwarnings`, `tilted` | Tilt warnings on this ball. 1 while the flippers are dead from a tilt |
-| `budgetleft`, `fsmcount` | Build budget not yet spent. FSMs on the table |
-| `rejectcount`, `lastreject` | Edits refused so far in the Episode (your calls and rule results, not refused rule calls). The `reject_` reason of the latest, or 0 |
-
-`balls(i)` for `i` = 0 .. `ballcount - 1`: `.id`, `.x`, `.y`, `.vx`, `.vy` (fixed-point), `.level`, `.state` (`state_free`, `state_held`, `state_ontrack`).
-
-`pieces(i)` for `i` = 0 .. `piececount - 1`, in the order the pieces were made: `.id`, `.kind`, `.x`, `.y`, `.rotation` (fixed-point), `.size`, `.level`, `.group`, `.phase` (`phase_beamingin`, `phase_solid`, `phase_fadingout`), `.lamp`, `.down` (drop target: 1 when down), `.face` (toggle target).
-
-Entries past the counts hold old values. The names `balls`, `pieces`, `BallView` and `PieceView` are taken too.
-
-**Constants.** A constant is a prefix and a name: `cue_fanfare`. The `kind_`, `ev_` and `set_` constants are all in sections 5 and 6. The others:
-
-| Prefix | Names |
-| --- | --- |
-| `cue_` | `ping bell chime thunk clack pop sling spinner rollover drop resetbank launch drain ballsave extraball kick hole lock magnet gate beamin fadeout sweepup sweepdown fanfare jackpot queststart questfail warning tilt gameover programloaded` |
-| `lamp_` | `off on flashing` |
-| `colour_` | `yellow red green blue white` |
-| `slot_` | `quest award` |
-| `nudge_` | `left right up` |
-| `reject_` | `none keepout overbudget toomanypieces overlap ratelimit unknowntarget badvalue limit notallowed` |
-| `state_` | `free held ontrack` |
-| `phase_` | `beamingin solid fadingout` |
-
-A refused call returns minus a `reject_` number: `if create(...) = -reject_overlap then`.
-
-## 9. Examples
+## Examples
 
 Each of these was run in the game.
 
@@ -424,7 +334,7 @@ if ballnumber > lastball then
 end if
 ```
 
-## 10. The house table
+## The house table
 
 The bundled program `house` is the full example: a classic layout with ordinary scoring, a timed quest, a lane bonus, an extra ball, a multiball and kickbacks, for 61 budget points. `' @table house` gives you this table to build on, with 39 points left.
 
@@ -477,7 +387,7 @@ sub rulesmultiball()
 end sub
 ```
 
-## 11. Making a table that is fun and fair
+## Making a table that is fun and fair
 
 - **Start from what the person asks for.** Change a few things at a time, and say in the chat what you changed and what to try.
 - **Lamps and the two message boxes are how the person learns the rules.** They cannot see your FSMs. Give every goal a lamp or a message: what to do next in `slot_quest`, what just happened in `slot_award`. Messages are short capitals: `RAMP IS LIT`.
@@ -486,7 +396,7 @@ end sub
 - **Keep the way to each flipper open**: the inlane between the lane guide and whatever stands next to it.
 - **Do not build a table that always drains.** Nothing should feed the ball down the middle or into an outlane. A hole that ejects or a raised track mouth should send the ball to a flipper or an inlane. Slingshots throw the ball sideways at the far outlane: a rubber post over the top of each lane guide, and a kickback, make that fair.
 - **Do not build a table that never drains.** Two strong kickers that face each other pass the ball back and forth for minutes: the house slingshots are turned down to 550 for that reason. The clock ends such an Episode after 8 minutes, and that is no fun.
-- **Check every gap** against the 27 mm ball (section 4) and every edit: a call that returns a negative number did nothing. Read `rejectedEdits` in the summary.
+- **Check every gap** against the 27 mm ball ([The table](#the-table)) and every edit: a call that returns a negative number did nothing. Read `rejectedEdits` in the summary.
 - **The game is exactly repeatable.** The same plunge always takes the same path, and a full pull is easy to repeat. Do not put a big award at the end of that path.
 - **Read the summary.** Balls under 15 seconds mean the table drains too easily: with no flipping at all a ball lasts about 13 seconds on the house table. A piece with no hits cannot be reached. A node that never fired is a goal that is too hard, or one the person does not know about.
 - **Teach.** A learner wants wide targets, long time limits and a ball save (`dosave`). Make the goals harder as the summaries improve.

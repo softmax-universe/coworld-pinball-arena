@@ -1,8 +1,13 @@
-# Pinball Arena: the Flipper BASIC guide
+# The Flipper seat
 
-The **Flipper player** plays the pinball: two flippers, the plunger and nudges. In the browser
-that is usually a person. A BASIC program can hold the seat too, and so can direct control
-through the game API. This guide is for whoever plays the seat that way.
+How to play the table. The **Flipper player** works the two flippers, the plunger and
+nudges. In the browser that is usually a person. A BASIC program can hold the seat too, and
+so can direct control through the game API.
+
+This page has the Flipper seat only. Beside it: [README.md](README.md) (start here),
+[game-api.md](game-api.md) (how to deploy a program and what the page sends back),
+[basic.md](basic.md) (the BASIC dialect, the view, the constants, failure and limits, for
+both seats) and [arena.md](arena.md) (the table, its pieces and its rules).
 
 ## The aim
 
@@ -13,7 +18,7 @@ Score as many points as you can in one Episode.
   **8 minutes** of play. The clock starts when the first ball is served.
 - **The table decides what scores.** The game itself awards nothing. Every point comes from
   the rules of the Arena program, and a table with no rules gives a score of 0. The bundled
-  house table is described in section 10 of the Arena guide.
+  house table is described in [arena.md](arena.md#the-house-table).
 - **A Flipper program cannot read the rules.** It sees the pieces and their lamps, and not
   the state machines behind them or the text in the two message boxes. A lit or flashing
   lamp (`pieces(i).lamp`) is the table's way of pointing at a goal. You can read more than
@@ -25,19 +30,13 @@ Score as many points as you can in one Episode.
 
 ## How a program runs
 
-The program runs from its first line to its last **60 times a second** (every 2 ticks; a
-tick is 1/120 s), from the start of the build phase. Variables and arrays keep their values
-between runs, and a variable that was never assigned is 0. One run may use 50,000
-instructions.
+The program runs from its first line to its last **60 times a second**, from the start of
+the build phase, and keeps its variables between runs. One run may use 50,000 instructions.
+[basic.md](basic.md) has the rest: how a program runs, the dialect, the view, the constants,
+the maths calls, failure and the limits. All of it holds for this seat.
 
-The language is Bassy BASIC. Section 3 of the Arena guide lists how it differs from QBasic,
-and all of it holds for this seat. Section 8 of the Arena guide lists the view and the
-constants, and section 7 the maths calls. A Flipper program has none of the Arena calls
-(`create`, `fsm`, ...), and an Arena program has none of the three calls below.
-
-A run-time error or a run over the instruction budget stops the program for good, and the
-flippers and the plunger are released. Because the program runs again 60 times a second, a
-loop that waits for something never ends: test the condition once per run with `IF`.
+A Flipper program has none of the Arena calls (`create`, `fsm`, ...). A program that fails
+never runs again, and the flippers and the plunger are released.
 
 ## What you can do
 
@@ -52,17 +51,13 @@ release it, so call `flip` only when the state should change.
 
 ## What you can see
 
-Before each run the host fills the view: `tick`, `phase`, `ballnumber`, `score`,
-`clockseconds`, `leftangle` and `rightangle`, `leftpressed` and `rightpressed`,
-`plungerpull`, `tiltwarnings`, `tilted`, the `balls` records (position, speed, level, state)
-and the `pieces` records (every piece on the table with its kind, place, rotation, size,
-level, group, phase, lamp, and whether a drop target is down). Section 8 of the Arena guide
-lists every field. The Arena names `budgetleft`, `fsmcount`, `rejectcount` and `lastreject`
-are not there for this seat.
+The view ([basic.md](basic.md#the-view)): the tick, the phase, the ball number, the score,
+the clock, both flippers, the plunger, the tilt, every ball (position, speed, level, state)
+and every piece on the table (kind, place, rotation, size, level, group, phase, lamp, and
+whether a drop target is down).
 
-Positions are millimetres: `x` 0..520 to the right, `y` 0..1080 toward the player, so the
-flippers are at large `y` and a ball moving up the table has a negative `vy`. Speeds are
-mm/s.
+Positions are millimetres with `y` growing toward the player, so the flippers are at large
+`y` and a ball moving up the table has a negative `vy`.
 
 ## The mechanics that matter to this seat
 
@@ -104,8 +99,10 @@ kickers and release held balls, and after 10 seconds the ball is put back on the
 ball on a held flipper does not count as stuck, and neither does a ball waiting on the
 plunger.
 
-**Extra balls and the pieces.** What each kind of piece does to the ball is in section 5 of
-the Arena guide. Whether hitting it is worth anything is up to the table's rules.
+**The pieces.** What each kind of piece does to the ball is in
+[arena.md](arena.md#pieces), and the fixed parts of the table (walls, arch, shooter lane,
+lane guides) are in [arena.md](arena.md#the-table). Whether hitting a piece is worth
+anything is up to the table's rules.
 
 **The game is exactly repeatable.** There is no randomness outside the programs, and
 `rnd` gives a program the same numbers in every Episode. The same Flipper program on the
@@ -150,8 +147,9 @@ if wantright <> rightpressed then flip(right, wantright)
 
 ## Deploying it
 
-Deploy the program with `policy.create`, as the game API guide says. Its first lines must be
-comments and one of them must be `' @seat flipper`, or it is taken for a table program. It
+Deploy the program with `policy.create` ([game-api.md](game-api.md#programs)). Its first
+lines must be comments and one of them must be `' @seat flipper`, or it is taken for a table
+program. It
 plays at once, and the person's keys do nothing while it does. The request
 `{"method": "programs.activate", "params": {"seat": "flipper", "name": null}}` gives the
 flippers back to the person, and the built-in program `demo` can be activated the same way.
@@ -160,7 +158,7 @@ A program that does not compile, or that fails while running, raises a `program.
 with `"seat": "flipper"`. For single moves, the request `run` with `"seat": "flipper"` runs
 lines such as `flip(left, 1)` at once.
 
-**The summary** of an Episode (section 1 of the Arena guide) is how you judge a Flipper
-program: `score`, `endReason` (`lastBallDrained` or `clock`), `balls` (how many seconds each
+**The summary** of an Episode ([game-api.md](game-api.md#episodesummary)) is how you judge
+a Flipper program: `score`, `endReason` (`lastBallDrained` or `clock`), `balls` (how many seconds each
 ball lasted), `components` (how often each piece was hit) and `flipper.scriptError`. What a
 Flipper program prints comes back only with an error, in its `output`.

@@ -1,9 +1,9 @@
 # Pinball Arena
 
 A two-player pinball game that runs in a web browser. A person plays the flippers. Their
-Softmax cogent (AI agent) builds the table and defines its rules, with BASIC programs or by
-direct control through the game API. With no cogent connected, the bundled house program
-runs the table. The cogent can play the flippers too, the same two ways.
+Softmax cogent (AI agent) builds the table and makes its rules, by deploying BASIC programs
+or by direct control. With no cogent connected, the bundled house program runs the table.
+The cogent can play the flippers too, the same two ways.
 
 ![The page: the table, the side panel and the cogent panel](docs/images/pinball-arena.png)
 
@@ -12,46 +12,51 @@ The game is a standalone fork of [Polyworld](https://github.com/softmax-universe
 play. Sign-in does not work there yet, and the cogent connection has only been tested against
 fakes; see [What is not verified](#what-is-not-verified).
 
+> **If you are a cogent** who will build tables or play here, start with
+> [`docs/cogent/README.md`](docs/cogent/README.md). It is the getting-started guide: what the
+> game is, what you can send, where every fact is, and what to save in your own knowledge
+> base. The rest of this page is for people who run and change the code.
+
 ## The two seats
 
-| Seat | Who holds it | Aim | What it does |
-| --- | --- | --- | --- |
-| **Flipper player** | A person at the page, or the cogent (a BASIC program or direct control) | The highest score in the Episode | Works the two flippers, the plunger and nudges |
-| **Arena player** | A BASIC table program (the bundled `house` at first), and the cogent's direct control beside it | That the Flipper player has fun and gets better. It has no score of its own and is not trying to win | Builds the table and defines every rule: nothing scores unless a rule says so |
+| Seat | Who holds it | Aim |
+| --- | --- | --- |
+| **Flipper player** | A person at the page, or the cogent | The highest score in the Episode |
+| **Arena player** | A BASIC table program (the bundled `house` at first), with the cogent's direct control beside it | That the Flipper player has fun and gets better. It has no score and is not trying to win |
 
-An Episode is a build phase (10 seconds at most), then three balls, and at most 8 minutes
-of play.
+The Flipper player works the two flippers, the plunger and nudges. The Arena player builds
+the table and makes every rule: nothing scores unless a rule says so. An Episode is a build
+phase (10 seconds at most), then three balls, and at most 8 minutes of play.
 
-## The game API
+## How the cogent reaches the game
 
-Everything the cogent does goes over its one connection with the page (AIDE 1.0.0):
+The game runs in the browser, so there is no game server. Everything the cogent does goes
+over its one AIDE 1.0.0 connection with the page: `policy.create` and `policy.update` deploy
+a program for a seat, `surface.act` carries a request to the game (run BASIC calls now, read
+the table, manage programs, subscribe), and `surface.event` carries what the game tells the
+cogent. The page puts nothing about the game into the chat.
+[`docs/cogent/game-api.md`](docs/cogent/game-api.md) is the one reference for these messages.
 
-- `policy.create` / `policy.update` deploy a BASIC program. A first comment line
-  `' @seat flipper` makes it a Flipper program; otherwise it is a table program.
-- `surface.act` carries one request to the game: run BASIC calls at once for either seat
-  (`flip(left, 1)`, `create(...)`, `doscore(...)`), read the state of the table, list,
-  activate and remove the stored programs, or subscribe to the game's messages.
-- `surface.event` carries what the game tells the cogent: the summary of each Episode, a
-  program failure, and, once subscribed, the table events and display changes.
+## Where the documentation is
 
-[`web/guide/game-api.md`](web/guide/game-api.md) is the reference. The game runs in the
-browser, so there is no game server: the page answers the cogent itself.
+Each fact is written down once, in the place below.
 
-## Start here
+| Topic | Where |
+| --- | --- |
+| Getting started as a cogent, and what to keep in a cogent's knowledge base | [`docs/cogent/README.md`](docs/cogent/README.md) |
+| The messages between cogent and game (`policy.*`, `surface.*`), the state, the Episode summary | [`docs/cogent/game-api.md`](docs/cogent/game-api.md) |
+| BASIC for both seats: how a program runs, the dialect, the view, constants, failure, limits | [`docs/cogent/basic.md`](docs/cogent/basic.md) |
+| The Arena seat: the table, pieces, rules, examples, the house table | [`docs/cogent/arena.md`](docs/cogent/arena.md) |
+| The Flipper seat: calls, mechanics, an example program | [`docs/cogent/flipper.md`](docs/cogent/flipper.md) |
+| How the code is put together, the messages between the game and the page, and where the build departs from the design | [`docs/architecture.md`](docs/architecture.md) |
+| The design (Final): how the game looks, feels and behaves. Appendix I lists what is settled | [`docs/designs/pinball-arena-2026-11-16.html`](docs/designs/pinball-arena-2026-11-16.html) |
+| The script hosts, for people who change them | [`src/pinball/script/README.md`](src/pinball/script/README.md) |
+| The server part: sign-in and the cogent's WebSocket | [`server/README.md`](server/README.md) |
+| Assets and their licences | [`assets/LICENSES.md`](assets/LICENSES.md) |
+| Setting up, playing, testing and deploying | This page |
 
-- **The guides the page sends to the cogent** with every chat message, in this order:
-  [`web/guide/game-api.md`](web/guide/game-api.md) (what the cogent sends and gets),
-  [`web/guide/arena-basic.md`](web/guide/arena-basic.md) (building a table) and
-  [`web/guide/flipper-basic.md`](web/guide/flipper-basic.md) (playing one).
-- **Design:** [`docs/designs/pinball-arena-2026-11-16.html`](docs/designs/pinball-arena-2026-11-16.html)
-  (Final). It decides how the game looks, feels and behaves. Appendix I lists what is settled.
-- **How the code is put together:** [`docs/architecture.md`](docs/architecture.md), including
-  where the build departs from the design.
-- **The BASIC interface of both seats:** [`src/pinball/script/README.md`](src/pinball/script/README.md)
-  (reference). [`players/house.bas`](players/house.bas) and
-  [`players/demo_flipper.bas`](players/demo_flipper.bas) are the full examples.
-- **The server part:** [`server/README.md`](server/README.md).
-- **Assets and their licences:** [`assets/LICENSES.md`](assets/LICENSES.md).
+The full example programs are [`players/house.bas`](players/house.bas) and
+[`players/demo_flipper.bas`](players/demo_flipper.bas).
 
 ## Set up
 
@@ -122,7 +127,7 @@ nim r src/pinball/headless.nim --replay episode.replay       # verify a recordin
 ```
 
 It plays one Episode, prints the Episode summary (the same JSON the page reports to the
-cogent), and checks that the replay re-simulates to the same state on every tick. It exits
+cogent; its fields are in [`docs/cogent/game-api.md`](docs/cogent/game-api.md#episodesummary)), and checks that the replay re-simulates to the same state on every tick. It exits
 with 1 if a program does not compile or the replay does not match. A program that fails
 while running is printed to standard error, and the summary carries the error. A Flipper
 program needs no `' @seat flipper` line here: `--flipper` says which seat it is for.
@@ -147,7 +152,9 @@ src/pinball/pinball.nim the windowed and browser entry point
 src/pinball/headless.nim the command-line runner
 src/polyworld/          engine modules kept from Polyworld
 players/                house.bas and demo_flipper.bas, built into the game
-web/                    the page (plain JavaScript modules), fonts, the guides
+web/                    the page (plain JavaScript modules), fonts
+docs/cogent/            for a cogent: getting started, the game API, BASIC, both seats
+docs/                   architecture, the design, the screenshot
 server/, api/           the Node server part and the Vercel function
 assets/                 sounds and the licence record
 tests/, web/test/, server/test/
@@ -161,6 +168,9 @@ tests/, web/test/, server/test/
   contract files. The game API itself (programs for both seats, `run`, `state`, the game's
   messages) was tried against the real game in a browser, over a transport that has since
   been removed, and not yet through an AIDE connection.
+- **That a cogent finds and uses the documentation.** The page sends the cogent no
+  instructions, so it knows the game only if it has this repository and reads
+  `docs/cogent/`. No cogent has done so yet.
 - **How fast and how often the cogent can act.** `run` and `state` are answered within one
   frame of the page. How long a `surface.act` takes to arrive, and how many `surface.event`s
   the AIDE relay lets through, has not been measured.

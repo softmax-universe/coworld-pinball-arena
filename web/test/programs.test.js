@@ -1,9 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 
-import { createProgramStore, effectOf } from '../js/programs.js'
-
-const HOUSE_SOURCE = "' The house table.\nPRINT \"HOUSE\"\n"
+import { createProgramStore, effectOf, seatOf } from '../js/programs.js'
 
 /** A stand-in for window.localStorage. */
 function fakeStorage() {
@@ -20,136 +18,111 @@ function fakeStorage() {
   }
 }
 
-function newStore(storage = fakeStorage()) {
-  return createProgramStore(storage, HOUSE_SOURCE)
-}
+const SOURCE = 'PRINT 1'
 
-function cogentPrograms(store) {
-  return store.list().filter((program) => program.name !== 'house')
-}
-
-test('create stores a program under a new name at version 1', () => {
-  const store = newStore()
-  assert.deepEqual(store.create('ramps', 'PRINT "RAMPS"'), { name: 'ramps', version: 1 })
-  assert.equal(store.source('ramps'), 'PRINT "RAMPS"')
-  assert.equal(store.source('never-stored'), null)
+test('add stores a program for a seat at version 1, and does not make it active', () => {
+  const store = createProgramStore(fakeStorage())
+  assert.deepEqual(store.add('ramps', 'arena', SOURCE), { name: 'ramps', seat: 'arena', version: 1 })
+  assert.equal(store.source('ramps'), SOURCE)
+  assert.equal(store.active('arena'), 'house')
 })
 
-test('create refuses a name that is already stored', () => {
-  const store = newStore()
-  store.create('ramps', 'PRINT "FIRST"')
-  assert.throws(() => store.create('ramps', 'PRINT "SECOND"'), { code: 'conflict' })
-  assert.equal(store.source('ramps'), 'PRINT "FIRST"')
-  assert.deepEqual(cogentPrograms(store), [{ name: 'ramps', version: 1 }])
-})
-
-test('update replaces a stored program and gives the next version', () => {
-  const store = newStore()
-  store.create('ramps', 'PRINT 1')
-  assert.deepEqual(store.update('ramps', 'PRINT 2'), { name: 'ramps', version: 2 })
-  assert.deepEqual(store.update('ramps', 'PRINT 3'), { name: 'ramps', version: 3 })
-  assert.equal(store.source('ramps'), 'PRINT 3')
-})
-
-test('update refuses a name that is not stored', () => {
-  const store = newStore()
-  assert.throws(() => store.update('ramps', 'PRINT 1'), { code: 'not_found' })
-  assert.equal(store.source('ramps'), null)
-})
-
-test('source over 256 KiB is refused and what was stored stays', () => {
-  const store = newStore()
-  const largestAllowed = 'x'.repeat(262144)
-  const oneTooMany = 'x'.repeat(262145)
-
-  assert.deepEqual(store.create('full', largestAllowed), { name: 'full', version: 1 })
-  assert.throws(() => store.create('huge', oneTooMany), { code: 'too_large' })
-  assert.equal(store.source('huge'), null)
-
-  store.create('ramps', 'PRINT 1')
-  assert.throws(() => store.update('ramps', oneTooMany), { code: 'too_large' })
-  assert.equal(store.source('ramps'), 'PRINT 1')
-  assert.deepEqual(store.update('ramps', 'PRINT 2'), { name: 'ramps', version: 2 })
-})
-
-test('the house program always exists and the cogent cannot replace it', () => {
-  const store = newStore()
-  assert.equal(store.source('house'), HOUSE_SOURCE)
-  assert.ok(store.list().some((program) => program.name === 'house'))
-
-  assert.throws(() => store.create('house', 'PRINT "MINE"'), { code: 'conflict' })
-  assert.throws(() => store.update('house', 'PRINT "MINE"'), { code: 'forbidden' })
-  assert.equal(store.source('house'), HOUSE_SOURCE)
-})
-
-test('the list gives name and version, most recently stored first', () => {
-  const store = newStore()
-  store.create('first', 'PRINT 1')
-  store.create('second', 'PRINT 2')
-  store.create('third', 'PRINT 3')
-  store.update('first', 'PRINT 4')
-
-  assert.deepEqual(cogentPrograms(store), [
-    { name: 'first', version: 2 },
-    { name: 'third', version: 1 },
-    { name: 'second', version: 1 },
+test('the list has every program, newest first, the built-in ones last, with the active ones marked', () => {
+  const store = createProgramStore(fakeStorage())
+  store.add('ramps', 'arena', SOURCE)
+  store.add('catcher', 'flipper', SOURCE)
+  store.activate('flipper', 'catcher')
+  assert.deepEqual(store.list(), [
+    { name: 'catcher', seat: 'flipper', version: 1, builtIn: false, active: true },
+    { name: 'ramps', seat: 'arena', version: 1, builtIn: false, active: false },
+    { name: 'house', seat: 'arena', version: 0, builtIn: true, active: true },
+    { name: 'demo', seat: 'flipper', version: 0, builtIn: true, active: false },
   ])
 })
 
-test('at most 16 programs are kept: the least recently used one goes, never house', () => {
-  const store = newStore()
-  for (let number = 1; number <= 15; number += 1) {
-    store.create(`p${number}`, `PRINT ${number}`)
-  }
-  assert.equal(store.list().length, 16)
-
-  // Choosing p1 to play is a use, so p2 is now the least recently used.
-  store.select('p1')
-  store.create('p16', 'PRINT 16')
-
-  assert.equal(store.list().length, 16)
-  assert.equal(store.source('p2'), null)
-  assert.equal(store.source('p1'), 'PRINT 1')
-  assert.equal(store.source('p16'), 'PRINT 16')
-  assert.equal(store.source('house'), HOUSE_SOURCE)
-
-  store.create('p17', 'PRINT 17')
-  assert.equal(store.list().length, 16)
-  assert.equal(store.source('p3'), null)
-  assert.equal(store.source('house'), HOUSE_SOURCE)
+test('add refuses a taken name, a bad name, a bad seat and a source over 256 KiB', () => {
+  const store = createProgramStore(fakeStorage())
+  store.add('ramps', 'arena', SOURCE)
+  assert.throws(() => store.add('ramps', 'flipper', SOURCE), { code: 'conflict' })
+  assert.throws(() => store.add('house', 'arena', SOURCE), { code: 'conflict' })
+  assert.throws(() => store.add('', 'arena', SOURCE), { code: 'invalid' })
+  assert.throws(() => store.add('x'.repeat(65), 'arena', SOURCE), { code: 'invalid' })
+  assert.throws(() => store.add('lanes', 'table', SOURCE), { code: 'invalid' })
+  assert.throws(() => store.add('lanes', 'arena', 7), { code: 'invalid' })
+  assert.throws(() => store.add('lanes', 'arena', 'x'.repeat(256 * 1024 + 1)), { code: 'too_large' })
+  assert.equal(store.list().length, 3)
 })
 
-test('house plays next until another stored program is selected', () => {
-  const store = newStore()
-  assert.equal(store.selected(), 'house')
-
-  store.create('ramps', 'PRINT 1')
-  store.select('ramps')
-  assert.equal(store.selected(), 'ramps')
-
-  assert.throws(() => store.select('never-stored'), { code: 'not_found' })
-  assert.equal(store.selected(), 'ramps')
-
-  store.select('house')
-  assert.equal(store.selected(), 'house')
+test('update replaces the source and gives the next version', () => {
+  const store = createProgramStore(fakeStorage())
+  store.add('ramps', 'arena', SOURCE)
+  assert.deepEqual(store.update('ramps', 'PRINT 2'), { name: 'ramps', seat: 'arena', version: 2 })
+  assert.equal(store.source('ramps'), 'PRINT 2')
+  assert.throws(() => store.update('lanes', SOURCE), { code: 'not_found' })
 })
 
-test('programs, versions and the selection survive a reload', () => {
+test('the built-in programs cannot be changed or removed', () => {
+  const store = createProgramStore(fakeStorage())
+  assert.throws(() => store.update('house', SOURCE), { code: 'forbidden' })
+  assert.throws(() => store.remove('demo'), { code: 'forbidden' })
+  assert.equal(store.source('house'), null)
+})
+
+test('a person plays the flippers until a Flipper program is made active, and again after', () => {
+  const store = createProgramStore(fakeStorage())
+  assert.equal(store.active('flipper'), null)
+  store.activate('flipper', 'demo')
+  assert.equal(store.active('flipper'), 'demo')
+  store.activate('flipper', null)
+  assert.equal(store.active('flipper'), null)
+})
+
+test('activate refuses an unknown program, one of the other seat, and a table with no program', () => {
+  const store = createProgramStore(fakeStorage())
+  store.add('ramps', 'arena', SOURCE)
+  assert.throws(() => store.activate('arena', 'lanes'), { code: 'not_found' })
+  assert.throws(() => store.activate('flipper', 'ramps'), { code: 'invalid' })
+  assert.throws(() => store.activate('arena', null), { code: 'invalid' })
+  assert.equal(store.active('arena'), 'house')
+})
+
+test('removing the active program gives its seat back to the default', () => {
+  const store = createProgramStore(fakeStorage())
+  store.add('ramps', 'arena', SOURCE)
+  store.add('catcher', 'flipper', SOURCE)
+  store.activate('arena', 'ramps')
+  store.activate('flipper', 'catcher')
+  store.remove('ramps')
+  store.remove('catcher')
+  assert.equal(store.active('arena'), 'house')
+  assert.equal(store.active('flipper'), null)
+  assert.throws(() => store.remove('ramps'), { code: 'not_found' })
+})
+
+test('programs, versions and the active programs survive a reload', () => {
   const storage = fakeStorage()
-  const before = newStore(storage)
-  before.create('ramps', 'PRINT 1')
+  const before = createProgramStore(storage)
+  before.add('ramps', 'arena', SOURCE)
   before.update('ramps', 'PRINT 2')
-  before.create('magnets', 'PRINT 3')
-  before.select('ramps')
+  before.activate('arena', 'ramps')
 
-  const after = newStore(storage)
-  assert.deepEqual(after.list(), before.list())
+  const after = createProgramStore(storage)
+  assert.equal(after.active('arena'), 'ramps')
   assert.equal(after.source('ramps'), 'PRINT 2')
-  assert.equal(after.source('magnets'), 'PRINT 3')
-  assert.equal(after.selected(), 'ramps')
-  // A policy.create sent again after a reload must still find the name taken.
-  assert.throws(() => after.create('ramps', 'PRINT 4'), { code: 'conflict' })
-  assert.deepEqual(after.update('ramps', 'PRINT 5'), { name: 'ramps', version: 3 })
+  assert.deepEqual(after.update('ramps', 'PRINT 3'), { name: 'ramps', seat: 'arena', version: 3 })
+})
+
+test('when the browser storage is full, nothing changes', () => {
+  const storage = fakeStorage()
+  const store = createProgramStore(storage)
+  store.add('ramps', 'arena', SOURCE)
+  storage.setItem = () => {
+    throw new Error('QuotaExceededError')
+  }
+  assert.throws(() => store.add('lanes', 'arena', SOURCE))
+  assert.throws(() => store.activate('arena', 'ramps'))
+  assert.equal(store.list().length, 3)
+  assert.equal(store.active('arena'), 'house')
 })
 
 test('a directive in the comment lines at the top says when a program takes effect', () => {
@@ -168,4 +141,11 @@ test('a missing, unknown or misplaced directive means the next Episode', () => {
   assert.equal(effectOf("' @effect tomorrow\nPRINT 1"), 'next-episode')
   assert.equal(effectOf("' @effect now please\nPRINT 1"), 'next-episode')
   assert.equal(effectOf("PRINT 1\n' @effect now"), 'next-episode')
+})
+
+test('a program is for the Arena seat unless a directive says flipper', () => {
+  assert.equal(seatOf('PRINT 1'), 'arena')
+  assert.equal(seatOf("' @seat arena\nPRINT 1"), 'arena')
+  assert.equal(seatOf("' Catches the ball.\n' @seat flipper\nflip(left, 1)"), 'flipper')
+  assert.equal(seatOf("flip(left, 1)\n' @seat flipper"), 'arena')
 })

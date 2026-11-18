@@ -2,7 +2,7 @@
  * A stand-in for the game build, for working on the page without it. Open the page with
  * `?fake-game` (see main.js) and this script plays the game's part of the bridge described in
  * `web/js/game-bridge.js`: it draws a ball bouncing in the canvas, sends `hud`, `episode`
- * and `programLoaded` messages, and obeys `program`, `restart` and `flipper`.
+ * and `programLoaded` messages, obeys `program` and `restart`, and answers `run` and `state`.
  *
  * A program whose name starts with `broken` gets a `programError` instead of `programLoaded`.
  * `window.fakeGame.endEpisode()` ends the Episode at once, and `window.fakeGame.keys` lists the
@@ -77,13 +77,18 @@
     for (const text of Module.pinballInbox.splice(0)) {
       const message = JSON.parse(text)
       if (message.type === 'restart') startEpisode()
-      if (message.type === 'flipper') demo = message.mode === 'demo'
+      if (message.type === 'run') send({ type: 'ran', id: message.id, output: [`fake game ran: ${message.source}`], error: null })
+      if (message.type === 'state') {
+        send({ type: 'state', id: message.id, state: { phase: episode.over ? 'over' : 'play', ballNumber: episode.ball, score: episode.score } })
+      }
       if (message.type === 'program') {
-        const { name, version = 1 } = message
+        const { seat = 'arena', name, version = 1 } = message
+        if (seat === 'flipper') demo = name !== undefined
+        if (name === undefined) continue
         if (name.startsWith('broken')) {
-          send({ type: 'programError', name, version, stage: 'compile', message: 'Line 12: NEXT without FOR', output: ['building ramp'] })
+          send({ type: 'programError', seat, name, version, stage: 'compile', message: 'Line 12: NEXT without FOR', output: ['building ramp'] })
         } else {
-          send({ type: 'programLoaded', name, version, effect: 'next-episode' })
+          send({ type: 'programLoaded', seat, name, version, effect: seat === 'flipper' ? 'now' : 'next-episode' })
         }
       }
     }
@@ -134,7 +139,7 @@
     context.fillStyle = '#9aa0bd'
     context.font = `${width * 0.04}px sans-serif`
     context.textAlign = 'center'
-    context.fillText(demo ? 'FAKE GAME: DEMO PLAYS' : 'FAKE GAME', width / 2, height * 0.97)
+    context.fillText(demo ? 'FAKE GAME: A PROGRAM FLIPS' : 'FAKE GAME', width / 2, height * 0.97)
   }
 
   function frame(time) {

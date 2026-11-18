@@ -14,6 +14,11 @@ code is in this folder:
 
 The language is Bassy BASIC (`deps/bassy/docs/language.md`).
 
+This page says what a program can see and call. What each seat is for and how
+to play it is in the two guides: `web/guide/arena-basic.md` (Arena) and
+`web/guide/flipper-basic.md` (Flipper). `web/guide/game-api.md` describes the
+game API, whose `run` method runs lines of BASIC with the calls of a seat, once.
+
 ## How a program runs
 
 - The program runs from its first line to its end once per decision. The

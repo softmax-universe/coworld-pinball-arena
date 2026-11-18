@@ -1,45 +1,57 @@
 /**
- * The stored table programs: the BASIC sources the cogent has sent, kept in the browser's
- * localStorage so they survive a reload, plus the built-in `house` program and the choice of which
- * program plays next.
+ * The stored programs: BASIC sources for either seat, kept in the browser's localStorage so they
+ * survive a reload, plus the two programs built into the game and the choice of which program is
+ * active for each seat.
  *
- * `cogent-session.js` calls `create` and `update` when the cogent sends a program (the AIDE
- * `policy.create` and `policy.update` requests, which arrive through `aide-client.js`). The page
- * reads `list`, `source` and `selected` to show the "table programs" list and to load a table.
+ * `game-api.js` calls `add`, `update`, `remove` and `activate` for the cogent (a program arrives
+ * as an AIDE policy), and the page calls `activate` when the person picks a program.
  *
- * A refusal is thrown as an Error whose `code` is the AIDE error code that describes it:
- * `conflict`, `not_found`, `too_large` or `forbidden`.
+ * A refusal is thrown as an Error whose `code` says why: `conflict`, `not_found`, `too_large`,
+ * `forbidden` or `invalid`.
  */
 
-const STORAGE_KEY = 'pinball-arena.programs'
-const HOUSE = 'house'
+const STORAGE_KEY = 'pinball-arena.programs.v2'
 const MAX_SOURCE_BYTES = 256 * 1024
-/** Counts `house`, so the cogent's programs get 15 places. */
-const MAX_PROGRAMS = 16
+const MAX_NAME_LENGTH = 64
+const SEATS = ['arena', 'flipper']
+/** The game has the source of these. They cannot be changed or removed. */
+const BUILT_IN = [
+  { name: 'house', seat: 'arena', version: 0, builtIn: true },
+  { name: 'demo', seat: 'flipper', version: 0, builtIn: true },
+]
+/** With no Flipper program active (null) a person plays the flippers. The table always has a program. */
+const DEFAULT_ACTIVE = { arena: 'house', flipper: null }
 
 const EFFECTS = ['next-episode', 'next-ball', 'now']
 
 /**
- * When a program wants to take effect: `next-episode`, `next-ball` or `now`. The program says so
- * in a directive, `' @effect next-ball`, because the message that delivers a program carries only
- * a name and the text. Anything else means the next Episode.
+ * The directives of a program: comments of exactly two words, such as `' @effect next-ball`, among
+ * the comment lines at the top of the source, upper or lower case. The last one of a kind counts.
  *
  * This reads the source the way the game does (`newProgram` in src/pinball/game.nim), so keep the
- * two in step: a directive is a comment of exactly two words among the comment lines at the top
- * of the source, upper or lower case, and the last `@effect` there counts.
+ * two in step.
  */
-export function effectOf(source) {
-  let effect = 'next-episode'
+function directives(source) {
+  const found = {}
   for (const line of source.split(/\r\n|\n|\r/)) {
     const text = line.trim()
     if (text === '') continue
     if (!text.startsWith("'")) break
     const words = text.slice(1).toLowerCase().split(/\s+/).filter((word) => word !== '')
-    if (words.length === 2 && words[0] === '@effect') {
-      effect = EFFECTS.includes(words[1]) ? words[1] : 'next-episode'
-    }
+    if (words.length === 2) found[words[0]] = words[1]
   }
-  return effect
+  return found
+}
+
+/** When a table program wants to take effect: `next-episode` (also for anything unknown), `next-ball` or `now`. */
+export function effectOf(source) {
+  const effect = directives(source)['@effect']
+  return EFFECTS.includes(effect) ? effect : 'next-episode'
+}
+
+/** The seat a program is written for: `flipper` with the directive `' @seat flipper`, else `arena`. */
+export function seatOf(source) {
+  return directives(source)['@seat'] === 'flipper' ? 'flipper' : 'arena'
 }
 
 function refuse(code, message) {
@@ -47,72 +59,92 @@ function refuse(code, message) {
 }
 
 /** `storage` is `window.localStorage` or anything with its `getItem` and `setItem`. */
-export function createProgramStore(storage, houseSource) {
-  // `storedAt` and `usedAt` are readings of `clock`, a counter that goes up by one per change.
-  // They only order the programs, and a counter cannot go backwards the way a wall clock can.
-  let { programs, selected, clock } = JSON.parse(storage.getItem(STORAGE_KEY)) ?? {
-    programs: [],
-    selected: HOUSE,
-    clock: 0,
-  }
+export function createProgramStore(storage) {
+  /** `programs` holds `{ name, seat, version, source }` in the order they were added. */
+  let { programs, active } = JSON.parse(storage.getItem(STORAGE_KEY)) ?? { programs: [], active: DEFAULT_ACTIVE }
 
   const find = (name) => programs.find((program) => program.name === name)
+  const findBuiltIn = (name) => BUILT_IN.find((program) => program.name === name)
 
   /** Saves first and only then replaces what is in memory, so a full browser storage changes nothing. */
-  function commit(nextPrograms, nextSelected) {
-    const next = { programs: nextPrograms, selected: nextSelected, clock: clock + 1 }
-    storage.setItem(STORAGE_KEY, JSON.stringify(next))
-    ;({ programs, selected, clock } = next)
+  function commit(nextPrograms, nextActive) {
+    storage.setItem(STORAGE_KEY, JSON.stringify({ programs: nextPrograms, active: nextActive }))
+    programs = nextPrograms
+    active = nextActive
   }
 
-  function checkSize(source) {
+  function checkSource(source) {
+    if (typeof source !== 'string') refuse('invalid', 'The source of a program is a string.')
     if (new TextEncoder().encode(source).length > MAX_SOURCE_BYTES) {
-      refuse('too_large', 'A table program can be at most 256 KiB.')
+      refuse('too_large', 'A program can be at most 256 KiB.')
     }
   }
 
-  /** Drops the least recently used programs until `house` and the rest fit the limit. */
-  function withinLimit(kept) {
-    const byLastUse = [...kept].sort((a, b) => b.usedAt - a.usedAt)
-    return byLastUse.slice(0, MAX_PROGRAMS - 1)
+  function stored(name) {
+    if (findBuiltIn(name)) refuse('forbidden', `The built-in program ${name} cannot be changed.`)
+    return find(name) ?? refuse('not_found', `No program named ${name} is stored.`)
   }
 
-  function create(name, source) {
-    if (name === HOUSE || find(name)) refuse('conflict', `A program named ${name} is already stored.`)
-    checkSize(source)
-    const program = { name, version: 1, source, storedAt: clock + 1, usedAt: clock + 1 }
-    commit(withinLimit([...programs, program]), selected)
-    return { name, version: 1 }
+  /** `{ name, seat, version }` of the new program. It is not active until `activate`. */
+  function add(name, seat, source) {
+    if (typeof name !== 'string' || name === '' || name.length > MAX_NAME_LENGTH) {
+      refuse('invalid', `A program name is 1 to ${MAX_NAME_LENGTH} characters.`)
+    }
+    if (!SEATS.includes(seat)) refuse('invalid', 'The seat of a program is "arena" or "flipper".')
+    if (find(name) || findBuiltIn(name)) refuse('conflict', `A program named ${name} is already stored.`)
+    checkSource(source)
+    commit([...programs, { name, seat, version: 1, source }], active)
+    return { name, seat, version: 1 }
   }
 
+  /** Replaces the source of a stored program. Its version goes up by one. */
   function update(name, source) {
-    if (name === HOUSE) refuse('forbidden', 'The house program cannot be replaced.')
-    const stored = find(name)
-    if (!stored) refuse('not_found', `No program named ${name} is stored.`)
-    checkSize(source)
-    const program = { name, version: stored.version + 1, source, storedAt: clock + 1, usedAt: clock + 1 }
-    commit(programs.map((each) => (each === stored ? program : each)), selected)
-    return { name, version: program.version }
+    const old = stored(name)
+    checkSource(source)
+    const program = { ...old, version: old.version + 1, source }
+    commit(programs.map((each) => (each === old ? program : each)), active)
+    return { name, seat: program.seat, version: program.version }
   }
 
-  /** Chooses the program that plays next. Choosing a program counts as using it. */
-  function select(name) {
-    if (name !== HOUSE && !find(name)) refuse('not_found', `No program named ${name} is stored.`)
-    commit(programs.map((each) => (each.name === name ? { ...each, usedAt: clock + 1 } : each)), name)
+  /** Removes a stored program. If it was active, its seat goes back to the default. */
+  function remove(name) {
+    const { seat } = stored(name)
+    commit(
+      programs.filter((each) => each.name !== name),
+      active[seat] === name ? { ...active, [seat]: DEFAULT_ACTIVE[seat] } : active,
+    )
+  }
+
+  /** Makes a program the active one of its seat. `activate('flipper', null)` gives the flippers to the person. */
+  function activate(seat, name) {
+    if (!SEATS.includes(seat)) refuse('invalid', 'The seat is "arena" or "flipper".')
+    if (name === null) {
+      if (seat === 'arena') refuse('invalid', 'The table always has a program. Activate "house" for the built-in one.')
+    } else {
+      const program = find(name) ?? findBuiltIn(name) ?? refuse('not_found', `No program named ${name} is stored.`)
+      if (program.seat !== seat) refuse('invalid', `${name} is a program for the ${program.seat} seat.`)
+    }
+    commit(programs, { ...active, [seat]: name })
   }
 
   return {
-    create,
+    add,
     update,
-    select,
-    /** The name of the program that plays next. `house` again if the chosen one has been dropped. */
-    selected: () => (find(selected) ? selected : HOUSE),
-    /** The text of a program, or null when no program has that name. */
-    source: (name) => (name === HOUSE ? houseSource : (find(name)?.source ?? null)),
-    /** `{ name, version }` of every program, most recently stored first, `house` last. */
+    remove,
+    activate,
+    /** The name of the active program of a seat. Null for the flippers when a person plays. */
+    active: (seat) => active[seat],
+    /** The text of a stored program. Null for a built-in program and for an unknown name. */
+    source: (name) => find(name)?.source ?? null,
+    /** `{ name, seat, version, builtIn, active }` of every program: newest first, the built-in ones last. */
     list() {
-      const newestFirst = [...programs].sort((a, b) => b.storedAt - a.storedAt)
-      return [...newestFirst.map(({ name, version }) => ({ name, version })), { name: HOUSE, version: 1 }]
+      return [...programs].reverse().concat(BUILT_IN).map(({ name, seat, version, builtIn = false }) => ({
+        name,
+        seat,
+        version,
+        builtIn,
+        active: active[seat] === name,
+      }))
     },
   }
 }

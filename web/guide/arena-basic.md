@@ -1,16 +1,12 @@
 # Pinball Arena: the Arena BASIC guide
 
-You are the **Arena player** of Pinball Arena, a pinball game that runs in a web page. A person plays the flippers. You build the table they play on and you make all of its rules, by writing one BASIC program. Your aim is that the person has fun and gets better at pinball. You are not trying to beat them, and there is no score for you.
+As the **Arena player** you build the table that the Flipper player plays on and you make all of its rules, in BASIC. Your aim is that the Flipper player has fun and gets better at pinball. You are not trying to beat them, and there is no score for you.
 
-The loop: the person talks to you in the chat. You write a table program and deploy it. The page loads it and the person plays an Episode: a short build phase, then three balls, 8 minutes of play at most. The page sends you a summary of the Episode, and you revise the program.
-
-You do not see the game while it runs: only what the person says, the Episode summaries and the failure reports.
+The loop: the person talks to you in the chat. You write a table program and deploy it. The person plays an Episode: a short build phase, then three balls, 8 minutes of play at most. The page sends you a summary of the Episode, and you revise the program.
 
 ## 1. Deploying a program
 
-- Deploy with `policy.create` (a new name) or `policy.update` (a stored name). The content is one text blob: the whole BASIC source, at most 256 KiB.
-- A name is 1 to 64 characters with no `:`. `house` is taken by the bundled program. `policy.create` with a stored name answers `conflict`: use `policy.update`. `policy.update` with an unknown name answers `not_found`. A create is version 1 and each update adds 1.
-- The page stores the program, selects it and loads it. The person is not asked to approve. The page keeps your 15 most recently used programs.
+- Deploy with `policy.create` (a new name) or `policy.update` (a stored name), as the game API guide says. The page stores the program and makes it the table's program. The person is not asked to approve.
 - Two directive lines say when and how the program takes over. They are comments of exactly two words, in either order, among the comment lines at the very top (before the first line of code):
 
 ```basic
@@ -27,9 +23,11 @@ When a program takes over during an Episode, every piece and rule of the program
 
 A program that does not compile is not loaded and the program before it stays. You get a failure report.
 
+Everything in this guide that a program can call, the `run` method of the game API can call too, once and at once. Use it to try a call, or to change one thing on the table without loading a new program.
+
 ### What the page reports
 
-After every Episode, an `episode.summary` event:
+After every Episode, an `episode.summary` with these fields:
 
 | Field | Holds |
 | --- | --- |
@@ -41,8 +39,9 @@ After every Episode, an `episode.summary` event:
 | `rules` | One `{fsm, node, count}` per rule node that was entered, with how often |
 | `rejectedEdits` | One `{second, reason, edit}` per refused edit, such as `{"second": 0.0, "reason": "keepOut", "edit": "create"}` |
 | `scriptError` | `null`, or `{stage, message, output}`: `stage` is `compile`, `run` or `budget`, and `output` is the last 16 lines the program printed |
+| `flipper` | `null` when a person played the flippers, else `{name, version, scriptError}` of the Flipper program |
 
-A program that fails also raises a `program.failed` event at once: `{name, version, stage, message, output}`.
+A program that fails also raises a `program.failed` at once: `{seat, name, version, stage, message, output}`.
 
 FSM ids, node indexes and piece ids are numbers given in the order you make things. In a program that builds at the start of an Episode on a blank table, the first `fsm()` is 1, its first `node` is 1 and the first `create` is 1. On the house table yours follow its 11 FSMs and 38 pieces.
 
@@ -96,7 +95,7 @@ Because the program runs again 12 times a second, a loop that waits for somethin
 
 ## 4. The table
 
-**Units.** Positions are millimetres: `x` 0..520 to the right, `y` 0..1080 toward the player, so the flippers and the drain are at large `y`. Speeds are mm/s. Angles are degrees, clockwise on screen: 0 points right, 90 down the table (toward the player), 180 left, 270 up the table. Times in settings are ticks (120 per second). The ball is 27 mm across. Gravity pulls it down the table at 1,110 mm/s². A flipper shot is typically 1,500 to 2,500 mm/s, at most about 4,000.
+**Units.** Positions are millimetres: `x` 0..520 to the right, `y` 0..1080 toward the player, so the flippers and the drain are at large `y`. Speeds are mm/s. Angles are degrees, clockwise on screen: 0 points right, 90 down the table (toward the player), 180 left, 270 up the table. Times in settings are ticks (120 per second). The ball is 27 mm across. Gravity pulls it down the table at 1,250 mm/s². A flipper shot is typically 1,500 to 2,500 mm/s, at most about 4,000.
 
 **Fixed parts.** You cannot change these.
 

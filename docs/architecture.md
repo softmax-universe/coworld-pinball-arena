@@ -7,7 +7,9 @@ is; this file describes the code as it stands.
 ## The layers
 
 ```
-web page (web/)                 HTML side panel, chat panel, table programs, AIDE client
+the cogent                      chat, programs, game API requests: one AIDE WebSocket
+   |  passed through by the server (server/)
+web page (web/)                 HTML side panel, chat panel, programs, game API, AIDE client
    |  JSON strings both ways (the bridge)
 view (src/pinball/view/)        draws the table, plays sound, reads keys and gamepad
    |  reads game.table; calls tick, humanInput, receiveMessage, takeMessages
@@ -90,18 +92,23 @@ program sees (`kind_popbumper`, `ev_hit`, ...) are generated from the Nim enums.
 
 ## The driver (`src/pinball/game.nim`)
 
-- **Seats.** The Arena seat holds a `playing` program and a `waiting` one (the newest that
-  compiled). A program takes the seat when its first comment lines say: `' @effect
+- **Seats.** A person plays the Flipper seat unless a Flipper program was loaded; a Flipper
+  program takes the flippers at once and is loaded again for each Episode. The Arena seat
+  holds a `playing` program and a `waiting` one (the newest that compiled). A program takes the seat when its first comment lines say: `' @effect
   next-episode` (the default), `' @effect next-ball` or `' @effect now`. `' @table house`
   runs the bundled house program for one decision first; `' @table blank` is the default.
   Seating always gives a `cmdClearArena` command, which also raises `evProgramLoaded`.
-- **Decisions.** The Arena program decides every 10th tick. In demo mode the bundled demo
-  Flipper program decides every 2nd tick; otherwise a person's commands arrive through
-  `humanInput`.
+- **Decisions.** The Arena program decides every 10th tick. A Flipper program decides every
+  2nd tick; without one a person's commands arrive through `humanInput`.
+- **Direct control.** A `run` message compiles a few lines of BASIC for a seat and runs them
+  once, as one decision of a throwaway script. So direct control gives exactly the commands a
+  program can give, they are recorded for the replay like any others, and there is no second
+  list of calls to keep in step with the BASIC one.
 - **Replay** (`replay.nim`). Every command either seat gives is recorded with its tick,
   rejected ones included (a rejected edit is logged in the table, which is hashed), with the
   table hash after each tick. `verify` re-simulates from the commands alone; no BASIC runs.
-- **Summary** (`summary.nim`). The JSON the page reports to the cogent after each Episode.
+- **Summary and state** (`summary.nim`). The JSON of the Episode summary, of the table as it
+  is now (`tableState`) and of the events of a tick.
 
 ## The view (`src/pinball/view/`)
 
@@ -134,18 +141,22 @@ Game to page, through `Module.pinballMessage(json)`:
 | `type` | Sent | Fields |
 | --- | --- | --- |
 | `hud` | When it changes | `phase`, `ballNumber`, `ballsPerEpisode`, `score`, `quest`, `award`, `clockSeconds` (left), `tiltWarnings`, `tilted`, `ballSaveActive` |
+| `events` | After a tick that had table events | `tick`, `events` |
 | `episode` | Once per Episode | `summary` |
-| `programLoaded` | A program compiled | `name`, `version`, `effect` |
-| `programError` | Once per failure | `name`, `version`, `stage` (`compile`, `run`, `budget`), `message`, `output` |
+| `programLoaded` | A program compiled | `seat`, `name`, `version`, `effect` |
+| `programError` | Once per failure | `seat`, `name`, `version`, `stage` (`compile`, `run`, `budget`), `message`, `output` |
+| `ran` | The answer to `run` | `id`, `output`, `error` |
+| `state` | The answer to `state` | `id`, `state` |
 
 Page to game, pushed onto `Module.pinballInbox` and taken by the game once per frame (the
 game pulls because its main loop is suspended between frames):
 
 | `type` | Fields |
 | --- | --- |
-| `program` | `name`, `version`, `source` (no source with `"name":"house"` selects the bundled program) |
+| `program` | `seat` (`arena` or `flipper`), `name`, `version`, `source`. No source with the name `house` (arena) or `demo` (flipper) selects the bundled program. No name for the flipper seat gives the flippers to the person |
+| `run` | `id`, `seat`, `source`: lines of BASIC to run once, now |
+| `state` | `id` |
 | `restart` | |
-| `flipper` | `mode`: `human` or `demo` |
 
 The table box in `web/styles.css` has the same aspect as `DesignAspect` in
 `view/tableview.nim`. Change them together.
@@ -159,17 +170,44 @@ Plain ES modules, no framework, no build step, no dependencies.
   the agent with `unsupported`.
 - `cogent-session.js`: what Appendix D of the design asks for. It has no timers;
   `cogent-connection.js` owns reconnecting.
-- `programs.js`: the stored table programs (16, in `localStorage`).
+- `programs.js`: the stored programs of both seats and which is active (in `localStorage`).
+- `game-api.js`: the game API. It turns a request into calls on the program store and
+  messages to the game, and passes the game's messages on while the cogent is subscribed. It
+  knows nothing about AIDE.
 - `game-bridge.js`, `side-panel.js`, `chat-panel.js`, `programs-panel.js`, `main.js`: the UI.
 - `test/fake-game.js`: a stand-in for the game, loaded with `?fake-game`.
 
 The server part is described in [`server/README.md`](../server/README.md).
 
+## The game API
+
+There is no game server. The game runs in the person's browser, and the cogent reaches it
+over the AIDE connection the page already has, which Softmax relays. `cogent-session.js`
+maps the AIDE requests onto `game-api.js`:
+
+| AIDE | Game API |
+| --- | --- |
+| `policy.create`, `policy.update` (cogent to page) | `api.create` / `api.update`: store the program, make it active, load it. The seat comes from the source (`' @seat flipper`, else Arena) at creation |
+| `surface.act` (cogent to page) | `api.handle(data)`: one request `{method, params}`. The reply's `data` is `{result}` or `{error}`. An unknown method is answered `unsupported` |
+| `surface.event` (page to cogent) | `episode.summary` and `program.failed`, always. `game.messages` while subscribed: the game's `hud`, `events` and `programLoaded` messages, unchanged |
+
+Two things follow from the AIDE contract. A `surface.act` belongs to its connection, so a
+late answer is dropped after a reconnect and the subscription ends when the connection
+closes. And a page may have few requests pending, so only one `game.messages` event is out
+at a time; what the game says meanwhile goes together in the next one.
+
+`run` and `state` take one frame to answer, because the page and the game exchange messages
+once per frame. [`web/guide/game-api.md`](../web/guide/game-api.md) is the reference of the
+methods and messages. The page sends it to the cogent with each chat message, followed by
+the two seat guides.
+
 ## Where the build departs from the design
 
 | Design | Build | Why |
 | --- | --- | --- |
-| `policy.create` / `policy.update` carry a name and the text. | The params are `{name, blob: {kind: "text", text}}`. | The AIDE 1.0.0 contract says so. |
+| `policy.create` / `policy.update` carry a name and the text. | The params are `{name, scope, blob: {kind: "text", text}}`. | The AIDE 1.0.0 contract says so. |
+| The cogent only deploys table programs. `surface.act` is unsupported. | A policy can be a Flipper program (`' @seat flipper`). `surface.act` carries game API requests: run BASIC calls at once for either seat, read the table, manage the stored programs, subscribe. `surface.event` carries the game's messages to a subscribed cogent. | Owner's decision: the cogent should be able to hold either seat, act directly and see the table. |
+| The Flipper player is a person; a script plays only in attract mode and tests. | The cogent can play the flippers with a program or by direct control. | The same decision. |
 | The page uses Softmax's client library for the wire format. | A hand-written client. | The released client cannot receive policy or surface messages. |
 | The side panel is part of the game's view. | The side panel and all text are HTML; the canvas is the table only. | No font atlas or engine HUD, and crisp text at any size. |
 | "Can spin off a flipper tip." | Ball spin is not modelled (`Ball.spin` stays 0). | Left out to keep the physics simple. |

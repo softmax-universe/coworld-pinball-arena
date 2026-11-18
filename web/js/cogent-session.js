@@ -1,10 +1,12 @@
 /**
- * The conversation with the person's cogent: chat, the cogent's questions and approvals, the table
- * programs it sends, and the reports the game sends back.
+ * The conversation with the person's cogent: chat, the cogent's questions and approvals, its
+ * requests to the game API, and what the game tells it.
  *
  * It sits between the other two modules. `aide-client.js` carries the messages; this module decides
  * which to send and when, following the AIDE 1.0.0 contract (the design document's Appendix D lists
- * the rules). Programs the cogent sends go into the store from `programs.js`.
+ * the rules). The cogent deploys programs with `policy.create` and `policy.update`, acts on the
+ * game with `surface.act`, which carries one request of the game API (`game-api.js`), and hears
+ * from the game through `surface.event`.
  *
  * No DOM and no timers. The chat panel reads `session.state` and redraws on `onChange`. Nothing
  * here retries on a clock: what could not be sent goes out again when the connection or the
@@ -23,7 +25,7 @@ const FINISHED_STATUSES = ['completed', 'cancelled', 'failed', 'interrupted']
 
 /** Replies that say the request did not get through for now. The same request is sent again later. */
 const SEND_AGAIN_CODES = ['unavailable', 'starting', 'paused']
-/** Refusals of a table program that the store names with the contract's own error codes. */
+/** Refusals of a program that the store names with the contract's own error codes. */
 const PROGRAM_REFUSALS = ['conflict', 'not_found', 'too_large', 'forbidden']
 
 // The contract's wording for a held request, split so the time can be left out when it is unknown.
@@ -62,11 +64,12 @@ export function requestWording(request) {
 }
 
 /**
- * `client` is an AIDE client, `programs` a program store, `storage` is localStorage (it remembers
- * the session id across reloads) and `guide` is the Arena BASIC guide sent with every chat message.
+ * `client` is an AIDE client, `storage` is localStorage (it remembers the session id across
+ * reloads), `guide` is the text sent with every chat message as its instructions (the guides of
+ * the game) and `api` is the game API from `createGameApi`.
  * The caller connects the client; the session starts work each time the client reports a connection.
  */
-export function createCogentSession({ client, programs, storage, guide }) {
+export function createCogentSession({ client, storage, guide, api }) {
   if (guide.length > MAX_GUIDE_CHARACTERS) {
     throw new Error(`The guide is ${guide.length} characters; chat.send allows ${MAX_GUIDE_CHARACTERS}.`)
   }
@@ -106,7 +109,6 @@ export function createCogentSession({ client, programs, storage, guide }) {
   const cursors = new Map()
   const readingEvents = new Set()
   const changeListeners = []
-  const programListeners = []
 
   function changed() {
     state.cogent = cogentState()
@@ -334,6 +336,9 @@ export function createCogentSession({ client, programs, storage, guide }) {
   client.onClosed(() => {
     connected = false
     sessionRead = false
+    // A `surface.act` belongs to its connection, so the subscription it made ends with it.
+    api.unsubscribe()
+    waitingMessages = []
     changed()
   })
 
@@ -388,26 +393,59 @@ export function createCogentSession({ client, programs, storage, guide }) {
     return { accepted: true }
   })
 
-  /** Stores a program from the cogent and makes it the one that plays next. The person is not asked. */
-  function storeProgram(storeIt) {
+  // -------------------------------------------------------------------------------------------
+  // The game API
+  // -------------------------------------------------------------------------------------------
+
+  // A `surface.act` carries one request of the game API in `data`, and the reply carries its answer.
+  client.handle('surface.act', ({ data }) =>
+    api.handle(data).then((answer) => {
+      if (answer.error?.code === 'unknown_method') throw new AideError('unsupported', answer.error.message)
+      return { data: answer }
+    }),
+  )
+
+  // The messages of the game for a subscribed cogent. The relay allows a page few requests at a
+  // time, so one `surface.event` is out at a time, and what the game says meanwhile goes in the next.
+  let waitingMessages = []
+  let messagesOut = false
+
+  function sendMessages() {
+    if (messagesOut || waitingMessages.length === 0) return
+    const messages = waitingMessages
+    waitingMessages = []
+    messagesOut = true
+    client
+      .request('surface.event', { scope: SCOPE, data: { kind: 'game.messages', messages } })
+      // Messages that did not get through are not sent again: `state` has the table as it is.
+      .catch(() => {})
+      .finally(() => {
+        messagesOut = false
+        sendMessages()
+      })
+  }
+
+  api.onMessage((message) => {
+    waitingMessages.push(message)
+    sendMessages()
+  })
+
+  // A policy is a BASIC program for a seat. The page stores it and it plays: the person is not asked.
+  function deployProgram(deploy) {
     return ({ name, blob }) => {
       if (blob.kind !== 'text') throw new AideError('unsupported', 'This page stores only text programs.')
-      let stored
       try {
-        stored = storeIt(name, blob.text)
+        return deploy(name, blob.text)
       } catch (error) {
         // Anything the store did not refuse by name, such as full browser storage, means the page cannot deploy.
         throw new AideError(PROGRAM_REFUSALS.includes(error.code) ? error.code : 'unsupported', error.message)
       }
-      programs.select(name)
-      for (const listener of programListeners) listener(stored)
-      return stored
     }
   }
-  client.handle('policy.create', storeProgram((name, source) => programs.create(name, source)))
-  client.handle('policy.update', storeProgram((name, source) => programs.update(name, source)))
+  client.handle('policy.create', deployProgram((name, source) => api.create(name, source)))
+  client.handle('policy.update', deployProgram((name, source) => api.update(name, source)))
 
-  // surface.act, browser.snapshot and browser.act get no handler, so the client answers `unsupported`.
+  // browser.snapshot and browser.act get no handler, so the client answers `unsupported`.
 
   // -------------------------------------------------------------------------------------------
   // What the page can do
@@ -471,15 +509,15 @@ export function createCogentSession({ client, programs, storage, guide }) {
     state,
     /** `listener(state)` runs after every change to `state`. */
     onChange: (listener) => void changeListeners.push(listener),
-    /** `listener({ name, version })` runs when the cogent's program has been stored and selected. */
-    onProgram: (listener) => void programListeners.push(listener),
     send,
     cancel,
     answerQuestion,
     answerApproval,
-    /** One report per Episode, never one per table event: the relay allows few requests at a time. */
-    reportEpisode: (summary) => post('surface.event', () => ({ kind: 'episode.summary', ...summary })),
-    reportProgramFailure: (failure) => post('surface.event', () => ({ kind: 'program.failed', ...failure })),
+    /** The two reports the cogent always gets, subscribed or not. They are sent again until they get through. */
+    reportEpisode: (summary) =>
+      post('surface.event', () => ({ scope: SCOPE, data: { kind: 'episode.summary', ...summary } })),
+    reportProgramFailure: (failure) =>
+      post('surface.event', () => ({ scope: SCOPE, data: { kind: 'program.failed', ...failure } })),
     /**
      * Sends again what is waiting and rereads the open requests. For the page to call when there is
      * a reason: the person asks, or the `until` of a held request has passed (one read then lets

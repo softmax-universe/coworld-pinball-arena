@@ -128,7 +128,7 @@ function fakeClient() {
       'chat.cancel': () => ({ requested: true }),
       'input.respond': () => ({ applied: true }),
       'clarification.response': () => ({ applied: true }),
-      'surface.event': () => ({}),
+      'surface.event': () => ({ data: {} }),
     },
 
     request(method, params, id) {
@@ -170,23 +170,31 @@ function fakeClient() {
   return client
 }
 
-function fakePrograms() {
-  const programs = {
+/** The game API: records what the session asks of it, and lets the test speak for the game. */
+function fakeApi() {
+  const listeners = []
+  const api = {
     calls: [],
-    selectedName: 'house',
     create(name, source) {
-      programs.calls.push(['create', name, source])
+      api.calls.push(['create', name, source])
       return { name, version: 1 }
     },
     update(name, source) {
-      programs.calls.push(['update', name, source])
+      api.calls.push(['update', name, source])
       return { name, version: 2 }
     },
-    select(name) {
-      programs.selectedName = name
+    handle(request) {
+      api.calls.push(['handle', request])
+      if (request.method === 'teleport') return Promise.resolve({ error: { code: 'unknown_method', message: 'There is no method teleport.' } })
+      return Promise.resolve({ result: { score: 100 } })
+    },
+    onMessage: (listener) => void listeners.push(listener),
+    unsubscribe: () => void api.calls.push(['unsubscribe']),
+    says(message) {
+      for (const listener of listeners) listener(message)
     },
   }
-  return programs
+  return api
 }
 
 function refusal(code) {
@@ -204,10 +212,10 @@ async function settle() {
 
 function start(options = {}) {
   const client = options.client ?? fakeClient()
-  const programs = options.programs ?? fakePrograms()
   const storage = options.storage ?? fakeStorage()
-  const session = createCogentSession({ client, programs, storage, guide: options.guide ?? GUIDE })
-  return { client, programs, storage, session }
+  const api = fakeApi()
+  const session = createCogentSession({ client, storage, guide: options.guide ?? GUIDE, api })
+  return { client, storage, session, api }
 }
 
 async function startBound(options = {}) {
@@ -802,83 +810,105 @@ test('a pending approval is shown and answered with input.respond', async () => 
 })
 
 // ---------------------------------------------------------------------------------------------
-// Table programs from the cogent, and reports back to it
+// Programs and game API requests from the cogent, and what the game tells it
 // ---------------------------------------------------------------------------------------------
 
-test('policy.create stores the program, selects it to play next and replies with name and version', async () => {
-  const { client, programs, session } = await startBound()
-  const received = []
-  session.onProgram((program) => received.push(program))
+const WORKSPACE = { scope: 'workspace', coworld: null, league: null }
 
-  // asyncapi.json `Policy` and `PolicyBlob`: {name, blob: {kind: "text", text}}; result `PolicyVersion`.
-  const source = "' @effect next-ball\nPRINT \"RAMPS\"\n"
-  const reply = client.callAgent('policy.create', { name: 'ramps', blob: { kind: 'text', text: source } })
-
-  // The reply is the handler's return value: the person is not asked to approve first.
-  assert.deepEqual(reply, { name: 'ramps', version: 1 })
-  assert.deepEqual(programs.calls, [['create', 'ramps', source]])
-  assert.equal(programs.selectedName, 'ramps')
-  assert.deepEqual(received, [{ name: 'ramps', version: 1 }])
-  assert.deepEqual(session.state.approvals, [])
-})
-
-test('policy.update replaces the program and replies with the next version', async () => {
-  const { client, programs, session } = await startBound()
-  const received = []
-  session.onProgram((program) => received.push(program))
-
+test('policy.create and policy.update deploy the program and reply with name and version', async () => {
+  const { client, api } = await startBound()
   // examples.json "Deploy a policy → update it".
-  const reply = client.callAgent('policy.update', { name: 'ramps', blob: { kind: 'text', text: 'PRINT 2' } })
-
-  assert.deepEqual(reply, { name: 'ramps', version: 2 })
-  assert.deepEqual(programs.calls, [['update', 'ramps', 'PRINT 2']])
-  assert.equal(programs.selectedName, 'ramps')
-  assert.deepEqual(received, [{ name: 'ramps', version: 2 }])
+  const source = "' @seat flipper\nflip(left, 1)"
+  assert.deepEqual(client.callAgent('policy.create', { name: 'catcher', scope: WORKSPACE, blob: { kind: 'text', text: source } }), {
+    name: 'catcher',
+    version: 1,
+  })
+  assert.deepEqual(client.callAgent('policy.update', { name: 'catcher', scope: WORKSPACE, blob: { kind: 'text', text: 'PRINT 2' } }), {
+    name: 'catcher',
+    version: 2,
+  })
+  assert.deepEqual(api.calls, [['create', 'catcher', source], ['update', 'catcher', 'PRINT 2']])
 })
 
-test('a program the store refuses is answered with the matching contract error', async () => {
-  const { client, programs, session } = await startBound()
-  const received = []
-  session.onProgram((program) => received.push(program))
-  const policy = { name: 'ramps', blob: { kind: 'text', text: 'PRINT 1' } }
-
-  // protocol.md "Policies": `conflict` for a held name, `not_found` for an unknown one, `unsupported`
-  // when the page cannot deploy, `forbidden` for a refusal. `too_large` is in asyncapi.json `Error`.
-  programs.create = refusal('conflict')
-  assert.throws(() => client.callAgent('policy.create', policy), (error) => error instanceof AideError && error.code === 'conflict')
-  programs.create = refusal('too_large')
-  assert.throws(() => client.callAgent('policy.create', policy), { code: 'too_large' })
-  programs.update = refusal('not_found')
-  assert.throws(() => client.callAgent('policy.update', policy), { code: 'not_found' })
-  programs.update = refusal('too_large')
-  assert.throws(() => client.callAgent('policy.update', policy), { code: 'too_large' })
-  programs.update = refusal('forbidden')
-  assert.throws(() => client.callAgent('policy.update', { ...policy, name: 'house' }), { code: 'forbidden' })
-
-  // Anything else, such as browser storage that is full, means the page cannot deploy.
-  programs.create = () => {
+test('a policy the store refuses is answered with the contract error code', async () => {
+  const { client, api } = await startBound()
+  const policy = { name: 'ramps', scope: WORKSPACE, blob: { kind: 'text', text: 'PRINT 1' } }
+  // protocol.md "Policies": conflict, not_found, too_large and forbidden. Anything else is unsupported.
+  for (const code of ['conflict', 'too_large']) {
+    api.create = refusal(code)
+    assert.throws(() => client.callAgent('policy.create', policy), (error) => error instanceof AideError && error.code === code)
+  }
+  for (const code of ['not_found', 'too_large', 'forbidden']) {
+    api.update = refusal(code)
+    assert.throws(() => client.callAgent('policy.update', policy), { code })
+  }
+  api.create = refusal('invalid')
+  assert.throws(() => client.callAgent('policy.create', policy), { code: 'unsupported' })
+  api.create = () => {
     throw new Error('QuotaExceededError')
   }
   assert.throws(() => client.callAgent('policy.create', policy), { code: 'unsupported' })
-
-  assert.equal(programs.selectedName, 'house')
-  assert.deepEqual(received, [])
+  // "Larger or binary content needs a new blob `kind`".
+  const archive = { name: 'ramps', scope: WORKSPACE, blob: { kind: 'archive', url: 'https://example.invalid/ramps.zip' } }
+  assert.throws(() => client.callAgent('policy.create', archive), { code: 'unsupported' })
 })
 
-test('a policy whose blob is not text is answered with unsupported and not stored', async () => {
-  const { client, programs } = await startBound()
-  // protocol.md "Policies": "Larger or binary content needs a new blob `kind`".
-  const policy = { name: 'ramps', blob: { kind: 'archive', url: 'https://example.invalid/ramps.zip' } }
-  assert.throws(() => client.callAgent('policy.create', policy), { code: 'unsupported' })
-  assert.deepEqual(programs.calls, [])
+test('a surface.act carries one game API request, and the reply carries its answer', async () => {
+  const { client, api } = await startBound()
+  // asyncapi.json `surface_actParams` and `surface_actResult`: the object travels in `data`.
+  const reply = await client.callAgent('surface.act', { scope: WORKSPACE, data: { method: 'state' } })
+  assert.deepEqual(reply, { data: { result: { score: 100 } } })
+  assert.deepEqual(api.calls, [['handle', { method: 'state' }]])
+
+  // "A recipient that does not understand an object returns `unsupported`."
+  await assert.rejects(client.callAgent('surface.act', { scope: WORKSPACE, data: { method: 'teleport' } }), { code: 'unsupported' })
 })
 
-test('surface.act, browser.snapshot and browser.act are answered with unsupported', async () => {
+test('browser.snapshot and browser.act are answered with unsupported', async () => {
   const { client } = await startBound()
-  // examples.json "Surface session → observation → action" and "Browser snapshot → highlight" give the shapes.
-  assert.throws(() => client.callAgent('surface.act', { kind: 'panel.focus', panel: 'table' }), { code: 'unsupported' })
   assert.throws(() => client.callAgent('browser.snapshot', {}), { code: 'unsupported' })
   assert.throws(() => client.callAgent('browser.act', { action: 'click' }), { code: 'unsupported' })
+})
+
+test('the messages of the game go out one surface.event at a time, the rest together in the next', async () => {
+  const { client, api } = await startBound()
+  let answer
+  client.replies['surface.event'] = () => new Promise((resolve) => (answer = resolve))
+
+  api.says({ type: 'hud', score: 10 })
+  api.says({ type: 'hud', score: 20 })
+  api.says({ type: 'events', tick: 5, events: [{ kind: 'hit', value: 0 }] })
+  await settle()
+  assert.equal(client.sent('surface.event').length, 1)
+
+  answer({ data: {} })
+  await settle()
+  assert.deepEqual(
+    client.sent('surface.event').map((call) => call.params),
+    [
+      { scope: WORKSPACE, data: { kind: 'game.messages', messages: [{ type: 'hud', score: 10 }] } },
+      {
+        scope: WORKSPACE,
+        data: {
+          kind: 'game.messages',
+          messages: [
+            { type: 'hud', score: 20 },
+            { type: 'events', tick: 5, events: [{ kind: 'hit', value: 0 }] },
+          ],
+        },
+      },
+    ],
+  )
+})
+
+test('when the connection closes, the subscription ends and waiting messages are dropped', async () => {
+  const { client, api } = await startBound()
+  client.replies['surface.event'] = () => new Promise(() => {})
+  api.says({ type: 'hud', score: 10 })
+  api.says({ type: 'hud', score: 20 })
+  client.close()
+  assert.deepEqual(api.calls, [['unsubscribe']])
+  assert.equal(client.sent('surface.event').length, 1)
 })
 
 test('each Episode summary is one surface.event', async () => {
@@ -897,11 +927,11 @@ test('each Episode summary is one surface.event', async () => {
   session.reportEpisode(summary)
   await settle()
 
-  // protocol.md "Surface events and actions": params are one JSON object the page defines; no session, no scope.
+  // asyncapi.json `surface_eventParams`: the page's object travels in `data`, beside the scope.
   const sent = client.sent('surface.event')
   assert.equal(sent.length, 1)
   assert.match(sent[0].id, UUID)
-  assert.deepEqual(sent[0].params, { kind: 'episode.summary', ...summary })
+  assert.deepEqual(sent[0].params, { scope: WORKSPACE, data: { kind: 'episode.summary', ...summary } })
 })
 
 test('a program failure is one surface.event', async () => {
@@ -917,6 +947,6 @@ test('a program failure is one surface.event', async () => {
 
   assert.deepEqual(
     client.sent('surface.event').map((call) => call.params),
-    [{ kind: 'program.failed', ...failure }],
+    [{ scope: WORKSPACE, data: { kind: 'program.failed', ...failure } }],
   )
 })

@@ -802,7 +802,6 @@ body[data-chat='open'] .chat-open {
 .program-list button[aria-pressed='true'] {
   color: var(--chrome-100);
   font-weight: 600;
-  cursor: default;
 }
 .program-list button span {
   font-family: var(--font-plate);

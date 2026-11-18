@@ -95,7 +95,21 @@ export function createAideClient(createSocket) {
       const binding = { frontendId: frame.binding.frontend_id, maxMessageBytes }
       for (const listener of boundListeners) listener(binding)
     } else if (frame.method !== undefined && frame.id !== undefined) {
-      socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, ...answer(frame) }))
+      // A handler may answer later with a promise. That answer goes out only on the connection the
+      // request came in on: a request is never answered after a reconnect.
+      const receivedOn = socket
+      const reply = (member) => {
+        if (receivedOn === socket) socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, ...member }))
+      }
+      const answered = answer(frame)
+      if (answered.result instanceof Promise) {
+        answered.result.then(
+          (result) => reply({ result }),
+          (error) => reply(failure(error)),
+        )
+      } else {
+        reply(answered)
+      }
     } else if (frame.method !== undefined) {
       for (const listener of notificationListeners[frame.method] ?? []) listener(frame.params)
     } else {
@@ -110,15 +124,20 @@ export function createAideClient(createSocket) {
       if (!handler) throw new AideError('unsupported', `This page does not support ${method}.`)
       return { result: handler(params, id) }
     } catch (error) {
-      if (error instanceof AideError) {
-        return {
-          error: { code: APPLICATION_ERROR, message: error.message, data: { ...error.data, code: error.code } },
-        }
-      }
-      // A bug in the page. The agent still gets a reply instead of waiting 30 seconds for none.
-      console.error(error)
-      return { error: { code: INTERNAL_ERROR, message: 'The page failed to handle the request.' } }
+      return failure(error)
     }
+  }
+
+  /** The `error` member for a handler that threw, or whose promise was rejected. */
+  function failure(error) {
+    if (error instanceof AideError) {
+      return {
+        error: { code: APPLICATION_ERROR, message: error.message, data: { ...error.data, code: error.code } },
+      }
+    }
+    // A bug in the page. The agent still gets a reply instead of waiting 30 seconds for none.
+    console.error(error)
+    return { error: { code: INTERNAL_ERROR, message: 'The page failed to handle the request.' } }
   }
 
   function settle(reply) {

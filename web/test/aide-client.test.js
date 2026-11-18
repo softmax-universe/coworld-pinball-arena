@@ -289,6 +289,26 @@ test('a handler that throws an AideError answers with that contract error', () =
   ])
 })
 
+test('a handler may answer later with a promise, and its failure is a reply too', async () => {
+  const { client, socket } = boundClient()
+  let finish
+  client.handle('surface.act', ({ data }) =>
+    data.method === 'state' ? new Promise((resolve) => (finish = resolve)) : Promise.reject(new AideError('unsupported', 'Not understood.')),
+  )
+  const id = '99999999-9999-4999-8999-999999999999'
+  const otherId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  socket.receive({ jsonrpc: '2.0', id, method: 'surface.act', params: { data: { method: 'state' } } })
+  socket.receive({ jsonrpc: '2.0', id: otherId, method: 'surface.act', params: { data: { method: 'teleport' } } })
+  assert.deepEqual(socket.frames(), [])
+
+  finish({ data: { result: { score: 100 } } })
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.deepEqual(socket.frames(), [
+    { jsonrpc: '2.0', id: otherId, error: { code: -32000, message: 'Not understood.', data: { code: 'unsupported' } } },
+    { jsonrpc: '2.0', id, result: { data: { result: { score: 100 } } } },
+  ])
+})
+
 test('a handler that fails some other way still sends a reply', () => {
   const { client, socket } = boundClient()
   client.handle('policy.update', () => {

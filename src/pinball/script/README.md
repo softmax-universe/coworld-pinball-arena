@@ -195,7 +195,7 @@ Each is one command unless it says otherwise.
 | `groupsetting(group, which, value)` | Set one setting on every piece of a group |
 | `reset(id)` | Raise a drop target again, or relight a kickback |
 | `resetgroup(group)` | The same for every piece of a group |
-| `track(moutha, mouthb, cax, cay, cbx, cby)` | Make a track between two mouth pieces, with the two control points of its curve. All four control values 0 give a straight line. Seven commands: the track piece, then `set_moutha`, `set_mouthb`, `set_controlax`, `set_controlay`, `set_controlbx`, `set_controlby`. Returns the track id, or the reason of the first rejected command; a track piece made before that stays on the table |
+| `track(moutha, mouthb, cax, cay, cbx, cby)` | Make a track between two mouth pieces, with the two control points of its curve. All four control values 0 give a straight line. Seven commands: the track piece, then `set_controlax`, `set_controlay`, `set_controlbx`, `set_controlby`, `set_moutha`, `set_mouthb`. The mouths come last because the track is checked against the pieces in its way once both are set. Returns the track id, or the reason of the first rejected command; the track piece is then removed again (an eighth command) |
 
 A rejected edit (from a piece call, or from a rule result when it runs) is
 logged in the table and counted in `rejectcount`.

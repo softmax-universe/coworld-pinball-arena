@@ -37,13 +37,17 @@ proc giveEdit(script: Script, edit: Edit): int32 =
 
 proc giveTrack(script: Script, args: openArray[Value]): int32 =
   ## moutha, mouthb, cax, cay, cbx, cby. A track is one piece and six
-  ## settings, so this is seven commands. It stops at the first rejected one
-  ## and returns its reason. A track piece made before that stays.
-  const TrackSettings = [setMouthA, setMouthB, setControlAX, setControlAY,
-                         setControlBX, setControlBY]
+  ## settings, so this is seven commands. The curve comes first and the
+  ## mouths last, because the track has a path, and is checked against the
+  ## pieces in its way, once both mouths are set. It stops at the first
+  ## rejected command, takes the track piece away again and returns the reason.
+  const
+    TrackSettings = [setControlAX, setControlAY, setControlBX, setControlBY,
+                     setMouthA, setMouthB]
+    ArgumentOf = [2, 3, 4, 5, 0, 1]
   var values: array[TrackSettings.len, Fixed]
   for index in 0 ..< values.len:
-    values[index] = args[index].asFixed
+    values[index] = args[ArgumentOf[index]].asFixed
 
   # A track has no place of its own: it runs between its mouths.
   result = script.giveEdit Edit(kind: editCreate, componentKind: ckTrack, sizePercent: 100, level: 1)
@@ -53,6 +57,7 @@ proc giveTrack(script: Script, args: openArray[Value]): int32 =
     let outcome = script.giveEdit Edit(kind: editSetting, targetId: result, setting: setting,
                                        value: values[index])
     if outcome < 0:
+      discard script.giveEdit Edit(kind: editDelete, targetId: result)
       return outcome
 
 # --- Rules -------------------------------------------------------------------

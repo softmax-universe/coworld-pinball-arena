@@ -30,6 +30,11 @@ const
     ## The share of its speed a ball keeps when a gate on the track turns it back.
   ThingReach = 10'fx
     ## A rollover, spinner or gate this close to the path, in mm, is on the track.
+  ClimbLength* = 200'fx
+    ## A ramp climbs over this much of its curve for each level, starting at
+    ## its lower mouth. The rest runs at the level of the higher mouth, clear
+    ## of the pieces below. Nothing may stand under the climb.
+  ThingsOnTrack = {ckRollover, ckSpinner, ckGate}
   TickRate = int32(TicksPerSecond)
 
 type
@@ -61,11 +66,9 @@ proc facing(piece: Component): FixedVec2 =
 proc throat(mouth: Component): FixedVec2 =
   mouth.pos - mouth.facing * scaled(ThroatDepth, mouth.sizePercent)
 
-proc pathPoints(table: Table, track: Component, ends: TrackEnds): seq[FixedVec2] =
+proc pathPoints(track, mouthA, mouthB: Component): seq[FixedVec2] =
   ## Open end A, the sampled curve from throat A to throat B, open end B.
   let
-    mouthA = table.components[ends.mouths[0]]
-    mouthB = table.components[ends.mouths[1]]
     startPoint = mouthA.throat
     endPoint = mouthB.throat
   var
@@ -84,6 +87,9 @@ proc pathPoints(table: Table, track: Component, ends: TrackEnds): seq[FixedVec2]
       third = lerp(controlB, endPoint, amount)
     result.add lerp(lerp(first, second, amount), lerp(second, third, amount), amount)
   result.add mouthB.pos
+
+proc pathPoints(table: Table, track: Component, ends: TrackEnds): seq[FixedVec2] =
+  pathPoints(track, table.components[ends.mouths[0]], table.components[ends.mouths[1]])
 
 proc pathLength(points: seq[FixedVec2]): Fixed =
   for index in 1 .. points.high:
@@ -136,6 +142,40 @@ proc trackPoint*(table: Table, track: Component, distance: Fixed): FixedVec2 =
     return fixedVec2()
   let points = table.pathPoints(track, ends)
   points.pathPoint(distance + distance(points[0], points[1])).pos
+
+proc inTrackSpace*(piece, track, mouthA, mouthB: Component): bool =
+  ## Whether the piece stands where the track runs. A track takes a strip as
+  ## wide as itself along its curve, on its own level. A ramp also takes the
+  ## playfield under its climb. The things that sit on track, and the mouths
+  ## of other tracks, may share the strip on the track's own level.
+  let
+    high = max(mouthA.level, mouthB.level)
+    low = min(mouthA.level, mouthB.level)
+    onTrackLevel = piece.level == high
+    underClimb = piece.level >= low and piece.level < high
+  if not KindInfos[piece.kind].hasFootprint or piece.id in [mouthA.id, mouthB.id] or
+      not (onTrackLevel or underClimb) or
+      (onTrackLevel and piece.kind in ThingsOnTrack + {ckMouth}):
+    return false
+  var points = pathPoints(track, mouthA, mouthB)
+  if mouthB.level < mouthA.level:
+    # Walk from the lower end, where the climb is.
+    for index in 0 ..< points.len div 2:
+      swap(points[index], points[points.high - index])
+  let
+    outline = footprint(piece)
+    halfWidth = max(scaled(mouthA.settings[setWidthB], mouthA.sizePercent),
+                    scaled(mouthB.settings[setWidthB], mouthB.sizePercent)) / 2'i32
+    climbEnd = ClimbLength * (high - low)
+  var walked = 0'fx
+  # The first and last points are the open ends of the mouths, not the curve.
+  for index in 2 .. points.high - 1:
+    if underClimb and walked >= climbEnd:
+      break
+    if capsulesOverlap(outline, Collider(a: points[index - 1], b: points[index], radius: halfWidth)):
+      return true
+    walked += distance(points[index - 1], points[index])
+  false
 
 proc setLevel(table: var Table, ball: var Ball, level: int32) =
   if ball.level != level:

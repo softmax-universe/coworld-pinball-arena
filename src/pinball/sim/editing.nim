@@ -13,7 +13,7 @@
 ## edit can name it. A piece that fades out before a move is still there, and
 ## the place it claims is the one it is moving to.
 
-import types, catalogue, geometry, layout, components
+import types, catalogue, geometry, layout, components, tracks
 
 const
   PlacingEdits = {editCreate, editMove, editRotate, editResize}
@@ -21,6 +21,8 @@ const
   GroupEdits = {editDelete, editSetting, editReset}
   NormalSizePercent = 100'i32
   MaxRotation = 360'fx   ## Either way. Keeps the angle maths far from wrapping.
+  TrackPathSettings = {setMouthA, setMouthB, setControlAX, setControlAY,
+                       setControlBX, setControlBY}
 
 proc isLeaving(component: Component): bool =
   component.phase == phaseFadingOut and not component.hasPendingMove
@@ -67,6 +69,35 @@ proc placedPiece(table: Table, edit: Edit): Component =
   of editRotate: result.rotation = edit.rotation
   else: result.sizePercent = sizeOrNormal(edit.sizePercent)
 
+proc tracksClash(table: Table, changed: Component): bool =
+  ## Whether a track would run through a piece once `changed` (a piece with a
+  ## new place, or a track with a new path) is as given.
+  for existing in table.components:
+    if existing.kind != ckTrack or existing.isLeaving:
+      continue
+    let track = if existing.id == changed.id: changed else: existing
+    var
+      mouths: array[2, Component]
+      joined = true
+    for which, setting in [setMouthA, setMouthB]:
+      let index = table.componentIndex(toInt(track.settings[setting]))
+      if index < 0 or table.components[index].kind != ckMouth:
+        joined = false
+      elif table.components[index].id == changed.id:
+        mouths[which] = changed
+      else:
+        mouths[which] = settled(table.components[index])
+    if not joined:
+      continue
+    if changed.id in [track.id, mouths[0].id, mouths[1].id]:
+      # The path itself changes: nothing on the table may be in its way.
+      for other in table.components:
+        if not other.isLeaving and inTrackSpace(settled(other), track, mouths[0], mouths[1]):
+          return true
+    elif inTrackSpace(changed, track, mouths[0], mouths[1]):
+      return true
+  false
+
 proc placementReason(table: Table, piece: Component): RejectReason =
   ## Why the piece may not stand where it is, if it may not.
   let outline = footprint(piece)
@@ -81,6 +112,8 @@ proc placementReason(table: Table, piece: Component): RejectReason =
       continue
     if capsulesOverlap(outline, footprint(settled(other))):
       return rejectOverlap
+  if table.tracksClash(piece):
+    return rejectOverlap
   rejectNone
 
 proc isCounted(table: Table, edit: Edit, rateLimited: bool): bool =
@@ -121,6 +154,12 @@ proc rejectReason(table: Table, edit: Edit, rateLimited: bool): RejectReason =
   of editSetting:
     if edit.value notin settingRange(edit.setting):
       return rejectBadValue
+    if edit.setting in TrackPathSettings:
+      for index in targets:
+        var track = table.components[index]
+        track.settings[edit.setting] = edit.value
+        if track.kind == ckTrack and table.tracksClash(track):
+          return rejectOverlap
   else:
     discard
 

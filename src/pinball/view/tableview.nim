@@ -58,6 +58,8 @@ const
   EaseRate = 18'f32                ## How fast moving parts settle, per second.
   SpinnerSpeed = 22'f32            ## Radians per second while a spinner turns.
   GateOpenDegrees = 70'f32
+  IdleRampAlpha = 0.28'f32         ## How solid a raised track looks with no ball on it.
+  RampFadeSeconds = 0.8'f32        ## How long a raised track takes to turn faint again.
 
 type
   PieceView = object
@@ -69,6 +71,7 @@ type
     turn: float32       ## Radians, for a spinner flag or a gate flap.
     swing: float32      ## Degrees, for a diverter blade.
     hitGlow: float32    ## 1 just touched .. 0.
+    inUse: float32      ## 1 while a ball rides this track or its mouth .. 0.
     wasSolid: bool
     stillThere: bool
 
@@ -302,6 +305,35 @@ proc lampBrightness(view: TableView, piece: Component, pieceView: PieceView): fl
     discard
   result = clamp(result + pieceView.hitGlow, 0, 1.4)
 
+proc trackMouths(table: Table, track: Component): array[2, int] =
+  [table.componentIndex(toInt(track.settings[setMouthA])),
+   table.componentIndex(toInt(track.settings[setMouthB]))]
+
+proc fadesWhenIdle(table: Table, piece: Component): bool =
+  ## Raised track and raised mouths are drawn faint until a ball rides
+  ## them, so that the pieces under them can be seen.
+  if piece.kind == ckMouth:
+    return piece.level > 1
+  if piece.kind == ckTrack:
+    for mouth in table.trackMouths(piece):
+      if mouth >= 0 and table.components[mouth].level > 1:
+        return true
+  false
+
+proc carriesBall(table: Table, piece: Component): bool =
+  ## Whether a ball is on this track, or on the track of this mouth.
+  for ball in table.balls:
+    if ball.state != ballOnTrack:
+      continue
+    if ball.holderId == piece.id:
+      return true
+    let track = table.componentIndex(ball.holderId)
+    if track >= 0:
+      for mouth in table.trackMouths(table.components[track]):
+        if mouth >= 0 and table.components[mouth].id == piece.id:
+          return true
+  false
+
 proc animate(view: TableView, table: Table, seconds: float32) =
   ## Move the parts that move toward where the game says they are.
   let ease = min(seconds * EaseRate, 1)
@@ -312,6 +344,12 @@ proc animate(view: TableView, table: Table, seconds: float32) =
     if piece.phase == phaseSolid and not pieceView.wasSolid:
       pieceView.hitGlow = 1          # A flash as the hologram turns solid.
     pieceView.wasSolid = piece.phase == phaseSolid
+    if piece.kind in {ckTrack, ckMouth}:
+      # Solid at once when a ball comes, faint again slowly after it has left.
+      if table.carriesBall(piece):
+        pieceView.inUse += (1 - pieceView.inUse) * ease
+      else:
+        pieceView.inUse = max(pieceView.inUse - seconds / RampFadeSeconds, 0)
     case piece.kind
     of ckDropTarget:
       pieceView.sink += ((if piece.isDown: 1'f32 else: 0'f32) - pieceView.sink) * ease
@@ -521,13 +559,15 @@ proc collectPieces(view: TableView, table: Table, items: var seq[DrawItem]) =
         else: 1'f32
       at = piece.pos.onTable(levelY(piece.level))
       footprintRadius = max(toFloat32(scaled(KindInfos[piece.kind].radius, piece.sizePercent)), 10)
+      solidity =
+        if table.fadesWhenIdle(piece): mix(IdleRampAlpha, 1'f32, pieceView.inUse) else: 1'f32
 
     for part in pieceView.parts:
       if part.face >= 0 and part.face != piece.face:
         continue
       var item = DrawItem(mesh: part.mesh, material: part.material,
         transform: partTransform(piece, pieceView, part),
-        castsShadow: part.castsShadow and piece.phase == phaseSolid)
+        castsShadow: part.castsShadow and piece.phase == phaseSolid and solidity > 0.5)
       if part.glows:
         item.material.color = mix(part.material.color, part.glowColour, clamp(brightness, 0, 1) * 0.6)
         item.material.emissive = scaledColour(part.glowColour, brightness * 0.75)
@@ -535,7 +575,9 @@ proc collectPieces(view: TableView, table: Table, items: var seq[DrawItem]) =
         item.material.emissive = scaledColour(color(1, 1, 1, 1), pieceView.hitGlow * 0.25)
       case piece.phase
       of phaseSolid:
-        discard
+        # 0.99 and up is drawn solid, so a ramp in use hides what is behind it.
+        if solidity < 0.99:
+          item.material.color.a *= solidity
       of phaseBeamingIn:
         # A projection of the piece to come. It firms up as the time runs out.
         item.material = ToonMaterial(color: HologramColour, ghost: 0.55 + 0.45 * phaseShare)

@@ -67,6 +67,12 @@ They are starting values for playtest.
   between the two mouths. The slope, a ramp's climb and a little friction change its speed.
   Its level is the higher of the two mouths' levels. Two balls on one track pass through
   each other.
+- **A track's space.** `tracks.inTrackSpace` says whether a piece stands in the strip along
+  a track's curve, or under the climb of a ramp (`ClimbLength`, 200 mm per level from the
+  lower mouth). `editing.nim` refuses any edit that would put a piece there or run a track
+  through a piece. The view draws the climb over the same stretch, so nothing drawn cuts
+  through a ramp. The ball's speed on a ramp still treats the climb as spread over the
+  whole track.
 - **Things on a raised track** (rollover, spinner, gate) are found by their position on the
   curve and reported as contacts, so `components.nim` treats them like any other touch.
 - **A captive ball** is a short lane ending in a rubber post. The trapped ball is not simulated.
@@ -168,7 +174,8 @@ The server part is described in [`server/README.md`](../server/README.md).
 | The side panel is part of the game's view. | The side panel and all text are HTML; the canvas is the table only. | No font atlas or engine HUD, and crisp text at any size. |
 | "Can spin off a flipper tip." | Ball spin is not modelled (`Ball.spin` stays 0). | Left out to keep the physics simple. |
 | The diverter raises "passed". | It raises only "switched". | Not implemented. |
-| Tracks on the same level may not overlap. | Not checked. | A track is a centre line, so an overlap is only a visual matter. |
+| Tracks on the same level may not overlap. | Not checked between two tracks. A track and a piece may not overlap: a piece cannot stand in a track's strip or under a ramp's climb. | The owner asked for the piece rule after play: pieces cut through the ramp. Two crossing tracks are only a visual matter. |
+| (Not in the design.) | A raised track is drawn faint until a ball rides it. | The owner asked for this after play: the ramp hid the pieces under it. |
 | A ball leaving a raised mouth lands on the level below. | It lands on level 1, unless another track's mouth is there to catch it. | Raised levels hold only track. |
 | A ball lock holds a ball until a rule releases it. | Also: locking the only ball in play serves a new ball, and locked balls do not keep a ball number alive. | Otherwise a lock can stall the Episode. |
 | The build phase is 10 s, and the 8-minute clock runs from the start of the Episode. | The build phase ends when the program calls `ready()` and every piece is solid (10 s at most), and the clock starts with the first ball. | Owner's decision after play: the wait was dead time. |

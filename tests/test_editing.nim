@@ -41,6 +41,10 @@ proc tick(game: var Table, count = 1) =
 proc createEdit(kind: ComponentKind, pos: FixedVec2, level = 0'i32, group = 0'i32): Edit =
   Edit(kind: editCreate, componentKind: kind, pos: pos, level: level, group: group)
 
+const RoomySettings = TableSettings(
+  beamInTicks: 5, editsPerSecond: 2, buildBudget: 40, maxPieces: 20,
+  buildPhaseTicks: 10 * TicksPerSecond)
+
 # The helpers that check something are templates, so a failed check counts
 # against the test that uses the helper.
 
@@ -57,6 +61,25 @@ template createSolid(game: var Table, kind: ComponentKind, pos: FixedVec2,
   let id = game.create(kind, pos, level, group)
   game.tick(BeamIn)
   id
+
+template buildTrack(game: var Table, posA, posB: FixedVec2, rotationA = 180'fx,
+                    rotationB = 0'fx, levelB = 1'i32): int32 =
+  ## Two mouths that face away from each other and a straight track between
+  ## them, the way the Arena script's `track` call makes one. Gives the track id.
+  var
+    editA = createEdit(ckMouth, posA)
+    editB = createEdit(ckMouth, posB, levelB)
+  editA.rotation = rotationA
+  editB.rotation = rotationB
+  let
+    mouthA = game.applyEdit(editA, rateLimited = false)
+    mouthB = game.applyEdit(editB, rateLimited = false)
+    trackId = game.create(ckTrack, fixedVec2())
+  check mouthA.accepted and mouthB.accepted
+  for (setting, mouth) in [(setMouthA, mouthA.id), (setMouthB, mouthB.id)]:
+    check game.applyEdit(Edit(kind: editSetting, targetId: trackId, setting: setting,
+                              value: fixed(mouth)), rateLimited = false).accepted
+  trackId
 
 proc exists(game: Table, id: int32): bool =
   game.componentIndex(id) >= 0
@@ -329,6 +352,38 @@ suite "rejected edits":
                          rateLimited = false).accepted
     check game.piece(id).phase == phaseFadingOut
     game.checkRejected(createEdit(ckRubberPost, PlaceB), rejectOverlap)
+
+  test "a piece may not stand in the way of a track, but a spinner may sit on it":
+    var game = newGame(RoomySettings)
+    discard game.buildTrack(fixedVec2(150'fx, 500'fx), fixedVec2(400'fx, 500'fx))
+    game.checkRejected(createEdit(ckRubberPost, fixedVec2(275'fx, 500'fx)), rejectOverlap)
+    discard game.create(ckSpinner, fixedVec2(275'fx, 500'fx))
+    discard game.create(ckRubberPost, fixedVec2(275'fx, 430'fx))
+
+  test "under a ramp only the climb is taken: the rest runs clear of the playfield":
+    var game = newGame(RoomySettings)
+    # The ramp runs straight up the table, 340 mm from throat to throat.
+    discard game.buildTrack(fixedVec2(250'fx, 650'fx), fixedVec2(250'fx, 250'fx),
+                            rotationA = 90'fx, rotationB = 270'fx, levelB = 2)
+    game.checkRejected(createEdit(ckRubberPost, fixedVec2(250'fx, 520'fx)), rejectOverlap)
+    discard game.create(ckRubberPost, fixedVec2(250'fx, 350'fx))
+
+  test "a track may not be laid or moved through a piece":
+    var game = newGame(RoomySettings)
+    discard game.create(ckRubberPost, fixedVec2(275'fx, 500'fx))
+    let
+      mouthA = game.create(ckMouth, fixedVec2(150'fx, 500'fx))
+      inLine = game.create(ckMouth, fixedVec2(400'fx, 500'fx))
+      clear = game.create(ckMouth, fixedVec2(400'fx, 400'fx))
+      track = game.create(ckTrack, fixedVec2())
+    proc join(setting: Setting, mouth: int32): Edit =
+      Edit(kind: editSetting, targetId: track, setting: setting, value: fixed(mouth))
+    check game.applyEdit(join(setMouthA, mouthA), rateLimited = false).accepted
+    game.checkRejected(join(setMouthB, inLine), rejectOverlap)
+    check game.applyEdit(join(setMouthB, clear), rateLimited = false).accepted
+    # The far mouth may not come down to where the track would cross the post.
+    game.checkRejected(Edit(kind: editMove, targetId: clear, pos: fixedVec2(340'fx, 500'fx)),
+                       rejectOverlap)
 
   test "an edit that names no piece is rejected":
     var game = newGame()

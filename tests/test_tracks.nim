@@ -7,7 +7,7 @@
 ## coordinates. Floats are used only to judge results.
 
 import std/[math, unittest]
-import pinball/sim/[types, catalogue, tracks]
+import pinball/sim/[types, catalogue, tracks, layout]
 
 const
   SlopeGravity = toFloat64(layout.SlopeGravity)   ## mm/s^2 along +y, as in the physics tests.

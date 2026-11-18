@@ -193,8 +193,8 @@ proc send(session: Session, message: string) =
   session.game.receiveMessage(message)
   session.collect()
 
-proc newSession(mode = flipperHuman): Session =
-  Session(game: newGame(GameOptions(settings: QuickSettings, flipperMode: mode)))
+proc newSession(): Session =
+  Session(game: newGame(GameOptions(settings: QuickSettings)))
 
 proc newSession(name: string, version: int, source: string): Session =
   ## A game whose table program arrived before the first tick, so it plays
@@ -607,10 +607,12 @@ suite "game driver":
     check session.summary{"program", "name"}.getStr == "ramp-school"
     check game.replay().verify()
 
-  test "in demo mode the next Episode starts by itself":
+  test "with a program at the flippers the next Episode starts by itself":
     # Whatever the bundled programs do, the Episode clock ends the Episode.
-    let session = newSession(flipperDemo)
+    let session = newSession()
     let game = session.game
+    session.send """{"type":"program","seat":"flipper","name":"demo"}"""
+    check session.sent("programLoaded")[0]{"seat"}.getStr == "flipper"
     for _ in 0 ..< EpisodeTickLimit:
       if session.sent("episode").len > 0:
         break
@@ -687,8 +689,8 @@ suite "game driver":
         """{"type":"teleport"}""",
         """{"type":"program"}""",
         """{"type":"program","name":"odd","version":"three","source":5}""",
-        """{"type":"flipper"}""",
-        """{"type":"flipper","mode":"sideways"}"""]:
+        """{"type":"program","seat":"flipper","name":"odd","source":5}""",
+        """{"type":"flipper","mode":"demo"}"""]:
       game.receiveMessage(message)
     check game.takeMessages().len == 0
 
@@ -701,3 +703,95 @@ suite "game driver":
     check session.sent("programLoaded").len == 1
     check session.sent("programError").len == 0
     check game.pieces(ckPopBumper) == 1
+
+  test "a Flipper program takes the flippers at once and gives them back":
+    let session = newSession()
+    let game = session.game
+    session.playUntilBallInPlay()
+    session.send $(%*{"type": "program", "seat": "flipper", "name": "lefty", "version": 2,
+                      "source": "flip(left, 1)"})
+    check session.sent("programLoaded")[0]{"effect"}.getStr == "now"
+    game.tick()
+    check game.table.flippers[flipperLeft].pressed
+
+    # The person's keys do nothing while a program plays.
+    game.humanInput Command(kind: cmdFlipper, side: flipperRight, pressed: true)
+    check not game.table.flippers[flipperRight].pressed
+
+    # No name: the person plays again, with nothing held.
+    session.send """{"type":"program","seat":"flipper"}"""
+    check not game.table.flippers[flipperLeft].pressed
+    game.humanInput Command(kind: cmdFlipper, side: flipperRight, pressed: true)
+    check game.table.flippers[flipperRight].pressed
+    session.playToEnd()
+    check game.replay().verify()
+
+  test "a Flipper program that fails is reported once, and the summary names it":
+    let session = newSession()
+    session.send $(%*{"type": "program", "seat": "flipper", "name": "clumsy", "version": 1,
+                      "source": "flip(left, 1)\nif tick > 30 then x = 1 / zero"})
+    for _ in 0 ..< EpisodeTickLimit:
+      if session.sent("episode").len > 0:
+        break
+      session.game.tick()
+      session.collect()
+    let errors = session.sent("programError")
+    need errors.len == 1
+    check errors[0]{"seat"}.getStr == "flipper"
+    check errors[0]{"name"}.getStr == "clumsy"
+    check errors[0]{"stage"}.getStr == "run"
+    check not session.game.table.flippers[flipperLeft].pressed
+    check session.summary{"flipper", "name"}.getStr == "clumsy"
+    check session.summary{"flipper", "scriptError", "stage"}.getStr == "run"
+
+  test "lines of BASIC run at once for either seat, and are in the replay":
+    let session = newSession("first", 1, BumperProgram)
+    let game = session.game
+    session.playUntilBallInPlay()
+
+    session.send $(%*{"type": "run", "id": 7, "seat": "arena",
+                      "source": "print create(kind_rubberpost, 300, 500, 0, 100, 1, 0)"})
+    var answer = session.sent("ran")[^1]
+    check answer{"id"}.getInt == 7
+    check answer{"error"}.kind == JNull
+    check answer{"output"}.len == 1
+    check game.pieces(ckRubberPost) == 1
+
+    session.send $(%*{"type": "run", "id": 8, "seat": "flipper", "source": "flip(right, 1)"})
+    check game.table.flippers[flipperRight].pressed
+
+    # A seat has only its own calls, and a failure says what went wrong.
+    session.send $(%*{"type": "run", "id": 9, "seat": "flipper", "source": "x = 1 / zero"})
+    answer = session.sent("ran")[^1]
+    check answer{"id"}.getInt == 9
+    check answer{"error", "stage"}.getStr == "run"
+    session.send $(%*{"type": "run", "id": 10, "seat": "arena", "source": "flip(left 1)"})
+    check session.sent("ran")[^1]{"error", "stage"}.getStr == "compile"
+
+    session.playToEnd()
+    check game.replay().verify()
+
+  test "the state holds the table, and the events of a tick are sent":
+    let session = newSession("first", 1, BumperProgram)
+    session.playUntilBallInPlay()
+    session.play(1)
+    session.send """{"type":"state","id":"s1"}"""
+    let answer = session.sent("state")[^1]
+    check answer{"id"}.getStr == "s1"
+    let state = answer{"state"}
+    check state{"phase"}.getStr == "play"
+    check state{"ballNumber"}.getInt == 1
+    check state{"balls"}.len == 1
+    check state{"balls"}[0]{"state"}.getStr == "free"
+    check state{"pieces"}[0]{"kind"}.getStr == "popbumper"
+    check state{"pieces"}[0]{"phase"}.getStr == "solid"
+    check state{"fsms"}.len == 1
+    check state{"programs", "arena", "name"}.getStr == "first"
+    check state{"programs", "flipper"}.kind == JNull
+
+    var kinds: seq[string]
+    for message in session.sent("events"):
+      for event in message{"events"}:
+        kinds.add event{"kind"}.getStr
+    check "buildphaseended" in kinds
+    check "balladded" in kinds

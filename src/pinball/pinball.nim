@@ -141,8 +141,9 @@ proc main() =
   app.window.makeContextCurrent()
   when not defined(emscripten):
     loadExtensions()
-  app.game = newGame(GameOptions(settings: DefaultSettings,
-    flipperMode: if app.options.demo: flipperDemo else: flipperHuman))
+  app.game = newGame(GameOptions(settings: DefaultSettings))
+  if app.options.demo:
+    app.game.receiveMessage """{"type":"program","seat":"flipper","name":"demo"}"""
   app.view = newTableView()
 
   if takingScreenshot:

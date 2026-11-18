@@ -15,7 +15,6 @@
 
 import std/[json, os]
 import game
-import script/hosts
 
 const Usage = "usage: headless [--arena PATH] [--flipper PATH] [--record PATH] [--replay PATH]"
 
@@ -66,17 +65,20 @@ proc main() =
     checkReplay(loadReplay(options.replayPath))
     return
 
-  var gameOptions = GameOptions(settings: DefaultSettings, flipperMode: flipperDemo)
+  # Programs that arrive before the first tick play this Episode.
+  let game = newGame(GameOptions(settings: DefaultSettings))
   if options.flipperPath.len > 0:
-    gameOptions.flipperSource = readFile(options.flipperPath)
-    # The game lets a broken Flipper program hang limp without a word.
-    let flipper = loadScript(seatFlipper, gameOptions.flipperSource)
-    if flipper.status == scriptCompileError:
-      quit(options.flipperPath & ": " & flipper.error, 1)
-
-  let game = newGame(gameOptions)
+    game.receiveMessage $(%*{
+      "type": "program",
+      "seat": "flipper",
+      "name": options.flipperPath.splitFile.name,
+      "version": 1,
+      "source": readFile(options.flipperPath)})
+  else:
+    game.receiveMessage $(%*{"type": "program", "seat": "flipper", "name": "demo"})
+  if game.loadedNoProgram():
+    quit(1)
   if options.arenaPath.len > 0:
-    # It arrives before the first tick, so it plays this Episode.
     game.receiveMessage $(%*{
       "type": "program",
       "name": options.arenaPath.splitFile.name,

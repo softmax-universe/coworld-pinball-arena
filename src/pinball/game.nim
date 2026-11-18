@@ -189,6 +189,9 @@ proc seatWaiting(game: Game) =
     let house = loadScript(seatArena, HouseSource)
     house.decide(game.table)
     game.commands.add house.issued
+    # The house said its own table is ready. The program that builds on it
+    # says when the whole table is.
+    game.give Command(seat: seatArena, kind: cmdReady, pressed: false)
 
 proc decideArena(game: Game) =
   let wasRunning = game.arena.status == scriptRunning

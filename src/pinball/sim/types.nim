@@ -367,6 +367,10 @@ type
     cmdFsmCreate, cmdFsmDelete, cmdFsmReset
     cmdFsmAddNode, cmdFsmAddEdge, cmdFsmAddResult, cmdFsmSetFinal
     cmdSignal
+    cmdReady
+      ## The program has finished building (`pressed` true), so the first ball
+      ## can be served as soon as every piece is solid. `pressed` false takes
+      ## it back.
     cmdClearArena
       ## A program takes the Arena seat: remove every piece and FSM and raise
       ## `evProgramLoaded`. The driver gives it, not the program, and it is in
@@ -447,6 +451,10 @@ type
     editWindowSecond*: uint32
       ## Which second of the Episode `editsThisSecond` counts. The windows
       ## are whole seconds from tick 0.
+    buildReady*: bool
+      ## The Arena player said it has finished building. See `cmdReady`.
+    playStartTick*: uint32
+      ## The tick the build phase ended. The Episode clock runs from here.
     freeEditsUntilTick*: uint32
       ## Script edits are not rate-limited before this tick. Set when the
       ## arena is cleared for a new program, so that it can lay out its table.
@@ -495,6 +503,11 @@ const DefaultSettings* = TableSettings(
 
 proc accepted*(outcome: CommandOutcome): bool =
   outcome.reason == rejectNone
+
+proc clockTicks*(table: Table): int32 =
+  ## How long the Episode clock has run. It starts when the build phase ends.
+  if table.phase == episodeBuild: 0'i32
+  else: int32(table.tick - table.playStartTick)
 
 proc emit*(table: var Table, event: Event) =
   ## For events that happen inside a tick, before the rules run.

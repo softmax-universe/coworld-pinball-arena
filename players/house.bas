@@ -42,6 +42,7 @@ if built = 0 then
   rulesmultiball()
   ruleskickbacks()
   rulesstatus()
+  ready()   ' Everything is built: serve the first ball as soon as it is solid.
 end if
 
 ' --- Names -------------------------------------------------------------------

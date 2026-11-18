@@ -111,6 +111,7 @@ proc addArenaCalls*(host: var Host, script: Script) =
   host.call("fsmreset", 1): script.give Command(kind: cmdFsmReset, fsmId: args[0].asInt)
   host.call("fsmremove", 1): script.give Command(kind: cmdFsmDelete, fsmId: args[0].asInt)
   host.call("signal", 1): script.give Command(kind: cmdSignal, signal: args[0].asInt)
+  host.call("ready", 0): script.give Command(kind: cmdReady, pressed: true)
   host.call("fsmnode", 1): script.table[].currentNode(args[0].asInt)
 
   # Results of a node. Every one starts with the FSM and the node.

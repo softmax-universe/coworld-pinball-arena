@@ -53,7 +53,10 @@ proc apply*(table: var Table, command: Command): CommandOutcome =
     if command.signal notin 0 ..< SignalCount:
       return CommandOutcome(reason: rejectUnknownTarget)
     table.emitNext Event(kind: evScriptSignal, value: command.signal)
+  of cmdReady:
+    table.buildReady = command.pressed
   of cmdClearArena:
+    table.buildReady = false
     table.clearArena()
     table.fsms.setLen 0
     table.emitNext Event(kind: evProgramLoaded)

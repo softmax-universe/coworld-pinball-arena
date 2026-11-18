@@ -51,7 +51,7 @@ Read-only named numbers. Assigning to one is a compile error.
 | `phase` | integer | 0 build phase, 1 play, 2 over |
 | `ballnumber` | integer | 1..3 while playing |
 | `score` | integer | The Flipper score, at most 2147483647 |
-| `clockseconds` | integer | Whole seconds left on the Episode clock |
+| `clockseconds` | integer | Whole seconds left on the Episode clock, which starts when the build phase ends |
 | `ballcount` | integer | Balls listed in `balls`, 0..6 |
 | `piececount` | integer | Pieces listed in `pieces`, 0..128 |
 | `leftangle`, `rightangle` | fixed | Flipper angle in degrees above its rest position |
@@ -215,6 +215,7 @@ An FSM starts with node 0, its initial node.
 | `fsmreset(fsm)` | Back to node 0, counts cleared, running again |
 | `fsmremove(fsm)` | Delete an FSM |
 | `signal(number)` | Raise script signal 0..15. FSMs see it on the next tick as `ev_scriptsignal` with that `value` |
+| `ready()` | The table is built. The build phase ends as soon as every piece is solid, instead of after its full length. Returns 1 |
 
 ### Results of a node
 

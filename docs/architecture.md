@@ -171,6 +171,7 @@ The server part is described in [`server/README.md`](../server/README.md).
 | Tracks on the same level may not overlap. | Not checked. | A track is a centre line, so an overlap is only a visual matter. |
 | A ball leaving a raised mouth lands on the level below. | It lands on level 1, unless another track's mouth is there to catch it. | Raised levels hold only track. |
 | A ball lock holds a ball until a rule releases it. | Also: locking the only ball in play serves a new ball, and locked balls do not keep a ball number alive. | Otherwise a lock can stall the Episode. |
+| The build phase is 10 s, and the 8-minute clock runs from the start of the Episode. | The build phase ends when the program calls `ready()` and every piece is solid (10 s at most), and the clock starts with the first ball. | Owner's decision after play: the wait was dead time. |
 | Post pass must work. | No test covers it. | It needs a person at the table. |
 | Sounds from CC0 packs and recordings of real machines. | Kenney CC0 packs only. | Freesound downloads need an account. |
 | A floating text component and a floating-text rule result. | Not built. Rules write text only to the display: the two message boxes of the side panel. | The owner asked for this after play: text on the table obstructs the view. |

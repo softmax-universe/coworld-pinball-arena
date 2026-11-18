@@ -102,6 +102,18 @@ suite "episode":
     check game.balls[0].id > 0
     check events.find(evBallAdded).ballId == game.balls[0].id
 
+  test "a ready table gets its first ball as soon as every piece is solid":
+    var game = initTable(TableSettings(buildPhaseTicks: 10 * Second))
+    game.components.add Component(id: 1, kind: ckRubberPost, phase: phaseBeamingIn)
+    discard game.apply(Command(seat: seatArena, kind: cmdReady, pressed: true))
+    game.advance(5)
+    check game.phase == episodeBuild   # A piece is still a hologram.
+    game.components[0].phase = phaseSolid
+    game.advance()
+    check game.phase == episodePlay
+    check game.balls.len == 1
+    check game.clockTicks == 1         # The clock started with the first ball, one tick ago.
+
   test "the Episode ends when the third ball drains":
     var game = startedGame()
     var ballNumbers: seq[int32]
@@ -304,13 +316,13 @@ suite "episode":
     var game = stuckBallGame()
     game.balls[0].vel = fixedVec2(0'fx, 300'fx)   # In play and moving.
 
-    game.tick = uint32(3 * 60 * Second - 5)
+    game.tick = game.playStartTick + uint32(3 * 60 * Second - 5)
     let minuteEvents = game.advance(10)
     check minuteEvents.count(evClockThreshold) == 1
     check minuteEvents.find(evClockThreshold).value == 3
     check game.phase == episodePlay
 
-    game.tick = uint32(EpisodeClockTicks - 5)
+    game.tick = game.playStartTick + uint32(EpisodeClockTicks - 5)
     let beforeEnd = game.advance(5)
     check game.phase == episodePlay
     check beforeEnd.count(evEpisodeEnding) == 0
@@ -374,7 +386,7 @@ suite "episode":
       game.drainFreeBalls()
     doAssert game.phase == episodeOver
 
-    game.tick = uint32(EpisodeClockTicks - 5)
+    game.tick = game.playStartTick + uint32(EpisodeClockTicks - 5)
     let events = game.advance(10)
     check events.len == 0
     check game.phase == episodeOver

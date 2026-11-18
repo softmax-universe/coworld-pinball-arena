@@ -114,17 +114,31 @@ proc startBallNumber(table: var Table, number: int32) =
   table.launchSave = launchSaveReady
   table.serveBall()
 
+proc buildIsDone(table: Table): bool =
+  ## The build phase lasts until the Arena player says it is ready and every
+  ## piece is solid, and `buildPhaseTicks` at the longest.
+  if table.tick >= uint32(table.settings.buildPhaseTicks):
+    return true
+  if not table.buildReady:
+    return false
+  for component in table.components:
+    if component.phase != phaseSolid:
+      return false
+  true
+
 proc endBuildPhase(table: var Table) =
   table.phase = episodePlay
+  table.playStartTick = table.tick
   table.emit Event(kind: evBuildPhaseEnded)
   table.startBallNumber(1)
 
 proc runClock(table: var Table) =
-  if table.tick >= EpisodeClockTicks:
+  let clock = table.clockTicks
+  if clock >= EpisodeClockTicks:
     table.recordBallLength()
     table.endEpisode(endClock)
-  elif table.tick mod ClockMinuteTicks == 0:
-    table.emit Event(kind: evClockThreshold, value: int32(table.tick div ClockMinuteTicks))
+  elif clock > 0 and clock mod ClockMinuteTicks == 0:
+    table.emit Event(kind: evClockThreshold, value: clock div ClockMinuteTicks)
 
 proc runBallSave(table: var Table) =
   ## The automatic save starts at the first launch of a ball number only. If
@@ -213,7 +227,7 @@ proc advanceEpisode*(table: var Table) =
   if table.phase == episodeOver:
     return
   if table.phase == episodeBuild:
-    if table.tick >= uint32(table.settings.buildPhaseTicks):
+    if table.buildIsDone:
       table.endBuildPhase()
     return
   table.runClock()

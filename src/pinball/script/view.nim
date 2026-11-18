@@ -36,7 +36,7 @@ proc viewNumbers*(table: Table, seat: Seat): seq[(string, Value)] =
   template number(name: string, value: untyped) =
     result.add (name, toValue(value))
 
-  let ticksLeft = max(EpisodeClockTicks - int64(table.tick), 0)
+  let ticksLeft = max(EpisodeClockTicks - table.clockTicks, 0)
   number "tick", int32(min(int64(table.tick), int64(high(int32))))
   number "phase", int32(ord(table.phase))
   number "ballnumber", table.ballNumber

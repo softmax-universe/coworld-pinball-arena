@@ -65,7 +65,7 @@ proc hudMessage(table: Table): string =
     "score": table.score,
     "quest": table.questText,
     "award": table.awardText,
-    "clockSeconds": max(EpisodeClockTicks - int(table.tick), 0) div TicksPerSecond,
+    "clockSeconds": max(EpisodeClockTicks - table.clockTicks, 0) div TicksPerSecond,
     "tiltWarnings": table.tiltWarnings,
     "tilted": table.tilted,
     "ballSaveActive": table.ballSaveTicks > 0

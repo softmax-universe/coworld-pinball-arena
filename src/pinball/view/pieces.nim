@@ -20,9 +20,13 @@ import
   meshes
 
 const
-  LevelHeight* = 34'f32
-    ## Millimetres between one level and the next as drawn. A little more
-    ## than the simulation's 25 mm, so the levels read from above.
+  LevelHeight* = 50'f32
+    ## Millimetres between one level and the next as drawn. Twice the
+    ## simulation's 25 mm, so a raised track clears the tallest piece under
+    ## it and reads as raised from above.
+  ClimbLength = 130'f32
+    ## A track between two levels climbs over this much of its length, at
+    ## its lower end, and runs level at the higher one for the rest.
   WallHeight* = 24'f32
   PlateHeight = 24'f32
   DropTargetTravel = 23'f32
@@ -31,7 +35,8 @@ const
   ThroatDepth = 30'f32               ## Keep in step with `sim/tracks.nim`.
   TrackStep = 10'f32                 ## Millimetres between samples of a track curve.
   TrackPostSpacing = 12              ## Samples between two support posts.
-  TrackHoopSpacing = 5               ## Samples between two hoops of a wire ramp.
+  TrackHoopSpacing = 9               ## Samples between two hoops of a wire ramp.
+  WireGuideHeight = 9'f32            ## The side wires of a wire ramp, above its feet.
 
   White = color(0.93, 0.92, 0.88, 1)
   Steel = color(0.70, 0.73, 0.82, 1)
@@ -345,19 +350,19 @@ proc buildRails(shape: var PieceShape, left, right: seq[Vec3], level: int32) =
         rails.addWall(vec2(side[index - 1].x, side[index - 1].z),
           vec2(side[index].x, side[index].z), 2, 0, 13)
   elif level == 2:
+    # Four thin wires, so the pieces under the ramp show through it: one
+    # guide along each side, and two under the ball.
     let wire = shape.add(chrome())
     for side in [left, right]:
-      var upper: seq[Vec3]
+      var guide: seq[Vec3]
       for point in side:
-        upper.add point + vec3(0, 11, 0)
-      wire.addTube(side, 2.0)
-      wire.addTube(upper, 2.0)
-    # Two more wires under the ball make the floor of the ramp.
-    for share in [0.33'f32, 0.67]:
+        guide.add point + vec3(0, WireGuideHeight, 0)
+      wire.addTube(guide, 1.4)
+    for share in [0.3'f32, 0.7]:
       var floorWire: seq[Vec3]
       for index in 0 .. left.high:
-        floorWire.add mix(left[index], right[index], share) - vec3(0, 2, 0)
-      wire.addTube(floorWire, 1.8)
+        floorWire.add mix(left[index], right[index], share)
+      wire.addTube(floorWire, 1.4)
   else:
     let plastic = shape.add(ToonMaterial(color: ClearPlastic))
     for index in 1 .. left.high:
@@ -394,11 +399,17 @@ proc buildMouth(shape: var PieceShape, piece: Component, size: float32) =
 proc levelY*(level: int32): float32 =
   LevelHeight * (max(level, 1) - 1).float32
 
-proc trackHeight*(levelA, levelB: int32, share: float32): float32 =
-  ## The height of a track `share` of the way from mouth A to mouth B. The
+proc trackHeight*(levelA, levelB: int32, distance, length: float32): float32 =
+  ## The height of a track `distance` mm from mouth A, of `length` mm to
+  ## mouth B. The track climbs steeply at its lower end and runs level at the
+  ## higher one, so that nearly all of it is clear of the pieces below. The
   ## climb eases in and out, so a ramp meets both mouths level.
-  let eased = share * share * (3 - 2 * share)
-  mix(levelY(levelA), levelY(levelB), eased)
+  let
+    climb = min(ClimbLength, length)
+    fromLowEnd = if levelB >= levelA: distance else: length - distance
+    share = clamp(fromLowEnd / climb, 0, 1)
+    eased = share * share * (3 - 2 * share)
+  mix(levelY(min(levelA, levelB)), levelY(max(levelA, levelB)), eased)
 
 proc buildTrack(shape: var PieceShape, table: Table, track: Component) =
   let
@@ -421,7 +432,8 @@ proc buildTrack(shape: var PieceShape, table: Table, track: Component) =
       share = sample.float32 / samples.float32
       point = table.trackPoint(track,
         multiplyDivide(length, fixed(int32(sample)), fixed(int32(samples))))
-    centre.add vec3(toFloat32(point.x), trackHeight(levelA, levelB, share), toFloat32(point.y))
+    centre.add vec3(toFloat32(point.x),
+      trackHeight(levelA, levelB, share * toFloat32(length), toFloat32(length)), toFloat32(point.y))
   var left, right: seq[Vec3]
   for sample, point in centre:
     var along = centre[min(sample + 1, samples)] - centre[max(sample - 1, 0)]
@@ -442,9 +454,8 @@ proc buildTrack(shape: var PieceShape, table: Table, track: Component) =
     if level == 2:
       # Hoops tie the wires of a wire ramp together.
       for sample in countup(1, samples - 1, TrackHoopSpacing):
-        frame.addTube([left[sample] + vec3(0, 11, 0), left[sample],
-          mix(left[sample], right[sample], 0.5) - vec3(0, 3, 0), right[sample],
-          right[sample] + vec3(0, 11, 0)], 1.1, sides = 6)
+        frame.addTube([left[sample] + vec3(0, WireGuideHeight, 0), left[sample] - vec3(0, 2, 0),
+          right[sample] - vec3(0, 2, 0), right[sample] + vec3(0, WireGuideHeight, 0)], 1.0, sides = 6)
 
 proc buildLamp(shape: var PieceShape, piece: Component, radius: float32) =
   if piece.kind == ckInsert:

@@ -393,7 +393,7 @@ proc ballHeight(table: Table, ball: Ball): float32 =
     length = toFloat32(table.trackLength(track))
   if mouthA >= 0 and mouthB >= 0 and length > 0:
     result = trackHeight(table.components[mouthA].level, table.components[mouthB].level,
-      clamp(toFloat32(ball.trackDistance) / length, 0, 1))
+      clamp(toFloat32(ball.trackDistance), 0, length), length)
 
 proc isHidden(table: Table, ball: Ball): bool =
   ## A ball inside a scoop is under the table.

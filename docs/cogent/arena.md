@@ -46,7 +46,7 @@ end if
 
 ## The table
 
-**Units** are in [basic.md](basic.md#numbers-and-units): millimetres with `y` growing toward the player, mm/s, degrees clockwise from the right, ticks. The ball is 27 mm across. Gravity pulls it down the table at 1,250 mm/s². A flipper shot is typically 1,500 to 2,500 mm/s, at most about 4,000.
+**Units** are in [basic.md](basic.md#numbers-and-units): millimetres with `y` growing toward the player, mm/s, degrees clockwise from the right, ticks. The ball is 27 mm across. A free ball accelerates downhill at 800 mm/s². Hard impacts return a smaller share of the incoming speed. Powered bumpers and slingshots then add their configured kick.
 
 **Fixed parts.** You cannot change these.
 

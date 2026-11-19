@@ -26,6 +26,8 @@ const
   # How much of the speed into a surface comes back out.
   SurfaceBounce: array[Surface, Fixed] = [
     surfaceMetal: 0.42'fx, surfaceRubber: 0.62'fx, surfaceDead: 0.1'fx]
+  FullBounceSpeed = 800'fx      ## mm/s normal to the surface.
+  BounceFalloffSpeed = 2000'fx  ## Another 2 m/s above full bounce halves restitution.
   BallBounce = 0.9'fx           ## Steel ball against steel ball.
   RestingSpeed = 60'fx
     ## mm/s. A ball that meets a surface slower than this does not bounce, so
@@ -38,7 +40,7 @@ const
 
   # Flipper drive, in degrees per second gained each tick.
   FlipperStrokeGain = 1200'fx   ## The power stroke: at full speed within two ticks.
-  FlipperMaxSpeed = 2200'fx
+  FlipperMaxSpeed = 1750'fx
     ## Degrees per second. The stroke tops out here, so the flipper starts at
     ## once without throwing the ball harder. Full stroke in about 4 ticks.
   FlipperHoldGain = 100'fx      ## The hold, after the flipper first reaches the top.
@@ -47,7 +49,7 @@ const
   FlipperStopMinSpeed = 60'fx   ## Degrees per second. Slower than this it just stops.
 
   PlungerPullTicks = 120        ## Ticks of holding for a full pull.
-  PlungerMaxLaunchSpeed = 3000'fx  ## mm/s of the tip after a full pull.
+  PlungerMaxLaunchSpeed = 2300'fx  ## mm/s of the tip after a full pull.
 
   NudgeSpeed = 60'fx            ## mm/s given to every free ball.
   NudgeTiltTicks = 180          ## What one nudge adds to the tilt meter.
@@ -198,7 +200,8 @@ proc touch(ball: var Ball, collider: Collider, surfaceVelocity: FixedVec2,
   if approach > 0'fx:
     var push = approach
     if approach > RestingSpeed:
-      push += approach * SurfaceBounce[collider.surface]
+      let excess = max(approach - FullBounceSpeed, 0'fx)
+      push += approach * SurfaceBounce[collider.surface] / (1'fx + excess / BounceFalloffSpeed)
     if kicks and approach > KickMinSpeed:
       push += collider.kickSpeed
     let

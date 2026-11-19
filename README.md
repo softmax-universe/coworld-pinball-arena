@@ -98,9 +98,9 @@ Click the table to give it the keyboard.
 | Plunger | Space (hold to pull, release to fire) | Right stick down, then release |
 | Nudge | X (left), . (right), Up | Left stick flick |
 
-“Watch demo” hands the flippers to the bundled demo program. Open **Cogent & programs**
-on the machine console to chat, choose a program for either seat, or restart with a new
-table. Choose **Table** to return focus to the flippers.
+“Watch demo” hands the flippers to the bundled demo program. The **Cogent terminal**
+below the scoreboard holds the chat. On phones, **Cogent**
+opens the terminal and **Table** returns keyboard focus to the flippers.
 
 The Music button cycles through Off, Space Echo, and Space Adventure. Music starts off on
 page load. Both tracks loop beneath the table effects.

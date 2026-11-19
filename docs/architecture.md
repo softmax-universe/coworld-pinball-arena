@@ -107,7 +107,8 @@ What a program can see and call is documented for its authors in
   list of calls to keep in step with the BASIC one.
 - **Replay** (`replay.nim`). Every command either seat gives is recorded with its tick,
   rejected ones included (a rejected edit is logged in the table, which is hashed), with the
-  table hash after each tick. `verify` re-simulates from the commands alone; no BASIC runs.
+  table hash after each tick. `verify` re-simulates from the commands alone. Use the simulator
+  version that recorded the episode, since physics changes alter the hash.
 - **Summary and state** (`summary.nim`). The JSON of the Episode summary, of the table as it
   is now (`tableState`) and of the events of a tick.
 
@@ -172,7 +173,9 @@ The table box in `web/styles.css` has the same aspect as `DesignAspect` in
 
 ## The page (`web/`)
 
-Plain ES modules, no framework, no build step, no dependencies.
+Plain ES modules, no framework, no build step, no dependencies. The cabinet displays
+the scoreboard and Cogent terminal together on wider screens. At 700 CSS pixels or
+narrower, the Table and Cogent buttons switch between the game status and terminal.
 
 - `aide-client.js`: the AIDE 1.0.0 wire layer over a WebSocket. Hand-written, because the
   released `@softmax-universe/aide` client handles chat only and answers every request from

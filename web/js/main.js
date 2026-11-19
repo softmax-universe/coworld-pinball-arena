@@ -1,7 +1,7 @@
 /**
  * The page: wires the game, the machine display, the stored programs, the game API and the cogent.
  *
- * Order of things on load: the display and the programs list are drawn, the active program of
+ * Order of things on load: the display is drawn, the active program of
  * each seat is put in the game's inbox, and the game starts loading. Beside that, the page asks whether the person is signed in; if so it finds their
  * workspace and connects the chat. The game never waits for the cogent.
  */
@@ -116,25 +116,19 @@ musicButton.addEventListener('click', (event) => {
 
 const programsPanel = createProgramsPanel(
   {
-    list: byId('program-list'),
     notice: byId('program-notice'),
     noticeTitle: byId('program-notice-title'),
     noticeDetail: byId('program-notice-detail'),
     restart: byId('restart-now'),
   },
-  {
-    programs,
-    // A click on the Flipper program that is playing gives the flippers back to the person.
-    onSelect: (program) => activate(program.seat, program.seat === 'flipper' && program.active ? null : program.name),
-    onRestart: restart,
-  },
+  restart,
 )
 
 const api = createGameApi({
   programs,
   game,
   onProgramsChanged(program) {
-    drawPrograms()
+    updateDemoButton()
     if (program) showProgramNotice(program, 'new', 'NEW PROGRAM FROM YOUR COGENT')
   },
 })
@@ -145,9 +139,7 @@ demoToggle.addEventListener('click', () => {
   canvas.focus()
 })
 
-/** The list, and the button under the table that says who plays the flippers. */
-function drawPrograms() {
-  programsPanel.drawList()
+function updateDemoButton() {
   const programPlays = programs.active('flipper') !== null
   demoToggle.setAttribute('aria-pressed', programPlays)
   demoToggle.textContent = programPlays ? 'PLAY YOURSELF' : 'WATCH DEMO'
@@ -156,7 +148,7 @@ function drawPrograms() {
 /** The person picked a program, or took the flippers back with `name` null. */
 function activate(seat, name) {
   const program = api.activate(seat, name)
-  drawPrograms()
+  updateDemoButton()
   if (program) showProgramNotice(program, 'plain')
   else programsPanel.clearNotice()
 }
@@ -215,11 +207,9 @@ const chatPanel = createChatPanel(
 
 function setChatOpen(open) {
   document.body.dataset.chat = open ? 'open' : 'closed'
-  byId('game-display').hidden = open
-  byId('chat').hidden = !open
   byId('chat-open').setAttribute('aria-pressed', open)
   byId('chat-close').setAttribute('aria-pressed', !open)
-  if (!open) canvas.focus()
+  if (!open) canvas.focus({ preventScroll: true })
   showAttention()
 }
 
@@ -266,7 +256,7 @@ giveKeysToGame(canvas, document.querySelector('.table-area'), byId('chat'))
 
 api.loadActive('arena')
 api.loadActive('flipper')
-drawPrograms()
+updateDemoButton()
 game.load(() => {
   tableNotice.hidden = false
   tableNotice.textContent = 'GAME BUILD NOT FOUND'

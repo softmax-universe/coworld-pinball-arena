@@ -61,7 +61,7 @@ Positions are millimetres with `y` growing toward the player, so the flippers ar
 
 ## The mechanics that matter to this seat
 
-**The ball.** 27 mm across. Gravity pulls it down the table at 1,250 mm/s². Its speed is
+**The ball.** 27 mm across. It rolls downhill at an acceleration of 800 mm/s². Its speed is
 capped at 5,000 mm/s. A ball is lost when its centre passes `y` = 1045.
 
 **Flippers.** Pivots at (157, 950) and (323, 950), 70 mm long. At rest a flipper lies 30
@@ -73,7 +73,7 @@ flipper; outside the rail is the outlane, which leads to the drain.
 
 **Plunger.** A served ball rests on the plunger at (498, 972), in the lane at the right
 edge. Holding the plunger pulls it back: `plungerpull` goes from 0 to 1 in one second.
-Releasing fires it at 3,000 mm/s times the pull. The ball goes up the lane and
+Releasing drives the plunger tip at 2,300 mm/s times the pull. The ball goes up the lane and
 anticlockwise along the top arch. Nothing launches a ball for you: a program that never
 plunges scores 0 and its Episode lasts the full 8 minutes.
 

@@ -28,29 +28,32 @@
             </div>
           </div>
         </div>
-        <aside class="console" aria-label="Machine display">
-          <div class="readout">
-            <div class="readout-head"><span class="label">Score</span><span id="ball-line">BALL 1 OF 3</span></div>
-            <div class="score" id="score" role="img" aria-label="Score 0"></div>
-            <div class="status-line"><span class="flags" id="flags"></span><span id="clock">CLOCK -:-- LEFT</span></div>
-          </div>
-          <button type="button" class="music-cycle" id="music-cycle" title="Cycle background music">♫ Music · Off</button>
-          <audio id="soundtrack" loop preload="none"></audio>
-          <div class="mode-switch">
-            <button type="button" id="chat-close" aria-controls="game-display" aria-pressed="true">Table</button>
-            <button type="button" id="chat-open" aria-controls="chat" aria-pressed="false">Cogent &amp; programs</button>
-          </div>
-          <section class="game-display" id="game-display" aria-label="Table status">
-            <div class="message message-quest"><h2 class="label">Quest</h2><p id="quest"></p></div>
-            <div class="message message-award"><h2 class="label">Last award</h2><p id="award"></p></div>
-            <dl class="keys" aria-label="Keyboard controls">
-              <div><dt>Flippers</dt><dd><kbd>Z</kbd> <kbd>/</kbd></dd></div>
-              <div><dt>Plunger</dt><dd><kbd>Space</kbd></dd></div>
-              <div><dt>Nudge</dt><dd><kbd>X</kbd> <kbd>.</kbd> <kbd>↑</kbd></dd></div>
-            </dl>
-            <button type="button" class="demo-toggle" id="demo-toggle" aria-pressed="false">Watch demo</button>
-          </section>
-          <section class="chat" id="chat" aria-label="Your cogent" hidden>
+        <div class="station">
+          <aside class="console" aria-label="Machine display">
+            <div class="readout">
+              <div class="readout-head"><span class="label">Score</span><span id="ball-line">BALL 1 OF 3</span></div>
+              <div class="score" id="score" role="img" aria-label="Score 0"></div>
+              <div class="status-line"><span class="flags" id="flags"></span><span id="clock">CLOCK -:-- LEFT</span></div>
+            </div>
+            <button type="button" class="music-cycle" id="music-cycle" title="Cycle background music">♫ Music · Off</button>
+            <audio id="soundtrack" loop preload="none"></audio>
+            <div class="mode-switch">
+              <button type="button" id="chat-close" aria-controls="game-display" aria-pressed="true">Table</button>
+              <button type="button" id="chat-open" aria-controls="chat" aria-pressed="false">Cogent</button>
+            </div>
+            <section class="game-display" id="game-display" aria-label="Table status">
+              <div class="message message-quest"><h2 class="label">Quest</h2><p id="quest"></p></div>
+              <div class="message message-award"><h2 class="label">Last award</h2><p id="award"></p></div>
+              <dl class="keys" aria-label="Keyboard controls">
+                <div><dt>Flippers</dt><dd><kbd>Z</kbd> <kbd>/</kbd></dd></div>
+                <div><dt>Plunger</dt><dd><kbd>Space</kbd></dd></div>
+                <div><dt>Nudge</dt><dd><kbd>X</kbd> <kbd>.</kbd> <kbd>↑</kbd></dd></div>
+              </dl>
+              <button type="button" class="demo-toggle" id="demo-toggle" aria-pressed="false">Watch demo</button>
+            </section>
+          </aside>
+          <section class="chat" id="chat" aria-labelledby="terminal-title">
+            <h2 class="terminal-title" id="terminal-title"><span aria-hidden="true">&gt;_</span> Cogent terminal</h2>
             <section class="conversation" id="conversation" hidden>
               <div class="cogent-state">
                 <p id="cogent-state" role="status"></p>
@@ -67,21 +70,16 @@
             </section>
 
             <section class="signed-out" id="signed-out" hidden>
-              <p>The house program runs the table. Your own cogent can write new ones.</p>
-              <button type="button" class="sign-in" id="sign-in">Sign in with Softmax to connect your cogent</button>
+              <button type="button" class="sign-in" id="sign-in">Connect with Softmax</button>
             </section>
 
-            <section class="programs" aria-labelledby="programs-heading">
-              <div class="program-notice" id="program-notice" role="status" hidden>
-                <p class="program-notice-title" id="program-notice-title"></p>
-                <p class="program-notice-detail" id="program-notice-detail"></p>
-                <button type="button" class="lamp-button" id="restart-now">RESTART NOW</button>
-              </div>
-              <h3 id="programs-heading">PROGRAMS</h3>
-              <ul class="program-list" id="program-list"></ul>
-            </section>
+            <div class="program-notice" id="program-notice" role="status" hidden>
+              <p class="program-notice-title" id="program-notice-title"></p>
+              <p class="program-notice-detail" id="program-notice-detail"></p>
+              <button type="button" class="lamp-button" id="restart-now">RESTART NOW</button>
+            </div>
           </section>
-        </aside>
+        </div>
       </div>
     </main>
   </body>

@@ -9,7 +9,7 @@ import std/[math, unittest]
 import pinball/sim/[simulation, physics, layout]
 
 const
-  SlopeGravity = toFloat64(layout.SlopeGravity)   ## mm/s^2 along +y: g * sin(6.5 degrees).
+  SlopeGravity = toFloat64(layout.SlopeGravity)   ## Rolling acceleration in mm/s^2 along +y.
   WallX = 250.0           ## Test obstacles are upright walls at this x.
 
 type
@@ -223,6 +223,13 @@ suite "ball":
     check dead < 0.25 * 800
     check metal > dead
     check metal < rubber
+
+  test "rubber gives back a smaller share of a hard shot":
+    let wall = uprightWall(surfaceRubber)
+    let slowShare = reboundFrom(wall, 800) / 800
+    let fastShare = reboundFrom(wall, 2400) / 2400
+    check fastShare > 0
+    check fastShare < 0.7 * slowShare
 
   test "a fast ball does not pass through a thin wall":
     var game = initTable()

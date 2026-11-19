@@ -20,9 +20,9 @@
 import types, geometry
 
 const
-  SlopeGravity* = 1250'fx
-    ## mm/s^2 down the table. The slope alone gives g x sin(6.5 degrees), about
-    ## 1110. It is set a little higher so the ball feels heavy.
+  SlopeGravity* = 800'fx
+    ## mm/s^2 for a solid ball rolling down a 6.5 degree slope:
+    ## (5/7) * g * sin(6.5 degrees), rounded.
 
   FlipperStroke* = 50'fx
     ## How far a flipper turns from rest to fully raised, in degrees. A starting

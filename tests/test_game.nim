@@ -35,11 +35,13 @@ const
 
 const
   LanesProgram = """
-' Five rollovers above the drain, a rule that pays 5 points every two
-' seconds, and one bumper where nothing may be built.
+' A rollover at the shooter lane exit records each successful plunge. Four more
+' wait above the drain.
+' A timer pays 5 points every two seconds, and one bumper is out of bounds.
 if built = 0 then
   built = 1
-  for i = 0 to 4
+  lane = create(kind_rollover, 482, 240, 0, 100, 1, 2)
+  for i = 0 to 3
     lane = create(kind_rollover, 180 + i * 30, 860, 0, 100, 1, 2)
   next
   blocked = create(kind_popbumper, 240, 956, 0, 100, 1, 0)
@@ -461,13 +463,13 @@ suite "game driver":
     check game.table.rejectedEdits.len == 0
     check game.table.fsms.len == 0
 
-    # The Episode itself goes on: the score, the ball number and the clock stay.
+    # Replacing the table preserves the current ball. It can drain during later play.
+    check game.table.ballNumber == ballNumberBefore
     session.play(2 * Second)
     check game.table.components.allIt(it.kind == ckRubberPost)
     check game.pieces(ckRubberPost) == 12
     check game.table.tick == tickBefore + uint32(2 * ArenaDecisionTicks + 2 * Second)
     check game.table.score == BumperScore
-    check game.table.ballNumber == ballNumberBefore
     check game.table.phase == episodePlay
 
   test "a restart during an Episode starts a new one at once, on the newest program":

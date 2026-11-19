@@ -1,11 +1,4 @@
-/**
- * The "programs" list and the notice above it.
- *
- * The list shows every stored program of both seats with the active ones marked, and lets the
- * person pick another. The notice says what happened to a program most recently: the cogent
- * changed one, the person picked one, or one failed. With it comes "restart now", because
- * a table program usually waits for the next Episode.
- */
+/** Program activation and failure notices in the Cogent terminal. */
 
 const EFFECT_WORDING = {
   'next-episode': 'plays from the next Episode',
@@ -34,38 +27,10 @@ export function failureLine(failure) {
   return `${programLabel(failure)} ${FAILURE_WORDING[failure.stage]}: ${failure.message}`
 }
 
-/**
- * `elements` holds the parts from index.html, `programs` is the program store, `onSelect(program)`
- * runs when the person clicks a program and `onRestart()` when they press "restart now".
- */
-export function createProgramsPanel(elements, { programs, onSelect, onRestart }) {
+export function createProgramsPanel(elements, onRestart) {
   elements.restart.addEventListener('click', onRestart)
 
-  function drawList() {
-    elements.list.replaceChildren(
-      ...programs.list().map((program) => {
-        const pick = document.createElement('button')
-        pick.type = 'button'
-        pick.setAttribute('aria-pressed', program.active)
-        pick.append(`${program.seat === 'flipper' ? 'FLIPPER' : 'TABLE'}: ${programLabel(program)}`)
-        if (program.active) {
-          const mark = document.createElement('span')
-          mark.textContent = program.seat === 'flipper' ? 'PLAYING' : 'PLAYS NEXT'
-          pick.append(mark)
-        }
-        pick.addEventListener('click', () => onSelect(program))
-        const row = document.createElement('li')
-        row.append(pick)
-        return row
-      }),
-    )
-  }
-
-  drawList()
-
   return {
-    drawList,
-
     /** `tone` is `new` (from the cogent), `plain` or `error`. `title` may be empty. */
     showNotice({ tone, title = '', detail, canRestart = true }) {
       elements.notice.hidden = false

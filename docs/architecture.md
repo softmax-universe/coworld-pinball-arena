@@ -179,8 +179,9 @@ Plain ES modules, no framework, no build step, no dependencies.
 - `cogent-connection.js`: after sign-in, `startWorkspace` finds the person's workspace. An
   account with none gets one on its default player, a paused or sleeping one is started
   again, and the page waits until it is ready. While the relay says the workspace is starting, the
-  panel says that it is waking and the page tries again after the delay the relay gave. A request that Softmax refuses is shown in the
-  chat panel with its status. Then it opens the connection.
+  panel says that it is waking and the page tries again after the delay the relay gave. A request that Softmax cannot take just now (502, 503,
+  504) is sent again by itself; any other refusal is shown in the chat panel with its status
+  and a "try again" button. Then it opens the connection.
 - `programs.js`: the stored programs of both seats and which is active (in `localStorage`).
 - `game-api.js`: the game API. It turns a request into calls on the program store and
   messages to the game, and passes the game's messages on while the cogent is subscribed. It

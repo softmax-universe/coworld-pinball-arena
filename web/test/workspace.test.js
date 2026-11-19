@@ -69,6 +69,20 @@ test('a paused or sleeping workspace is started again', async (t) => {
   assert.equal(calls[1], 'PUT /v2/cogents/ply-1/hermes/lifecycle {"desired_state":"running"}')
 })
 
+test('a request that Softmax cannot take just now is sent again until it is answered', async (t) => {
+  const calls = fakeSoftmax(t, {
+    'GET /v2/hermes': inTurn(503, null, workspace('ready')),
+    'GET /players': inTurn(503, 502, [{ id: 'ply-1', is_default: true }]),
+    'POST /v2/cogents': inTurn(504, {}),
+    'PUT /v2/cogents/ply-1/hermes': workspace('provisioning'),
+  })
+  const progress = []
+  assert.equal(await startWorkspace((text) => progress.push(text), 0, () => 0), 'ws-1')
+  assert.equal(calls.filter((call) => call === 'GET /players').length, 3)
+  assert.equal(calls.filter((call) => call.startsWith('POST /v2/cogents')).length, 2)
+  assert.ok(progress.includes('Softmax answered 503. Trying again…'))
+})
+
 test('a refused request, a failed workspace and an account with no player are each told to the person', async (t) => {
   fakeSoftmax(t, { 'GET /v2/hermes': 403 })
   await assert.rejects(startWorkspace(() => {}, 0), /Softmax answered 403 to GET \/v2\/hermes/)

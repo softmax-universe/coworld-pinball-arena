@@ -41,66 +41,85 @@ const ASLEEP = ['stopped', 'stopping', 'suspended']
 const READY_POLL_MS = 3000
 /** A new workspace is usually ready within a minute or two. */
 const READY_WAIT_MS = 5 * 60 * 1000
+/** Answers that say Softmax could not take the request just now. The same request is sent again. */
+const TRY_AGAIN_STATUSES = [502, 503, 504]
 
-/** One call of the Softmax API through this site's server part. Resolves with the JSON body; rejects with words for the person. */
-function softmax(path, method = 'GET', body) {
-  const init = { method, credentials: 'same-origin' }
-  if (body !== undefined) Object.assign(init, { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
-  return fetch(API + path, init).then((response) => {
-    if (!response.ok) throw new Error(`Softmax answered ${response.status} to ${method} ${path}.`)
-    return response.json()
-  })
-}
-
-/** The person's workspace, or null when they have none: Softmax answers that with `null` or with 404. */
-function currentWorkspace() {
-  return fetch(`${API}/v2/hermes`, { credentials: 'same-origin' }).then((response) => {
-    if (response.status === 404) return null
-    if (!response.ok) throw new Error(`Softmax answered ${response.status} to GET /v2/hermes.`)
-    return response.json()
-  })
-}
-
-/** Creates a workspace for an account that has none, on its default player. */
-function createWorkspace() {
-  return softmax('/players').then((players) => {
-    const active = players.filter((player) => !player.disabled_at)
-    const player = active.find((candidate) => candidate.is_default) ?? active[0]
-    if (!player) throw new Error('Your Softmax account has no active player, so a cogent cannot be started for it.')
-    const cogent = `/v2/cogents/${encodeURIComponent(player.id)}/hermes`
-    return softmax('/v2/cogents', 'POST', { player_id: player.id }).then(() => softmax(cogent, 'PUT', {}))
-  })
-}
-
-/** Resolves with the workspace once it is ready, reading it again every few seconds until then. */
-function whenReady(workspace, pollMs, deadline) {
-  if (workspace.status === 'ready') return workspace
-  if (workspace.status === 'failed') throw new Error(`Your cogent workspace failed to start: ${workspace.detail ?? 'no reason given'}.`)
-  if (Date.now() > deadline) throw new Error('Your cogent workspace is still starting. Reload in a few minutes.')
-  return new Promise((resolve) => setTimeout(resolve, pollMs))
-    .then(currentWorkspace)
-    .then((next) => whenReady(next ?? workspace, pollMs, deadline))
-}
+const pause = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
 
 /**
  * Resolves with the id of the person's workspace, running and ready. An account with no workspace
  * gets one, and a paused or sleeping workspace is started again: signing in on this site is the
- * person asking for their cogent. `onProgress(text)` says what is being waited for. Rejects with
- * an `Error` whose message is for the person.
+ * person asking for their cogent. `onProgress(text)` says what is being waited for.
+ *
+ * A request that Softmax cannot take just now (502, 503, 504, or no answer) is sent again, after
+ * 1 s, 2 s, 4 s and so on up to 30 s, for as long as it takes. Rejects, with an `Error` whose
+ * message is for the person, only for what trying again cannot mend.
  */
-export function startWorkspace(onProgress, pollMs = READY_POLL_MS) {
+export function startWorkspace(onProgress, pollMs = READY_POLL_MS, retryMs = reconnectDelay) {
+  /** One call of the Softmax API through this site's server part. Resolves with the response. */
+  function call(path, method = 'GET', body, failures = 0) {
+    const init = { method, credentials: 'same-origin' }
+    if (body !== undefined) Object.assign(init, { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+    return fetch(API + path, init).then(
+      (response) => (TRY_AGAIN_STATUSES.includes(response.status) ? again(`answered ${response.status}`) : response),
+      () => again('did not answer'),
+    )
+
+    function again(what) {
+      onProgress(`Softmax ${what}. Trying again…`)
+      return pause(retryMs(failures)).then(() => call(path, method, body, failures + 1))
+    }
+  }
+
+  /** The same, resolving with the JSON body. Any other refusal is final. */
+  function softmax(path, method, body) {
+    return call(path, method, body).then((response) => {
+      if (!response.ok) throw new Error(`Softmax answered ${response.status} to ${method ?? 'GET'} ${path}.`)
+      return response.json()
+    })
+  }
+
+  /** The person's workspace, or null when they have none: Softmax answers that with `null` or with 404. */
+  function currentWorkspace() {
+    return call('/v2/hermes').then((response) => {
+      if (response.status === 404) return null
+      if (!response.ok) throw new Error(`Softmax answered ${response.status} to GET /v2/hermes.`)
+      return response.json()
+    })
+  }
+
+  /** Creates a workspace for an account that has none, on its default player. */
+  function createWorkspace() {
+    return softmax('/players').then((players) => {
+      const active = players.filter((player) => !player.disabled_at)
+      const player = active.find((candidate) => candidate.is_default) ?? active[0]
+      if (!player) throw new Error('Your Softmax account has no active player, so a cogent cannot be started for it.')
+      onProgress('Starting a cogent for you. This takes a minute or two…')
+      const cogent = `/v2/cogents/${encodeURIComponent(player.id)}/hermes`
+      return softmax('/v2/cogents', 'POST', { player_id: player.id }).then(() => softmax(cogent, 'PUT', {}))
+    })
+  }
+
+  /** Resolves with the workspace once it is ready, reading it again every few seconds until then. */
+  function whenReady(workspace, deadline) {
+    if (workspace.status === 'ready') return workspace
+    if (workspace.status === 'failed') throw new Error(`Your cogent workspace failed to start: ${workspace.detail ?? 'no reason given'}.`)
+    if (Date.now() > deadline) throw new Error('Your cogent workspace is still starting. Try again in a few minutes.')
+    return pause(pollMs)
+      .then(currentWorkspace)
+      .then((next) => whenReady(next ?? workspace, deadline))
+  }
+
   return currentWorkspace()
     .then((workspace) => {
-      if (!workspace) {
-        onProgress('Starting a cogent for you. This takes a minute or two…')
-        return createWorkspace()
-      }
+      if (!workspace) return createWorkspace()
+      if (workspace.status === 'provisioning') onProgress('Starting your cogent. This takes a minute or two…')
       if (!ASLEEP.includes(workspace.status)) return workspace
       onProgress('Waking your cogent…')
       const lifecycle = `/v2/cogents/${encodeURIComponent(workspace.player_id)}/hermes/lifecycle`
       return softmax(lifecycle, 'PUT', { desired_state: 'running' })
     })
-    .then((workspace) => whenReady(workspace, pollMs, Date.now() + READY_WAIT_MS))
+    .then((workspace) => whenReady(workspace, Date.now() + READY_WAIT_MS))
     .then((workspace) => workspace.provisioning_id)
 }
 

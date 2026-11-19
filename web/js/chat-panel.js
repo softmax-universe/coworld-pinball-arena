@@ -226,6 +226,12 @@ export function createChatPanel(elements, actions) {
       elements.email.textContent = email
       elements.cogentState.textContent = status
       elements.text.disabled = true
+      elements.tryAgain.hidden = true
+    },
+
+    /** Before there is a session: shows the "try again" button. */
+    offerTryAgain() {
+      elements.tryAgain.hidden = false
     },
 
     /** Starts showing a session. */

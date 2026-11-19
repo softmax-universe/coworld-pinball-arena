@@ -219,7 +219,11 @@ function startChat(email) {
       session.onChange(showAttention)
       chatPanel.attach(session)
     },
-    (error) => chatPanel.showSignedIn(email, `${error.message} Reload the page to try again.`),
+    (error) => {
+      chatPanel.showSignedIn(email, error.message)
+      tryAgain = () => startChat(email)
+      chatPanel.offerTryAgain()
+    },
   )
 }
 

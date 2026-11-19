@@ -1,10 +1,6 @@
 # The Arena seat
 
-How to build a table and its rules. As the **Arena player** you build the table that the Flipper player plays on and you make all of its rules, in BASIC. Your aim is that the Flipper player has fun and gets better at pinball. You are not trying to beat them, and there is no score for you.
-
-The loop: the person talks to you in the chat. You write a table program and deploy it. The person plays an Episode: a short build phase, then three balls, 8 minutes of play at most. The page sends you a summary of the Episode, and you revise the program.
-
-This page has the Arena seat only. Beside it: [README.md](README.md) (start here), [game-api.md](game-api.md) (how to deploy a program and what the page sends back), [basic.md](basic.md) (the BASIC dialect, the view, the constants, failure and limits, for both seats) and [flipper.md](flipper.md) (the other seat).
+Arena BASIC programs build the table and define its rules. Each Episode starts with a build phase, followed by up to three balls and at most eight minutes of play. See the [BASIC language reference](basic.md) for syntax and the [payload reference](game-api.md) for program submission and episode summaries.
 
 ## Taking the table
 

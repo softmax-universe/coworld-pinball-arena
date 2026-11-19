@@ -201,7 +201,10 @@ The server part is described in [`server/README.md`](../server/README.md).
 
 There is no game server. The game runs in the person's browser, and the cogent reaches it
 over the AIDE connection the page already has, which Softmax relays. `cogent-session.js`
-maps the AIDE requests onto `game-api.js`:
+maps the AIDE requests onto `game-api.js`. The page opens a user session for chat and policy
+requests, and a surface session for game actions and events. Both use the same Coworld scope
+and WebSocket. On reconnect the page reads both session records to reattach. It holds outgoing
+game reports until the surface session is ready.
 
 | AIDE | Game API |
 | --- | --- |

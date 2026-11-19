@@ -104,14 +104,16 @@ function fakeClient() {
   const client = {
     calls: [],
     session: sessionRecord(),
+    surface: sessionRecord([], { id: 'surface-1', source: 'surface' }),
 
     // Result shapes: asyncapi.json `<method>Result` for each method.
     replies: {
-      'session.open': () => ({ session: client.session }),
+      'session.open': ({ source }) => ({ session: source === 'surface' ? client.surface : client.session }),
       'state.get': (params) => {
         if (params.resource === 'sessions') {
-          if (params.id !== client.session.id) throw notFound()
-          return { resource: 'sessions', epoch: 'workspace-1', revision: client.session.revision ?? 1, item: client.session }
+          const item = [client.session, client.surface].find((record) => record.id === params.id)
+          if (!item) throw notFound()
+          return { resource: 'sessions', epoch: 'workspace-1', revision: item.revision ?? 1, item }
         }
         const item = (client.session.requests ?? []).find((request) => request.request_id === params.id)
         if (!item) throw notFound()
@@ -240,13 +242,15 @@ test('the first connection opens a session as the pinball-arena client, then rea
 
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['session.open', 'chat.history'],
+    ['session.open', 'chat.history', 'session.open'],
   )
   // asyncapi.json `session_openParams`, `Scope` (all three keys, the nulls included) and `Client`.
   assert.deepEqual(client.calls[0].params, {
     scope: SCOPE,
+    source: 'user',
     client: { id: 'pinball-arena', kind: 'web', guide: 'pinball-arena' },
   })
+  assert.deepEqual(client.calls[2].params, { ...client.calls[0].params, source: 'surface' })
   // asyncapi.json `chat_historyParams`: `session_id` and `scope` are required.
   assert.equal(client.calls[1].params.session_id, 'session-1')
   assert.deepEqual(client.calls[1].params.scope, SCOPE)
@@ -270,8 +274,9 @@ test('after a reload the page reads the session, then history, then events for e
   // protocol.md "Reads are authoritative": session, then chat.history, then chat.events per open request.
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['state.get', 'chat.history', 'chat.events', 'chat.events'],
+    ['state.get', 'chat.history', 'chat.events', 'chat.events', 'state.get'],
   )
+  assert.deepEqual(client.calls.at(-1).params, { resource: 'sessions', id: 'surface-1', scope: SCOPE })
   // asyncapi.json `state_getParams`; examples.json "Reload → read requests → show failure → retry".
   assert.deepEqual(client.calls[0].params, { resource: 'sessions', id: 'session-1', scope: SCOPE })
   assert.equal(client.calls[1].params.session_id, 'session-1')
@@ -305,7 +310,7 @@ test('a stored session the workspace no longer has is replaced by a new one', as
 
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['state.get', 'session.open', 'chat.history'],
+    ['state.get', 'session.open', 'chat.history', 'session.open'],
   )
   assert.equal(client.calls[2].params.session_id, 'session-2')
   assert.equal(session.state.sessionId, 'session-2')
@@ -327,7 +332,7 @@ test('a stored session that was opened in another scope is replaced by a new one
 
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['state.get', 'session.open', 'chat.history'],
+    ['state.get', 'session.open', 'chat.history', 'session.open'],
   )
   assert.equal(session.state.sessionId, 'session-2')
 })
@@ -348,7 +353,7 @@ test('after a reconnect events are read from the last cursor the page applied', 
 
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['state.get', 'chat.history', 'chat.events'],
+    ['state.get', 'chat.history', 'chat.events', 'state.get'],
   )
   assert.deepEqual(client.calls[2].params, {
     session_id: 'session-1',
@@ -677,9 +682,11 @@ test('a sleeping cogent is reported, and the message goes out under the same id 
 
   client.notify('aide.presence', { present: false })
   assert.equal(session.state.cogent, 'asleep')
+  client.forget()
   client.notify('aide.presence', { present: true })
   await settle()
   assert.equal(session.state.cogent, 'ready')
+  assert.deepEqual(client.sent('state.get').map(({ params }) => params.id), ['session-1', 'surface-1'])
 
   const accept = client.replies['chat.send']
   // protocol.md "Requests and refusal": the relay reports `starting` with `retry_after_ms` while the workspace wakes.
@@ -791,7 +798,7 @@ test('after a reconnect an open question can still be answered and an answered o
   // After a reconnect the page only reads: nothing tied to the old connection goes out again.
   assert.deepEqual(
     client.calls.map((call) => call.method),
-    ['state.get', 'chat.history'],
+    ['state.get', 'chat.history', 'state.get'],
   )
   // protocol.md "Non-blocking clarifications": a question still held after a reconnect may be answered.
   assert.deepEqual(session.state.questions, [{ id: openId, prompt: 'How many bumpers?', scope: SCOPE }])
@@ -967,6 +974,41 @@ test('when the connection closes, the subscription ends and waiting messages are
   client.close()
   assert.deepEqual(api.calls, [['unsubscribe']])
   assert.equal(client.sent('surface.event').length, 1)
+})
+
+test('surface reports wait for the surface to open while chat keeps working', async () => {
+  const client = fakeClient()
+  const open = client.replies['session.open']
+  let failSurface = true
+  client.replies['session.open'] = (params) => {
+    if (params.source === 'surface' && failSurface) throw new AideError('unavailable', 'Workspace offline.')
+    return open(params)
+  }
+  const { session } = await startBound({ client })
+  assert.equal(session.state.surfaceError, 'Workspace offline.')
+  session.reportEpisode({ score: 420 })
+  session.send('try this table')
+  assert.equal(client.sent('chat.send').length, 1)
+  assert.equal(client.sent('surface.event').length, 0)
+
+  failSurface = false
+  session.retry()
+  await settle()
+  assert.equal(session.state.surfaceError, null)
+  const surfaceOpens = client.sent('session.open').filter(({ params }) => params.source === 'surface')
+  assert.equal(surfaceOpens.length, 2)
+  assert.equal(surfaceOpens[0].id, surfaceOpens[1].id)
+  assert.deepEqual(client.sent('surface.event').map(({ params }) => params.data), [{ kind: 'episode.summary', score: 420 }])
+})
+
+test('surface notifications do not appear in the player chat', async () => {
+  const { client, session } = await startBound()
+  client.notify('chat.message', { session_id: 'surface-1', sequence: 1, message: { role: 'assistant', content: 'surface only' } })
+  client.notify('chat.finished', { session_id: 'surface-1', request_id: RUNNING_ID, status: 'completed' })
+  client.notify('chat.event', { session_id: 'surface-1', request_id: RUNNING_ID, event: textEvent(2) })
+  assert.deepEqual(session.state.messages, [])
+  assert.deepEqual(session.state.requests, [])
+  assert.equal(client.sent('chat.events').length, 0)
 })
 
 test('each Episode summary is one surface.event', async () => {

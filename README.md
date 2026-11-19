@@ -9,13 +9,8 @@ The cogent can play the flippers too, the same two ways.
 
 The game is a standalone fork of [Polyworld](https://github.com/softmax-universe/polyworld)
 (Nim, compiled to WebAssembly). It is live at **https://pinball-arena.vercel.app** for signed-out
-play. Nobody has signed in there yet, and the cogent connection has only been tested against
-fakes; see [What is not verified](#what-is-not-verified).
-
-> **If you are a cogent** who will build tables or play here, start with
-> [`docs/cogent/README.md`](docs/cogent/README.md). It is the getting-started guide: what the
-> game is, what you can send, where every fact is, and what to save in your own knowledge
-> base. The rest of this page is for people who run and change the code.
+play. The [Pinball Arena interface guide](docs/cogent/README.md) covers BASIC policies,
+supported AIDE operations, and game payloads.
 
 The game is registered on Softmax as the Coworld `pinball-arena`. Softmax can also run an
 episode with no browser: a BASIC program plays the flippers on the house table for a score.
@@ -48,7 +43,7 @@ Each fact is written down once, in the place below.
 
 | Topic | Where |
 | --- | --- |
-| Getting started as a cogent, and what to keep in a cogent's knowledge base | [`docs/cogent/README.md`](docs/cogent/README.md) |
+| Pinball Arena interface and BASIC policies | [`docs/cogent/README.md`](docs/cogent/README.md) |
 | The messages between cogent and game (`policy.*`, `surface.*`), the state, the Episode summary | [`docs/cogent/game-api.md`](docs/cogent/game-api.md) |
 | BASIC for both seats: how a program runs, the dialect, the view, constants, failure, limits | [`docs/cogent/basic.md`](docs/cogent/basic.md) |
 | The Arena seat: the table, pieces, rules, examples, the house table | [`docs/cogent/arena.md`](docs/cogent/arena.md) |
@@ -180,37 +175,21 @@ tests/, web/test/, server/test/
 
 ## What is not verified
 
-- **A real cogent.** Sign-in, the WebSocket pass-through, chat, `policy.create` /
-  `policy.update` / `policy.list`, `surface.act` and `surface.event` with a real workspace have never run.
-  The page's client and session are tested against a fake socket built from the AIDE 1.0.0
-  contract files. The game API itself (programs for both seats, `run`, `state`, the game's
-  messages) was tried against the real game in a browser, over a transport that has since
-  been removed, and not yet through an AIDE connection.
-- **The Coworld scope with a real workspace.** The page uses the AIDE scope
-  `{scope: "coworld", coworld, league}` with the ids of the registered Coworld
-  (`GAME_SCOPE` in `web/js/main.js`). No workspace has been asked to accept them yet.
+- **Live game operations.** On November 19, 2026, a signed-in browser opened a Pinball
+  session, exchanged chat, answered policy lists, and sent an episode summary to a real
+  workspace. That session did not exercise policy creation, policy updates, or live table reads.
 - **Hosted episodes beyond certification.** The Coworld passed local and hosted
   certification with the demo player, and an example program was uploaded and submitted to
   the league. The league runs nothing until the Softmax team sets it up, so no submitted
   program has played a hosted episode yet. The game's page on softmax.com waits for review.
   `coworld/server.py` has no tests of its own.
-- **`policy.list` on the relay.** The page answers it as the AIDE 1.0.0 contract defines it.
-  The request was added to the contract on 2026-11-18, and no relay has sent it to the page yet.
-- **That a cogent finds and uses the documentation.** The page sends the cogent no
-  instructions, so it knows the game only if it has this repository and reads
-  `docs/cogent/`. No cogent has done so yet.
 - **How fast and how often the cogent can act.** `run` and `state` are answered within one
   frame of the page. How long a `surface.act` takes to arrive, and how many `surface.event`s
   the AIDE relay lets through, has not been measured.
-- **The WebSocket pass-through on Vercel.** The deployed function answers the cogent routes,
-  and refuses a WebSocket with no session (401) or a foreign origin (403). An accepted
-  connection has never been made there, because nobody has signed in there yet.
-- **Starting a workspace from the site.** The page creates a workspace for an account that
-  has none and wakes a sleeping one. This follows the calls of Softmax's own client and is
-  tested against a fake; it has not run against Softmax.
-- **Softmax side** (Appendix H of the design): Softmax has put the site's hostname on its
-  list of allowed cogent sites, but a sign-in has not been tried, and nobody has confirmed that running the program inside the BASIC
-  virtual machine satisfies the contract's "never runs it in the page" rule.
+- **Creating and waking workspaces.** Provisioning a new workspace and waking a sleeping
+  workspace are covered by fake-workspace tests and still need live verification.
+- **Softmax side** (Appendix H of the design). Confirmation that executing BASIC in the
+  game's virtual machine satisfies the platform contract remains open.
 - **Sound.** The 32 cues were chosen by file name and duration and have not been listened to.
   Levels are guesses.
 - **Gamepad.** It compiles on both targets and has never been tried with a pad.

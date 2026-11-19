@@ -13,7 +13,7 @@ re-upload the package.
 | | |
 | --- | --- |
 | Repository | https://github.com/softmax-universe/coworld-pinball-arena (public) |
-| Coworld | `pinball-arena`, version 0.1.1, `cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`, public |
+| Coworld | `pinball-arena`, version 0.1.2, `cow_3ff5f418-2002-410a-84ab-c85fdf6742d7`, public |
 | League | `league_9a3f459f-8223-4dc1-acd9-7292e46919dd` |
 | Player runtime | `game-hosted`: a policy is a file that the game runs |
 | Seats | 1 (the Flipper player) |
@@ -63,7 +63,7 @@ instructions a run, 2 MiB of memory, and no file, network or clock access
 
 ```sh
 export DOCKER_DEFAULT_PLATFORM=linux/amd64
-uvx --python 3.12 coworld@0.1.69 build --version 0.1.2
+uvx --python 3.12 coworld@0.1.69 build --version 0.1.3
 uvx --python 3.12 coworld@0.1.69 run-episode dist/coworld_manifest.json
 uvx --python 3.12 coworld@0.1.69 run-episode dist/coworld_manifest.json --player-file 0=my_flipper.bas
 uvx --python 3.12 coworld@0.1.69 certify dist/coworld_manifest.json

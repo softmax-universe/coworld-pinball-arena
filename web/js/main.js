@@ -24,7 +24,7 @@ import { createSidePanel, drawScore } from './side-panel.js'
  */
 const GAME_SCOPE = {
   scope: 'coworld',
-  coworld: 'cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76',
+  coworld: 'cow_3ff5f418-2002-410a-84ab-c85fdf6742d7',
   league: 'league_9a3f459f-8223-4dc1-acd9-7292e46919dd',
 }
 /** Below this the chat is a drawer over the table instead of a column beside it. Matches styles.css. */

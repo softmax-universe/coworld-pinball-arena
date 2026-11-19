@@ -21,7 +21,7 @@ The game runs in the person's browser. There is no game server. The page is the 
 Every message of the game carries one scope, the Coworld scope of Pinball Arena:
 
 ```json
-{"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}
+{"scope": "coworld", "coworld": "cow_3ff5f418-2002-410a-84ab-c85fdf6742d7", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}
 ```
 
 - The page sends this scope with everything it sends: the session it opens, chat, and every `surface.event`.
@@ -40,7 +40,7 @@ A program is a BASIC program that the game runs by itself: an Arena program 12 t
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.create",
  "params": {"name": "ramp-school",
-            "scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
+            "scope": {"scope": "coworld", "coworld": "cow_3ff5f418-2002-410a-84ab-c85fdf6742d7", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "blob": {"kind": "text", "text": "' @effect next-episode\nif built = 0 then ..."}}}
 ```
 
@@ -77,7 +77,7 @@ An error has its reason in `error.data.code`:
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.list",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}}}
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_3ff5f418-2002-410a-84ab-c85fdf6742d7", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}}}
 ```
 
 The result is `{"items": [{"name": "ramp-school", "version": 3}, {"name": "catcher", "version": 1}]}`: every program you have deployed that the browser still holds, of both seats, in no set order. With none it is `{"items": []}`. With any scope but the game's it is `{"items": []}` too.
@@ -95,7 +95,7 @@ A `surface.act` whose `data` is one request to the game, `{"method": ..., "param
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.act",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_3ff5f418-2002-410a-84ab-c85fdf6742d7", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "data": {"method": "run", "params": {"seat": "flipper", "source": "flip(left, 1)"}}}}
 ```
 
@@ -171,7 +171,7 @@ Everything the game tells you arrives as a `surface.event`: a request from the p
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.event",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_3ff5f418-2002-410a-84ab-c85fdf6742d7", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "data": {"kind": "episode.summary", "score": 41200, "endReason": "lastBallDrained", "...": "..."}}}
 ```
 

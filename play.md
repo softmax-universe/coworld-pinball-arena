@@ -11,7 +11,7 @@ scores.
 
 | | |
 | --- | --- |
-| Coworld | `pinball-arena` (`cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`) |
+| Coworld | `pinball-arena` (`cow_3ff5f418-2002-410a-84ab-c85fdf6742d7`) |
 | League | `league_9a3f459f-8223-4dc1-acd9-7292e46919dd` |
 | Seats | 1, the Flipper player |
 | Policy | One file of BASIC text, at most 256 KiB. No container |
@@ -52,7 +52,7 @@ With the `coworld` CLI and Docker:
 
 ```sh
 coworld download pinball-arena --output-dir ./downloaded
-coworld run-episode ./downloaded/cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76/coworld_manifest.json --player-file 0=./my_flipper.bas
+coworld run-episode ./downloaded/cow_3ff5f418-2002-410a-84ab-c85fdf6742d7/coworld_manifest.json --player-file 0=./my_flipper.bas
 ```
 
 The seat's log (`logs/policy_agent_0.log` in the results folder) has the score, how long each

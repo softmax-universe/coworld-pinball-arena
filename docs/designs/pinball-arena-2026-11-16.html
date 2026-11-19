@@ -912,7 +912,7 @@
         <li>Any script error, with the script's last printed lines.</li>
       </ul>
       <p>The cogent can use this summary to revise the program. What the cogent learns from the summary, and when it revises, is outside this design. The task of the page is to follow the AIDE contract described below. For now the cogent does not see the live game. It sees these summaries and what the person says. Live observation and live control by the cogent stay possible later, most likely through the surface messages of the contract (<code>surface.event</code> and <code>surface.act</code>). The cogent learns the Arena BASIC interface from a guide that the page supplies with its messages. If the cogent is asleep, busy, out of model budget or disconnected, the game keeps playing with the current program, and the chat panel says what is happening.</p>
-      <p>AIDE is the Softmax interface that a web page uses to talk to a cogent's workspace. The page follows AIDE version 1.0.0, the published contract between web pages and cogents.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup> The compliance list is <a href="#appendix-d">Appendix D</a>.</p>
+      <p>AIDE is the Softmax interface that a web page uses to talk to a cogent's workspace. The page follows AIDE version 1.0.0, the published contract between web pages and cogents.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup> The compliance list is <a href="#appendix-d">Appendix D</a>.</p>
       <p>One rule needs a reading. The contract says that a page deploys a policy (here, the Arena program) and "never runs it in the page". The game runs the program inside its BASIC virtual machine, which has no access to the page, its storage, its cookies or the network. The owners of the contract must confirm this reading (a risk in <a href="#risks">section 11</a>).</p>
     </details>
   </section>
@@ -1093,8 +1093,8 @@
       <ul>
         <li>Ball physics is new, must be exact fixed-point maths, and carries the whole feel of the
         game.</li>
-        <li>The cogent connection depends on Softmax access that an outside site does not have by default. The site's address must be added to Softmax's list of allowed cogent sites. Sign-in gives an account-wide credential that is meant for sites that Softmax controls.<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="metta docs/specs/0152-cogent-sdk.md:44-49,79-82">23</a></sup></li>
-        <li>The "never runs it in the page" rule needs confirmation for a sandboxed BASIC program.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup></li>
+        <li>The cogent connection depends on Softmax access that an outside site does not have by default. The site's address must be added to Softmax's list of allowed cogent sites. Sign-in gives an account-wide credential that is meant for sites that Softmax controls.<sup class="ref"><a href="#src-22" title="The Softmax Cogent SDK documentation (sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="The Softmax Cogent SDK design specification">23</a></sup></li>
+        <li>The "never runs it in the page" rule needs confirmation for a sandboxed BASIC program.<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md">20</a></sup></li>
         <li>The policy and surface messages are new in the contract, and no existing page implements them yet.<sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup> The cogent side must also learn the Arena guide.</li>
         <li>The 1990s pre-rendered look is far from Polyworld's toon style.</li>
         <li>A changing table can produce unfair or unplayable states. Keep-out zones, beam-in, ball search
@@ -1229,7 +1229,7 @@
   <section id="appendix-d" class="appendix">
     <details class="fold">
       <summary><h2><span class="appendix-label">Appendix D ·</span> AIDE interface compliance</h2></summary>
-      <p>The page is an AIDE frontend<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup>. It uses Softmax's client library for the wire format where it can<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup>. The table gives what the page must do.</p>
+      <p>The page is an AIDE frontend<sup class="ref"><a href="#src-20" title="AIDE interface 1.0.0 protocol rules — https://softmax.com/docs/static/aide/1.0.0/protocol.md">20</a></sup><sup class="ref"><a href="#src-21" title="AIDE interface 1.0.0 AsyncAPI specification — https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">21</a></sup>. It uses Softmax's client library for the wire format where it can<sup class="ref"><a href="#src-22" title="The Softmax Cogent SDK documentation (sign-in, server half, allowed sites)">22</a></sup>. The table gives what the page must do.</p>
       <table>
         <thead>
           <tr><th>Rule</th><th>What the page does</th></tr>
@@ -1262,8 +1262,8 @@
       <summary><h2><span class="appendix-label">Appendix E ·</span> Hosting and platform facts</h2></summary>
       <p>The design relies on these hosting and platform facts:</p>
       <ul>
-        <li><strong>Hosting.</strong> A public site on Vercel. The game is a static browser build of the Polyworld fork (WebAssembly). A small server part handles Softmax sign-in and passes the cogent connection through, because a browser cannot attach the sign-in credential to a WebSocket by itself<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup>. Vercel functions support WebSockets and close them when the function reaches its time limit. The page thus reconnects and rereads, as the contract already requires<sup class="ref"><a href="#src-24" title="Vercel Functions WebSocket documentation — https://vercel.com/docs/functions/websockets">24</a></sup>.</li>
-        <li><strong>Softmax side.</strong> The site's address must be on Softmax's list of allowed cogent sites. The credential is account-wide and long-lived, and it is kept in an encrypted cookie that page code cannot read<sup class="ref"><a href="#src-22" title="metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="metta docs/specs/0152-cogent-sdk.md:44-49,79-82">23</a></sup>.</li>
+        <li><strong>Hosting.</strong> A public site on Vercel. The game is a static browser build of the Polyworld fork (WebAssembly). A small server part handles Softmax sign-in and passes the cogent connection through, because a browser cannot attach the sign-in credential to a WebSocket by itself<sup class="ref"><a href="#src-22" title="The Softmax Cogent SDK documentation (sign-in, server half, allowed sites)">22</a></sup>. Vercel functions support WebSockets and close them when the function reaches its time limit. The page thus reconnects and rereads, as the contract already requires<sup class="ref"><a href="#src-24" title="Vercel Functions WebSocket documentation — https://vercel.com/docs/functions/websockets">24</a></sup>.</li>
+        <li><strong>Softmax side.</strong> The site's address must be on Softmax's list of allowed cogent sites. The credential is account-wide and long-lived, and it is kept in an encrypted cookie that page code cannot read<sup class="ref"><a href="#src-22" title="The Softmax Cogent SDK documentation (sign-in, server half, allowed sites)">22</a></sup><sup class="ref"><a href="#src-23" title="The Softmax Cogent SDK design specification">23</a></sup>.</li>
         <li><strong>Signed-out play.</strong> It needs none of this.</li>
         <li><strong>Polyworld.</strong> A Nim engine with low-poly 3D that runs native and in the browser.
         Replays re-simulate from recorded actions and check a state hash each tick, so the simulation must
@@ -1272,7 +1272,7 @@
         supplies them). PRINT goes to a private per-seat log<sup class="ref"><a href="#src-2" title="treeform/bassy README — https://github.com/treeform/bassy">2</a></sup>.</li>
         <li><strong>Gamepad.</strong> The paddy library, with native and browser back ends, under the MIT licence<sup class="ref"><a href="#src-19" title="treeform/paddy README — https://github.com/treeform/paddy">19</a></sup>.</li>
         <li><strong>Audio.</strong> Sound follows what is drawn and never affects the game<sup class="ref"><a href="#src-9" title="polyworld docs/audio.md">9</a></sup>.</li>
-        <li><strong>Contract versions read.</strong> AIDE 1.0.0 at metta commit <code>2519057c1e</code>.</li>
+        <li><strong>Contract versions read.</strong> AIDE 1.0.0, as published at softmax.com/docs/aide.</li>
       </ul>
     </details>
   </section>
@@ -1486,7 +1486,7 @@
         <li><strong>BASIC.</strong> Bassy, <a href="https://github.com/treeform/bassy">github.com/treeform/bassy</a>.</li>
         <li><strong>Gamepad.</strong> paddy, <a href="https://github.com/treeform/paddy">github.com/treeform/paddy</a>.</li>
         <li><strong>AIDE contract.</strong> Entry point <a href="https://softmax.com/docs/aide">softmax.com/docs/aide</a>. Version 1.0.0 has the protocol rules, the AsyncAPI specification and example exchanges (<code>protocol.md</code>, <code>asyncapi.json</code> and <code>examples.json</code> under <code>https://softmax.com/docs/static/aide/1.0.0/</code>). Appendix D is the list of what the page must do.</li>
-        <li><strong>Softmax client code</strong> (in the Softmax monorepo, read at commit <code>2519057c1e</code>). The wire client is the package <code>@softmax-universe/aide</code>, published on GitHub Packages. The sign-in flow, the encrypted cookie and the WebSocket pass-through are the server half of the Cogent SDK in <code>packages/softmax-cogent</code> (design in <code>docs/specs/0152-cogent-sdk.md</code>). The allowed sites list is <code>cogentSiteHosts</code> in <code>workspaces/web/web-client/src/features/identity/identity-search.ts</code>.</li>
+        <li><strong>Softmax client code.</strong> The wire client is the package <code>@softmax-universe/aide</code>, published on GitHub Packages. The sign-in flow, the encrypted cookie and the WebSocket pass-through are the server half of the Softmax Cogent SDK. Softmax keeps the list of allowed cogent sites.</li>
         <li><strong>Assets.</strong> Appendix F. Start the licence record with the first asset that is added.</li>
       </ul>
 
@@ -1661,10 +1661,10 @@
         <li id="src-14" value="14"><span class="cite">Full Tilt! Pinball</span> — <a href="https://en.wikipedia.org/wiki/Full_Tilt!_Pinball">https://en.wikipedia.org/wiki/Full_Tilt!_Pinball</a></li>
         <li id="src-15" value="15"><span class="cite">Raymond Chen, The Old New Thing, 2012-12-18</span> — <a href="https://devblogs.microsoft.com/oldnewthing/20121218-00/?p=5803">https://devblogs.microsoft.com/oldnewthing/20121218-00/?p=5803</a></li>
         <li id="src-19" value="19"><span class="cite">treeform/paddy README</span> — <a href="https://github.com/treeform/paddy">https://github.com/treeform/paddy</a></li>
-        <li id="src-20" value="20"><span class="cite">AIDE interface 1.0.0 protocol rules</span> — <a href="https://softmax.com/docs/static/aide/1.0.0/protocol.md">https://softmax.com/docs/static/aide/1.0.0/protocol.md</a> (metta workspaces/web/docs/public/static/aide/1.0.0/protocol.md at commit 2519057c1e)</li>
+        <li id="src-20" value="20"><span class="cite">AIDE interface 1.0.0 protocol rules</span> — <a href="https://softmax.com/docs/static/aide/1.0.0/protocol.md">https://softmax.com/docs/static/aide/1.0.0/protocol.md</a></li>
         <li id="src-21" value="21"><span class="cite">AIDE interface 1.0.0 AsyncAPI specification</span> — <a href="https://softmax.com/docs/static/aide/1.0.0/asyncapi.json">https://softmax.com/docs/static/aide/1.0.0/asyncapi.json</a></li>
-        <li id="src-22" value="22"><span class="cite">metta packages/softmax-cogent/README.md (Cogent SDK: sign-in, server half, allowed sites)</span></li>
-        <li id="src-23" value="23"><span class="cite">metta docs/specs/0152-cogent-sdk.md:44-49,79-82</span></li>
+        <li id="src-22" value="22"><span class="cite">The Softmax Cogent SDK documentation (sign-in, server half, allowed sites)</span></li>
+        <li id="src-23" value="23"><span class="cite">The Softmax Cogent SDK design specification</span></li>
         <li id="src-24" value="24"><span class="cite">Vercel Functions WebSocket documentation</span> — <a href="https://vercel.com/docs/functions/websockets">https://vercel.com/docs/functions/websockets</a></li>
       </ol>
     </details>
@@ -1864,7 +1864,7 @@
   "text": "I've decided we shouldn't aim to make this a Softmax-hosted, leauge-friendly coworld. Instead, we'll deploy it somewhere publicly accessible. Let's start by building this on Vercel or Cloudflare hosting, probably Vercel? The flipper player will control from that page, the arena player will be hooked up to the AIDE/cogent system hosted on Softmax via the Softmax SDK.",
   "created": "2026-11-17T18:29:11.041Z",
   "resolved": true,
-  "exact": "Coworld runtime. A runtime list accepts file, container and human seats\n        together. The game runs file players itself and must limit them. The hosted Episode limit is\n        20 minutes. A pod player uses the standard Coworld player connection. Results need one score per seat, and a seat can carry a role label3456. Read at metta commit\n        440434c06a.",
+  "exact": "Coworld runtime. A runtime list accepts file, container and human seats\n        together. The game runs file players itself and must limit them. The hosted Episode limit is\n        20 minutes. A pod player uses the standard Coworld player connection. Results need one score per seat, and a seat can carry a role label3456.",
   "prefix": "hey are all file-only1.\n        ",
   "suffix": "\n        Hosted human play. It u",
   "replies": [

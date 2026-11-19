@@ -4,20 +4,11 @@
  * The server half of the Softmax Cogent SDK (`createCogentServer`), built to plain JavaScript.
  * It needs only Node built-ins.
  *
- * Source:  packages/softmax-cogent/src/server.ts in the Softmax metta repository
- *          (github.com/softmax-universe/softmax), commit b2684546b6
- *          (git blob 5771894e995576a111c97432e47b1c34dc14837e).
- * Build:   the SDK ships TypeScript only. This is the output of the SDK's own server build step,
- *          run with vite 8.3.5 (the version the SDK pins):
- *              vite build --config vite.server.config.ts        -> dist/server.js
- *          Everything below this comment is that file, byte for byte
- *          (sha256 2fc129edd19fbad774d0d86aac5657ffa47a75f3d45d340a3e098ba9cee2fe85).
+ * Everything below this comment is the SDK's own server build output, byte for byte
+ * (sha256 2fc129edd19fbad774d0d86aac5657ffa47a75f3d45d340a3e098ba9cee2fe85).
  *
- * To refresh: in a metta checkout with dependencies installed, run
- *              pnpm --filter @softmax/cogent-sdk pack:site
- *          and copy packages/softmax-cogent/dist-package/server.js over the code below (that
- *          command runs the same vite build). Or run only the vite command above inside
- *          packages/softmax-cogent. Then update the commit, blob and sha256 in this comment.
+ * To refresh: take the server file of a newer Cogent SDK build from Softmax, copy it over the
+ * code below, and update the sha256 in this comment.
  *
  * Not vendored: embed.js, the SDK's React chat widget. The `<base>/embed.js` route therefore
  * fails (it answers 502). This site draws its own chat panel and never asks for it.

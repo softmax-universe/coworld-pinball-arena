@@ -76,9 +76,8 @@ Any long random string works as a local secret, for example the output of `opens
 
 On the Softmax side:
 
-- **The site's exact hostname must be added to the allowed cogent sites**: `cogentSiteHosts` in
-  `workspaces/web/web-client/src/features/identity/identity-search.ts` in the metta repository,
-  shipped with a softmax.com web deploy. It is an exact match with no wildcards, and today the list
+- **The site's exact hostname must be added to Softmax's list of allowed cogent sites**, which
+  ships with a softmax.com web deploy. It is an exact match with no wildcards, and today the list
   has no Vercel host. Until then softmax.com will not send the sign-in code back to the site.
 - The SDK's README says this credential model is for sites Softmax controls. Softmax should agree
   that this site may hold the credential.

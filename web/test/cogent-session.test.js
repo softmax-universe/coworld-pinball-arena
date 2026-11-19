@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { AideError } from '../js/aide-client.js'
 import { createCogentSession, requestWording } from '../js/cogent-session.js'
 
-// Contract files: notes/aide-1.0.0/protocol.md ("protocol.md"), asyncapi.json, examples.json.
+// Contract files, at https://softmax.com/docs/aide: protocol.md, asyncapi.json, examples.json.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // The game's scope: asyncapi.json `Scope`, the Coworld form. The ids are the test's own.
@@ -846,7 +846,7 @@ test('policy.create and policy.update deploy the program and reply with name and
 
 test('policy.list answers with the name and version of every deployed program', async () => {
   const { client, api } = await startBound()
-  // asyncapi.json `policy_listParams` and `policy_listResult` (softmax PR 32249): only `scope` in, `{items}` out.
+  // asyncapi.json `policy_listParams` and `policy_listResult`: only `scope` in, `{items}` out.
   assert.deepEqual(client.callAgent('policy.list', { scope: SCOPE }), { items: [{ name: 'catcher', version: 2 }] })
   // The page holds no policy that plays in another scope, and none at all is an empty list, not `unsupported`.
   assert.deepEqual(client.callAgent('policy.list', { scope: OTHER_SCOPE }), { items: [] })

@@ -187,8 +187,8 @@ tests/, web/test/, server/test/
   the league. The league runs nothing until the Softmax team sets it up, so no submitted
   program has played a hosted episode yet. The game's page on softmax.com waits for review.
   `coworld/server.py` has no tests of its own.
-- **`policy.list` on the relay.** The page answers it as softmax pull request 32249 defines
-  it. That request was still open when this was written, so the relay may not pass it on yet.
+- **`policy.list` on the relay.** The page answers it as a pending addition to the AIDE
+  contract defines it. The addition was not yet released when this was written, so the relay may not pass it on yet.
 - **That a cogent finds and uses the documentation.** The page sends the cogent no
   instructions, so it knows the game only if it has this repository and reads
   `docs/cogent/`. No cogent has done so yet.

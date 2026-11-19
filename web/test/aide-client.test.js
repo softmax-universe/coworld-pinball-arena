@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 
 import { AideError, createAideClient } from '../js/aide-client.js'
 
-// Contract files: notes/aide-1.0.0/protocol.md ("protocol.md"), asyncapi.json, examples.json.
+// Contract files, at https://softmax.com/docs/aide: protocol.md, asyncapi.json, examples.json.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 const WORKSPACE_SCOPE = { scope: 'workspace', coworld: null, league: null }

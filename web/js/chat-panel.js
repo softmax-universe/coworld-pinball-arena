@@ -124,9 +124,18 @@ export function createChatPanel(elements, actions) {
     }
   })
 
+  /** Redraws the state line each second while the cogent wakes, so the seconds count up. */
+  let wakingClock = null
+
   function drawState() {
-    const { cogent, requests } = session.state
-    elements.cogentState.textContent = cogentWording(cogent, unreachable)
+    const { cogent, requests, wakingSince } = session.state
+    const waited = wakingSince === null ? '' : ` ${Math.round((Date.now() - wakingSince) / 1000)} s so far.`
+    elements.cogentState.textContent = cogentWording(cogent, unreachable) + waited
+    if (wakingSince !== null) wakingClock ??= setInterval(drawState, 1000)
+    else if (wakingClock !== null) {
+      clearInterval(wakingClock)
+      wakingClock = null
+    }
     elements.cogentState.dataset.cogent = cogent
     // A request held until a time still ahead cannot be hurried, so it does not call for the button.
     const canResume = requests.some(

@@ -124,6 +124,19 @@ export function connectCogent({ workspaceId, api, scope, storage, onUnreachable 
     client.connect()
   }
 
+  // A line in the browser console for every change of the cogent's state, with how long the last
+  // one lasted. This is how the time a wake takes is measured.
+  let lastState = session.state.cogent
+  let lastStateAt = Date.now()
+  session.onChange((state) => {
+    if (state.cogent !== lastState) {
+      const seconds = ((Date.now() - lastStateAt) / 1000).toFixed(1)
+      console.info(`[cogent] ${lastState} -> ${state.cogent} after ${seconds} s`)
+      lastState = state.cogent
+      lastStateAt = Date.now()
+    }
+  })
+
   session.onChange((state) => {
     clearTimeout(resumeTimer)
     const resumeAt = nextResumeTime(state.requests, Date.now())

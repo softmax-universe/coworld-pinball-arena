@@ -78,6 +78,8 @@ export function createCogentSession({ client, storage, api, scope }) {
     cogent: 'connecting',
     /** While `waking`: the milliseconds after which the relay asked for another try, or null. */
     retryAfterMs: null,
+    /** While `waking`: when it began, as `Date.now()` gives it. Otherwise null. */
+    wakingSince: null,
     sessionId: storage.getItem(SESSION_KEY),
     /** The contract's `MessageRecord`s, oldest first. Only the newest page of history is read. */
     messages: [],
@@ -117,7 +119,12 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function changed() {
     state.cogent = cogentState()
-    if (state.cogent !== 'waking') state.retryAfterMs = null
+    if (state.cogent === 'waking') {
+      state.wakingSince ??= Date.now()
+    } else {
+      state.retryAfterMs = null
+      state.wakingSince = null
+    }
     for (const listener of changeListeners) listener(state)
   }
 

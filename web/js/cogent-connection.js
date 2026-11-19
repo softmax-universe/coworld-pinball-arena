@@ -9,7 +9,8 @@ import { createAideClient } from './aide-client.js'
 import { cogentSocketUrl } from './cogent-auth.js'
 import { createCogentSession } from './cogent-session.js'
 
-const WORKSPACE_URL = '/softmax-cogent/api/v2/hermes'
+/** The Softmax API routes that this site's server part passes on (server/README.md). */
+const API = '/softmax-cogent/api'
 const FIRST_RECONNECT_MS = 1000
 const LONGEST_RECONNECT_MS = 30000
 /** After this many failed connections in a row the page says it cannot reach the cogent. */
@@ -35,12 +36,63 @@ export function nextResumeTime(requests, now) {
   return times.length > 0 ? Math.min(...times) : null
 }
 
-/** Resolves with the id of the person's workspace, or null when they have none or it cannot be found. */
-export function findWorkspaceId() {
-  return fetch(WORKSPACE_URL, { credentials: 'same-origin' })
-    .then((response) => (response.ok ? response.json() : null))
-    .then((workspace) => workspace?.provisioning_id ?? null)
-    .catch(() => null)
+/** A workspace in one of these states runs again when the page asks for it. */
+const ASLEEP = ['stopped', 'stopping', 'suspended']
+const READY_POLL_MS = 3000
+/** A new workspace is usually ready within a minute or two. */
+const READY_WAIT_MS = 5 * 60 * 1000
+
+/** One call of the Softmax API through this site's server part. Resolves with the JSON body; rejects with words for the person. */
+function softmax(path, method = 'GET', body) {
+  const init = { method, credentials: 'same-origin' }
+  if (body !== undefined) Object.assign(init, { headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) })
+  return fetch(API + path, init).then((response) => {
+    if (!response.ok) throw new Error(`Softmax answered ${response.status} to ${method} ${path}.`)
+    return response.json()
+  })
+}
+
+/** Creates a workspace for an account that has none, on its default player. */
+function createWorkspace() {
+  return softmax('/players').then((players) => {
+    const active = players.filter((player) => !player.disabled_at)
+    const player = active.find((candidate) => candidate.is_default) ?? active[0]
+    if (!player) throw new Error('Your Softmax account has no active player, so a cogent cannot be started for it.')
+    const cogent = `/v2/cogents/${encodeURIComponent(player.id)}/hermes`
+    return softmax('/v2/cogents', 'POST', { player_id: player.id }).then(() => softmax(cogent, 'PUT', {}))
+  })
+}
+
+/** Resolves with the workspace once it is ready, reading it again every few seconds until then. */
+function whenReady(workspace, pollMs, deadline) {
+  if (workspace.status === 'ready') return workspace
+  if (workspace.status === 'failed') throw new Error(`Your cogent workspace failed to start: ${workspace.detail ?? 'no reason given'}.`)
+  if (Date.now() > deadline) throw new Error('Your cogent workspace is still starting. Reload in a few minutes.')
+  return new Promise((resolve) => setTimeout(resolve, pollMs))
+    .then(() => softmax('/v2/hermes'))
+    .then((next) => whenReady(next ?? workspace, pollMs, deadline))
+}
+
+/**
+ * Resolves with the id of the person's workspace, running and ready. An account with no workspace
+ * gets one, and a paused or sleeping workspace is started again: signing in on this site is the
+ * person asking for their cogent. `onProgress(text)` says what is being waited for. Rejects with
+ * an `Error` whose message is for the person.
+ */
+export function startWorkspace(onProgress, pollMs = READY_POLL_MS) {
+  return softmax('/v2/hermes')
+    .then((workspace) => {
+      if (!workspace) {
+        onProgress('Starting a cogent for you. This takes a minute or two…')
+        return createWorkspace()
+      }
+      if (!ASLEEP.includes(workspace.status)) return workspace
+      onProgress('Waking your cogent…')
+      const lifecycle = `/v2/cogents/${encodeURIComponent(workspace.player_id)}/hermes/lifecycle`
+      return softmax(lifecycle, 'PUT', { desired_state: 'running' })
+    })
+    .then((workspace) => whenReady(workspace, pollMs, Date.now() + READY_WAIT_MS))
+    .then((workspace) => workspace.provisioning_id)
 }
 
 /**

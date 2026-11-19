@@ -7,7 +7,7 @@
  */
 
 import { signedInAs, signOut, startSignIn } from './cogent-auth.js'
-import { connectCogent, findWorkspaceId } from './cogent-connection.js'
+import { connectCogent, startWorkspace } from './cogent-connection.js'
 import { createChatPanel } from './chat-panel.js'
 import { createGameApi } from './game-api.js'
 import { createGameBridge, giveKeysToGame } from './game-bridge.js'
@@ -205,23 +205,22 @@ setChatOpen(!matchMedia(DRAWER_LAYOUT).matches)
 
 function startChat(email) {
   chatPanel.showSignedIn(email, 'Finding your cogent…')
-  findWorkspaceId().then((workspaceId) => {
-    if (workspaceId === null) {
-      chatPanel.showSignedIn(email, 'No cogent workspace was found for this account. Start one at softmax.com, then reload.')
-      return
-    }
-    const connection = connectCogent({
-      workspaceId,
-      api,
-      scope: GAME_SCOPE,
-      storage: localStorage,
-      onUnreachable: chatPanel.setUnreachable,
-    })
-    session = connection.session
-    tryAgain = connection.tryAgain
-    session.onChange(showAttention)
-    chatPanel.attach(session)
-  })
+  startWorkspace((progress) => chatPanel.showSignedIn(email, progress)).then(
+    (workspaceId) => {
+      const connection = connectCogent({
+        workspaceId,
+        api,
+        scope: GAME_SCOPE,
+        storage: localStorage,
+        onUnreachable: chatPanel.setUnreachable,
+      })
+      session = connection.session
+      tryAgain = connection.tryAgain
+      session.onChange(showAttention)
+      chatPanel.attach(session)
+    },
+    (error) => chatPanel.showSignedIn(email, `${error.message} Reload the page to try again.`),
+  )
 }
 
 // ---------------------------------------------------------------------------------------------

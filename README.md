@@ -198,6 +198,9 @@ tests/, web/test/, server/test/
 - **The WebSocket pass-through on Vercel.** The deployed function answers the cogent routes,
   and refuses a WebSocket with no session (401) or a foreign origin (403). An accepted
   connection has never been made there, because nobody has signed in there yet.
+- **Starting a workspace from the site.** The page creates a workspace for an account that
+  has none and wakes a sleeping one. This follows the calls of Softmax's own client and is
+  tested against a fake; it has not run against Softmax.
 - **Softmax side** (Appendix H of the design): Softmax has put the site's hostname on its
   list of allowed cogent sites, but a sign-in has not been tried, and nobody has confirmed that running the program inside the BASIC
   virtual machine satisfies the contract's "never runs it in the page" rule.

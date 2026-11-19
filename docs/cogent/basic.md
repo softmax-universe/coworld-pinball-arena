@@ -125,7 +125,7 @@ Read-only. A constant is a prefix and a name: `cue_fanfare`. Each list is number
 | `kind_` | `none popbumper passivebumper slingshot standuptarget droptarget toggletarget spinner rollover captiveball saucer scoop balllock kicker kickback magnet gate diverter uppost wall rubberpost mouth track insert flasher` |
 | `ev_` | `none hit drop bankcomplete reset flip spin rollover captured released locked fired usedup relit grabbed passed switched raised lowered trackentered trackcompleted trackfailed flipperup flipperdown flipperfullyraised plungerpulled balllaunched nudge tiltwarning tilt balldrained ballsaved balladded ballcountchanged ballchangedlevel componentcreated componentremoved editrejected fsmsignal scriptsignal clockthreshold buildphaseended episodeending programloaded` |
 | `set_` | `strength direction holdticks travelticks exitx exity capacity radius mode enabled position length curve bounce style widtha widthb moutha mouthb controlax controlay controlbx controlby colour lamp` |
-| `cue_` | `none ping bell chime thunk clack pop sling spinner rollover drop resetbank launch drain ballsave extraball kick hole lock magnet gate beamin fadeout sweepup sweepdown fanfare jackpot queststart questfail warning tilt gameover programloaded` |
+| `cue_` | `none ping bell chime thunk clack pop sling spinner rollover drop resetbank launch drain ballsave extraball kick hole lock magnet gate beamin fadeout sweepup sweepdown fanfare jackpot queststart questfail warning tilt gameover programloaded plungerpull nudge` |
 | `lamp_` | `off on flashing` |
 | `colour_` | `yellow red green blue white` |
 | `slot_` | `quest award` |

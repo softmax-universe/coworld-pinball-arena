@@ -1,12 +1,3 @@
-/*
- * Pinball Arena: the page around the game canvas.
- *
- * Three parts. The cabinet is one 4:3 block: the table on the left two thirds, the machine's
- * display (side panel) on the right third. The chat is a column beside the cabinet, or a drawer
- * on a narrow window. The cabinet scales to fit the window, so everything inside it is sized in
- * container units and nothing scrolls.
- */
-
 @font-face {
   font-family: 'DSEG7 Classic';
   src: url('fonts/DSEG7Classic-Bold.woff2') format('woff2');
@@ -27,18 +18,17 @@
 }
 
 :root {
-  /* Deep space: navy into purple, darkest first. */
+  /* Cabinet and console surfaces. */
   --space-950: #070818;
-  --space-900: #0b0c22;
-  --space-850: #10112e;
-  --space-800: #181a42;
-  --violet-700: #2c2263;
-  --violet-500: #5d49b8;
+  --space-900: #0f2328;
+  --space-800: #263e40;
+  --console-accent-dark: #315557;
+  --console-accent: #406961;
 
   /* Chrome, brightest first. */
   --chrome-100: #e4e7f0;
   --chrome-300: #b4bace;
-  --chrome-500: #7f86a3;
+  --chrome-500: #a6bab8;
   --chrome-700: #3d4263;
 
   /* Lamps. */
@@ -47,15 +37,11 @@
   --lamp-green: #4be38a;
   --lamp-blue: #58bcff;
   --lamp-white: #eef1fa;
-  /* A segment or dot that is not lit. */
-  --unlit: #1d1f47;
 
   --font-segments: 'DSEG7 Classic', monospace;
   --font-dots: 'Doto', monospace;
   --font-plate: 'Orbitron', sans-serif;
   --font-reading: system-ui, -apple-system, 'Segoe UI', sans-serif;
-
-  --chat-width: clamp(280px, 23vw, 380px);
 }
 
 * {
@@ -68,8 +54,6 @@
 body {
   height: 100dvh;
   overflow: hidden;
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
   background: var(--space-950);
   color: var(--chrome-100);
   font-family: var(--font-reading);
@@ -109,439 +93,150 @@ button {
 .lamp-blue { color: var(--lamp-blue); }
 .lamp-white { color: var(--lamp-white); }
 
-/* ------------------------------------------------------------------------------------------ */
-/* The cabinet: table and display                                                             */
-/* ------------------------------------------------------------------------------------------ */
-
 .stage {
-  container: stage / size;
+  height: 100dvh;
   display: grid;
-  place-items: center;
-  padding: 12px;
-  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  background: linear-gradient(90deg, #051b2340, transparent 55%, #061b2160),
+    url('art/lunar-horizon.jpg') center center / cover, #0c2730;
+}
+.marquee {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px clamp(16px, 4vw, 64px);
+  background: #102328;
+  border-block: 1px solid #a09260;
+  box-shadow: 0 3px 0 #203f40, 0 4px 0 #ad5732;
+  z-index: 1;
+}
+.marquee h1 {
+  display: flex;
+  align-items: center;
+  gap: .3em;
+  font: italic 900 clamp(19px, 2.3vw, 32px)/1 var(--font-plate);
+  text-transform: uppercase;
+  color: #ffdfac;
+  letter-spacing: -.065em;
+}
+.marquee em { color: #ff8b52; }
+.orbit-mark {
+  position: relative;
+  display: inline-block;
+  width: 1.7em;
+  height: 1.3em;
+  margin-right: .25em;
+  background: radial-gradient(circle, #ffae65 0 30%, transparent 32%);
+}
+.orbit-mark::after {
+  content: '';
+  position: absolute;
+  inset: 34% 0;
+  border: .1em solid #efba78;
+  border-radius: 50%;
+  transform: rotate(-29deg);
 }
 
 .cabinet {
-  container: cabinet / size;
-  /* One hundredth of the cabinet's height: the unit for the display's type and spacing. */
-  --u: 1cqh;
-  width: min(100cqw, 100cqh * 4 / 3);
-  aspect-ratio: 4 / 3;
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  background: var(--space-900);
-  border: 1px solid var(--chrome-700);
-  border-radius: 6px;
-  overflow: hidden;
+  grid-template-columns: minmax(0, auto) clamp(280px, 25vw, 370px);
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 3vw, 64px);
+  min-height: 0;
+  padding: 8px clamp(12px, 3vw, 52px);
 }
-
-/* The table is taller than its two thirds of the cabinet is wide, so it stands in the middle of
-   a strip of starfield. Its shape is the one the game's camera frames the table for
-   (`DesignAspect` in src/pinball/view/tableview.nim): keep the two in step, or the game draws the
-   table small with empty bands above and below. */
 .table-area {
-  container: table-area / size;
-  position: relative;
-  display: grid;
-  place-items: center;
-  background-color: var(--space-900);
-  background-image:
-    radial-gradient(circle, var(--chrome-300) 0 0.6px, transparent 1.2px),
-    radial-gradient(circle, var(--chrome-500) 0 0.5px, transparent 1px),
-    radial-gradient(circle, var(--violet-500) 0 0.8px, transparent 1.4px);
-  background-size: 173px 197px, 97px 131px, 251px 229px;
-  background-position: 12px 40px, 60px 9px, 130px 120px;
-}
-
-.table {
-  position: relative;
-  height: min(100cqh, 100cqw / 0.58);
-  aspect-ratio: 0.58;
-  background: var(--space-850);
-}
-
-.table canvas {
-  display: block;
-  width: 100%;
   height: 100%;
-  outline: none;
-}
-
-.table-notice {
-  position: absolute;
-  inset: 0;
+  aspect-ratio: .58;
+  max-width: 100%;
+  min-height: 0;
   display: grid;
   place-items: center;
-  padding: 8%;
-  text-align: center;
-  font-family: var(--font-plate);
-  font-weight: 700;
-  font-size: calc(var(--u) * 2.2);
-  letter-spacing: 0.14em;
-  color: var(--chrome-500);
-  pointer-events: none;
+  container-type: size;
+  filter: drop-shadow(0 8px 9px #001112a8);
 }
-
-.end-screen {
-  position: absolute;
-  inset: 0;
-  display: grid;
-  align-content: center;
-  justify-items: center;
-  gap: calc(var(--u) * 1.4);
-  padding: 8%;
-  background: color-mix(in srgb, var(--space-950) 84%, transparent);
-  text-align: center;
-}
-.end-title {
-  font-family: var(--font-plate);
-  font-weight: 900;
-  font-size: calc(var(--u) * 5);
-  letter-spacing: 0.12em;
-  color: var(--chrome-100);
-}
-.end-label {
-  margin-top: calc(var(--u) * 3);
-  font-family: var(--font-plate);
-  font-weight: 600;
-  font-size: calc(var(--u) * 1.7);
-  letter-spacing: 0.22em;
-  color: var(--chrome-500);
-}
-.end-score {
-  width: 100%;
-  margin-bottom: calc(var(--u) * 3);
-}
-
-.lamp-button {
-  font-family: var(--font-plate);
-  font-weight: 800;
-  font-size: calc(var(--u) * 2);
-  letter-spacing: 0.14em;
-  padding: 0.7em 1.4em;
-  border-radius: 4px;
-  background: var(--lamp-yellow);
-  color: var(--space-950);
-}
-.lamp-button:hover {
-  background: var(--lamp-white);
-}
-
-/* Keys and the demo switch, in the starfield left of the table. */
-.table-aside {
-  position: absolute;
-  left: calc(var(--u) * 2);
-  bottom: calc(var(--u) * 2.2);
-  width: calc((100cqw - 100cqh * 0.58) / 2 - var(--u) * 3.4);
-  display: grid;
-  gap: calc(var(--u) * 2);
-  font-family: var(--font-plate);
-  font-size: calc(var(--u) * 1.35);
-  letter-spacing: 0.12em;
-  color: var(--chrome-500);
-}
-.keys {
-  display: grid;
-  gap: calc(var(--u) * 1.1);
-}
-.keys dt {
-  color: var(--chrome-300);
-  font-weight: 700;
-}
-.keys kbd {
-  font: inherit;
-  display: inline-block;
-  min-width: 1.9em;
-  padding: 0.1em 0.4em;
-  text-align: center;
-  border: 1px solid var(--chrome-700);
-  border-radius: 3px;
-}
-.keys dd {
-  margin-top: 0.3em;
-}
-.demo-toggle {
-  justify-self: start;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  color: var(--chrome-300);
-  padding: 0.5em 0.8em;
-  border: 1px solid var(--chrome-700);
-  border-radius: 3px;
-}
-.demo-toggle:hover,
-.demo-toggle[aria-pressed='true'] {
-  color: var(--lamp-yellow);
-  border-color: currentColor;
-}
-
-/* ------------------------------------------------------------------------------------------ */
-/* The machine display                                                                        */
-/* ------------------------------------------------------------------------------------------ */
-
-.side-panel {
-  display: flex;
-  flex-direction: column;
-  gap: calc(var(--u) * 2.6);
-  padding: calc(var(--u) * 4) calc(var(--u) * 3);
-  background: var(--space-850);
-  border-left: 2px solid var(--chrome-500);
-  min-width: 0;
-}
-
-.title-plate {
-  font-family: var(--font-plate);
-  font-weight: 900;
-  font-size: calc(var(--u) * 4.7);
-  line-height: 1.08;
-  letter-spacing: 0.1em;
-  color: var(--chrome-100);
-  padding-bottom: calc(var(--u) * 2.4);
-  border-bottom: 2px solid var(--violet-500);
-}
-.title-plate span {
-  display: block;
-  color: var(--lamp-yellow);
-}
-
-.ball-line {
-  font-family: var(--font-plate);
-  font-weight: 700;
-  font-size: calc(var(--u) * 2.7);
-  letter-spacing: 0.16em;
-  color: var(--chrome-100);
-}
-
-.label {
-  display: block;
-  margin-bottom: calc(var(--u) * 0.8);
-  font-family: var(--font-plate);
-  font-weight: 600;
-  font-size: calc(var(--u) * 1.45);
-  letter-spacing: 0.24em;
-  color: var(--chrome-500);
-}
-
-/* The lit digits lie over a row of unlit 8s. Both rows are right-aligned in the same box. */
-.score {
-  container-type: inline-size;
+.table { position: relative; width: min(100cqw, 58cqh); aspect-ratio: .58; }
+.table canvas { display: block; width: 100%; height: 100%; outline: none; }
+.console {
   position: relative;
-  background: var(--space-950);
-  border-radius: 3px;
-  font-family: var(--font-segments);
-  font-weight: 700;
-  line-height: 1;
-}
-.score > span {
-  --digit: 0.82em;
-  --gap: 0.3em;
-  display: flex;
-  justify-content: flex-end;
-  gap: var(--gap);
-  padding: 0.36em 0.3em;
-  /* Sized so that every place fits the box: places times a digit, plus the gaps and padding. */
-  font-size: calc(100cqi / (var(--places) * 0.82 + var(--gaps) * 0.3 + 0.62));
-}
-.score-unlit {
-  color: var(--unlit);
-}
-.score-lit {
-  position: absolute;
-  inset: 0;
-  color: var(--lamp-yellow);
-  text-shadow: 0 0 0.22em color-mix(in srgb, var(--lamp-yellow) 55%, transparent);
-}
-
-.message p {
-  /* Room for three lines, which holds the longest message a rule can show (40 characters), so a
-     long message is not cut off and does not move what is below it. */
-  height: calc(3 * 1.12em + 0.9em);
-  padding: 0.45em 0.5em;
-  overflow: hidden;
-  background: var(--space-950);
-  border-radius: 3px;
-  font-family: var(--font-dots);
-  font-weight: 900;
-  font-size: calc(var(--u) * 3);
-  line-height: 1.12;
-  text-transform: uppercase;
-  overflow-wrap: anywhere;
-}
-.message-quest p {
-  color: var(--lamp-blue);
-  text-shadow: 0 0 0.3em color-mix(in srgb, var(--lamp-blue) 50%, transparent);
-}
-.message-award p {
-  color: var(--lamp-yellow);
-  text-shadow: 0 0 0.3em color-mix(in srgb, var(--lamp-yellow) 50%, transparent);
-}
-
-.flags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0 calc(var(--u) * 2.4);
-  min-height: 1.3em;
-  font-family: var(--font-plate);
-  font-weight: 800;
-  font-size: calc(var(--u) * 1.9);
-  letter-spacing: 0.16em;
-}
-.flags span {
-  text-shadow: 0 0 0.5em currentColor;
-}
-
-.clock {
-  margin-top: auto;
-  padding-top: calc(var(--u) * 2.2);
-  border-top: 1px solid var(--chrome-700);
-  font-family: var(--font-plate);
-  font-weight: 600;
-  font-size: calc(var(--u) * 2.3);
-  letter-spacing: 0.16em;
-  color: var(--chrome-300);
-  font-variant-numeric: tabular-nums;
-}
-
-/* A window taller than it is wide: the display becomes a strip above the table. */
-@container stage (max-aspect-ratio: 1/1) {
-  .cabinet {
-    --u: 0.9cqw;
-    width: 100cqw;
-    height: 100cqh;
-    aspect-ratio: auto;
-    grid-template-columns: 1fr;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .side-panel {
-    order: -1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    align-items: end;
-    gap: calc(var(--u) * 2) calc(var(--u) * 3);
-    padding: calc(var(--u) * 3);
-    border-left: 0;
-    border-bottom: 2px solid var(--chrome-500);
-  }
-  .title-plate {
-    font-size: calc(var(--u) * 4);
-    padding-bottom: 0;
-    border-bottom: 0;
-  }
-  .title-plate span {
-    display: inline;
-  }
-  .ball-line,
-  .clock {
-    font-size: calc(var(--u) * 2.9);
-  }
-  .ball-line {
-    text-align: right;
-  }
-  .label {
-    font-size: calc(var(--u) * 2);
-  }
-  .readout,
-  .flags {
-    grid-column: 1 / -1;
-  }
-  .score > span {
-    padding-block: 0.22em;
-  }
-  .message p {
-    font-size: calc(var(--u) * 4.2);
-  }
-  .flags,
-  .clock {
-    font-size: calc(var(--u) * 2.6);
-  }
-  .flags {
-    grid-column: 1;
-    grid-row: 5;
-  }
-  .clock {
-    grid-column: 2;
-    grid-row: 5;
-    text-align: right;
-    margin: 0;
-    padding: 0;
-    border: 0;
-  }
-  .keys {
-    display: none;
-  }
-  .table-aside {
-    width: auto;
-    left: calc(var(--u) * 2);
-    bottom: calc(var(--u) * 2);
-    font-size: calc(var(--u) * 2.2);
-  }
-  .end-title { font-size: calc(var(--u) * 7); }
-  .end-label { font-size: calc(var(--u) * 2.6); }
-  .lamp-button { font-size: calc(var(--u) * 3); }
-  .table-notice { font-size: calc(var(--u) * 3); }
-}
-
-/* ------------------------------------------------------------------------------------------ */
-/* The chat column                                                                            */
-/* ------------------------------------------------------------------------------------------ */
-
-.chat {
-  width: var(--chat-width);
-  height: 100dvh;
+  min-height: 0;
+  max-height: 100%;
   display: flex;
   flex-direction: column;
-  background: var(--space-900);
-  border-left: 1px solid var(--chrome-700);
+  padding: clamp(14px, 2.1vh, 26px);
+  border: 1px solid #678182;
+  border-top: 4px solid #d7b17e;
+  border-radius: 8px;
+  background: linear-gradient(145deg, #253a3d, #11282c 44%, #182d30);
+  box-shadow: inset 0 0 0 3px #102024, 0 8px 28px #01161ad9;
+  overflow-y: auto;
 }
-body[data-chat='closed'] .chat {
-  display: none;
+.readout { padding: 14px 15px 9px; background: #111b1c; border: 1px solid #415558; border-radius: 4px; }
+.readout-head, .status-line { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.label, .readout-head, .status-line, .mode-switch, .demo-toggle {
+  font: 700 11px/1.45 var(--font-plate); letter-spacing: .13em; text-transform: uppercase;
 }
-
-.chat-open {
-  /* A slim tab at the window's edge, read from top to bottom. */
-  writing-mode: vertical-rl;
-  align-self: start;
-  margin: 12px 8px 0 -4px;
-  padding: 0.9em 0.5em;
-  font-family: var(--font-plate);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.16em;
-  color: var(--chrome-100);
-  background: var(--space-800);
-  border: 1px solid var(--chrome-700);
+.label { color: #a9c3bf; }
+.readout-head { color: #e7cf9e; }
+.score { position: relative; container-type: inline-size; font: 700 1em/1 var(--font-segments); }
+.score > span { display: flex; justify-content: flex-end; gap: .24em; padding: .28em 0;
+  font-size: calc(98cqi / (var(--places) * .85 + var(--gaps) * .24)); }
+.score-unlit { color: #3b3025; }
+.score-lit { position: absolute; inset: 0; color: #ffc369; text-shadow: 0 0 9px #ffad3755; }
+.status-line { min-height: 23px; border-top: 1px solid #344344; padding-top: 7px; font-size: 9px; color: #c3bfac; }
+.flags { display: flex; gap: .5em; flex-wrap: wrap; }
+.music-cycle {
+  align-self: flex-end;
+  margin-top: 8px;
+  padding: 5px 8px;
+  border: 1px solid #526562;
   border-radius: 4px;
+  color: #e7cf9e;
+  font-size: 13px;
 }
-.chat-open:hover {
-  border-color: var(--chrome-300);
-}
-.chat-open[data-attention='true']::after {
-  content: '';
-  display: inline-block;
-  width: 0.65em;
-  height: 0.65em;
-  margin-top: 0.7em;
-  border-radius: 50%;
-  background: var(--lamp-yellow);
-  box-shadow: 0 0 6px var(--lamp-yellow);
-}
-body[data-chat='open'] .chat-open {
-  display: none;
-}
+.music-cycle:hover { background: #294246; }
+.mode-switch { display: flex; border-bottom: 1px solid #526562; margin: 16px 0; gap: 16px; flex-shrink: 0; }
+.mode-switch button { color: #a9c3bf; padding: 7px 1px; border-bottom: 2px solid transparent; }
+.mode-switch button[aria-pressed='true'] { color: #ffbb81; border-color: #ee8956; }
+#chat-open[data-attention='true']::after { content: ' •'; color: #ffb35e; }
+.game-display { display: grid; gap: clamp(10px, 2vh, 19px); }
+.message .label { margin-bottom: 5px; }
+.message p { min-height: 2.8em; padding: .4em .55em; border-radius: 3px; background: #0d1f21;
+  font: 900 clamp(16px, 2.6vh, 25px)/1.05 var(--font-dots); overflow-wrap: anywhere; text-transform: uppercase; }
+.message-quest p { color: #9ce9d6; }
+.message-award p { color: #ffc580; }
+.keys { padding-top: 10px; border-top: 1px solid #47605f; display: grid; gap: 5px; font-size: 13px; color: #c7d5cb; }
+.keys div { display: flex; justify-content: space-between; align-items: baseline; }
+kbd { display: inline-block; text-align: center; min-width: 22px; padding: 1px 5px; font: 12px/1.4 monospace;
+  color: #eee4c9; border: 1px solid #5c726f; border-radius: 3px; box-shadow: 0 1px #738682; }
+.demo-toggle, .lamp-button { padding: 10px 16px; border: 1px solid #a98b61; border-radius: 4px; color: #ffe0aa; }
+.demo-toggle:hover, .lamp-button:hover { background: #41504b; }
+.chat { display: flex; flex-direction: column; min-height: 0; height: min(49vh, 490px); overflow-y: auto; }
+.chat h3 { font: 700 12px var(--font-plate); letter-spacing: .14em; }
+.table-notice, .end-screen { position: absolute; inset: 0; display: grid; place-content: center; text-align: center;
+  color: #ffe2a9; font: 800 18px var(--font-plate); background: #071e23d9; }
+.table-notice { pointer-events: none; }
+.end-screen { align-content: center; padding: 10%; gap: 16px; }
+.end-title { font-size: clamp(24px,5vh,52px); }
+.end-label { font-size: 12px; letter-spacing: .16em; }
+.end-score { width: min(45vw, 260px); justify-self: center; }
+@media (max-width: 700px) {
+  body { overflow: auto; }
+  .stage { height: auto; min-height: 100svh; background-attachment: fixed; }
+  .marquee { padding: 12px; }
+  .marquee h1 { gap: .2em; }
 
-.chat-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  padding: 16px 18px 10px;
-}
-.chat h2,
-.chat h3 {
-  font-family: var(--font-plate);
-  font-weight: 700;
-  font-size: 12px;
-  letter-spacing: 0.2em;
-  color: var(--chrome-300);
+  .cabinet { display: flex; flex-direction: column; gap: 0; padding: 8px; }
+  .table-area { width: min(100%, 41svh); height: auto; flex: none; }
+  .table { width: 100%; }
+  .console { width: min(100%, 520px); padding: 12px; }
+  .readout { display: grid; grid-template-columns: 1fr 1.1fr; gap: 0 14px; padding: 6px 10px; }
+  .readout-head { align-items: start; flex-direction: column; justify-content: center; }
+  .status-line { grid-column: 1 / -1; }
+  .mode-switch { margin: 8px 0 12px; }
+  .chat { height: min(460px, 65svh); }
 }
 
 .quiet-button {
@@ -611,7 +306,7 @@ body[data-chat='open'] .chat-open {
   max-width: 88%;
   padding: 8px 12px;
   border-radius: 10px 10px 2px 10px;
-  background: var(--violet-700);
+  background: var(--console-accent-dark);
 }
 .from-cogent {
   max-width: 94%;
@@ -679,12 +374,12 @@ body[data-chat='open'] .chat-open {
   border-radius: 4px;
   font-weight: 600;
   font-size: 14px;
-  background: var(--violet-500);
+  background: var(--console-accent);
   color: var(--lamp-white);
 }
 .ask-choices button:hover,
 .send-button:hover {
-  background: var(--violet-700);
+  background: var(--console-accent-dark);
 }
 .ask-choices .choice-deny {
   background: none;
@@ -811,20 +506,4 @@ body[data-chat='open'] .chat-open {
   font-size: 10.5px;
   letter-spacing: 0.16em;
   color: var(--lamp-green);
-}
-
-/* A narrow or upright window: the chat is a drawer over the table. Matches DRAWER_LAYOUT in main.js. */
-@media (max-width: 1099px), (max-aspect-ratio: 1/1) {
-  .chat {
-    position: fixed;
-    top: 0;
-    right: 0;
-    z-index: 2;
-    width: min(92vw, 380px);
-    box-shadow: -18px 0 40px color-mix(in srgb, var(--space-950) 80%, transparent);
-  }
-  /* The tab keeps its place under the drawer, so opening the drawer does not resize the table. */
-  body[data-chat='open'] .chat-open {
-    display: block;
-  }
 }

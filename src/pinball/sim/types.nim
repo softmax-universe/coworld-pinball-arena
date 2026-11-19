@@ -297,7 +297,7 @@ type
     cueKick, cueHole, cueLock, cueMagnet, cueGate
     cueBeamIn, cueFadeOut, cueSweepUp, cueSweepDown
     cueFanfare, cueJackpot, cueQuestStart, cueQuestFail
-    cueWarning, cueTilt, cueGameOver, cueProgramLoaded
+    cueWarning, cueTilt, cueGameOver, cueProgramLoaded, cuePlungerPull, cueNudge
 
   BallAction* = enum
     ballActionAdd        ## Serve another ball (multiball).

@@ -586,6 +586,8 @@ suite "game driver":
     let game = session.game
     need game.table.phase == episodeOver
     let endTick = game.table.tick
+    # Idle frames must not consume the final tick's sounds and effects again.
+    check not game.tick()
 
     session.play(5 * Second)
     check game.table.phase == episodeOver
@@ -595,7 +597,8 @@ suite "game driver":
 
     # The same program plays the next Episode, from an empty table.
     session.send """{"type":"restart"}"""
-    session.play(1)
+    check game.tick()
+    session.collect()
     check game.table.tick == 1
     check game.table.phase == episodeBuild
     check game.table.score == 0

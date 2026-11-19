@@ -115,11 +115,14 @@ What a program can see and call is documented for its authors in
 
 The view reads the table and never writes it. `pinball.nim` runs the driver at 120 Hz with a
 fixed-step accumulator and draws with windy and OpenGL (WebGL2 in the browser). Meshes are
-built in code (`meshes.nim`, `pieces.nim`); the playfield art is generated
-(`playfieldart.nim`). The canvas shows only the table: all text is HTML on the page.
+built in code (`meshes.nim`, `pieces.nim`). The playfield uses the embedded print from
+`web/art/orbital-flight.jpg`. A transparent canvas shows the page’s lunar landscape around
+the cabinet. The slingshots, launchers, metal walls, kickbacks and flippers use the Orbital finish.
 
 `sound.nim` maps events and rule cues to the files in `assets/sounds/`, with a gain and a
-cooldown per cue. `input.nim` turns keys and the gamepad (paddy) into `Command`s.
+cooldown per cue. The view consumes events only after a simulation step. Idle frames at
+game over cannot replay the last tick’s sounds. The episode-ending event plays the low bell once.
+The page streams the selected music loop through one HTML audio element. `input.nim` turns keys and the gamepad (paddy) into `Command`s.
 
 ### Engine modules kept from Polyworld (`src/polyworld/`, commit `be1706dc`)
 
@@ -250,9 +253,9 @@ AIDE scope names the registered Coworld and league.
 | A ball lock holds a ball until a rule releases it. | Also: locking the only ball in play serves a new ball, and locked balls do not keep a ball number alive. | Otherwise a lock can stall the Episode. |
 | The build phase is 10 s, and the 8-minute clock runs from the start of the Episode. | The build phase ends when the program calls `ready()` and every piece is solid (10 s at most), and the clock starts with the first ball. | Owner's decision after play: the wait was dead time. |
 | Post pass must work. | No test covers it. | It needs a person at the table. |
-| Sounds from CC0 packs and recordings of real machines. | Kenney CC0 packs only. | Freesound downloads need an account. |
+| Sounds from CC0 packs and recordings of real machines. | 29 cabinet recordings and five Kenney effects. The console cycles between silence and two music loops. | The selected mix keeps electronic effects for table program cues. |
 | A floating text component and a floating-text rule result. | Not built. Rules write text only to the display: the two message boxes of the side panel. | The owner asked for this after play: text on the table obstructs the view. |
-| A pre-rendered, airbrushed look. | Lit procedural solids, fake chrome, glow from additive discs. No bloom. | Kept to simple means. |
+| A pre-rendered, airbrushed look. | Illustrated playfield and cabinet surround, lit 3D hardware, chrome and additive lamp glow. | The game renders moving parts at their simulated positions. |
 
 The BASIC budgets the design left open are set in `script/hosts.nim`: 200,000 instructions per
 Arena decision, 50,000 per Flipper decision, 2 MiB of memory, 256 KiB of source.

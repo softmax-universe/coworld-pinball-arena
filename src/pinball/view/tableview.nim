@@ -39,11 +39,9 @@ const
   ApronHeight = 34'f32
   ApronTopZ = 1040'f32             ## The far edge of the apron. Just above the drain line.
   LaneDividerX = 478'f32           ## Keep in step with `sim/layout.nim`.
-  CabinetColour = color(0.11, 0.08, 0.22, 1)
-  ApronColour = color(0.30, 0.16, 0.48, 1)
+  CabinetColour = color(0.10, 0.21, 0.23, 1)
+  ApronColour = color(0.10, 0.19, 0.20, 1)
   RailColour = color(0.74, 0.77, 0.86, 1)
-  FlipperColour = color(0.95, 0.94, 0.90, 1)
-  FlipperBandColour = color(0.85, 0.10, 0.14, 1)
 
   # Holograms and fades.
   HologramColour = color(0.25, 0.95, 1.0, 0.60)
@@ -83,9 +81,10 @@ type
     toon: ToonContext
     marks: ShapeRenderer     ## Flat see-through marks on the playfield.
     glows: ShapeRenderer     ## Light: halos, bursts, flashes.
-    starfield: GLuint
+    printTexture: GLuint
     playfield, cabinet, rails, wires, apron: ToonMesh
-    plungerMesh, flipperBody, flipperBand, ballMesh: ToonMesh
+    plungerMesh, ballMesh, stripes: ToonMesh
+    flipperParts: seq[Part]
     pieceViews: seq[PieceView]
     viewProjection: Mat4
     time: float32
@@ -177,15 +176,23 @@ proc buildFixedParts(view: TableView) =
   let middle = (tip.a.toVec2 + tip.b.toVec2) / 2
   view.plungerMesh.addTube([vec3(middle.x, 10, middle.y), vec3(middle.x, 10, length + CabinetMargin)], 3.5)
 
-  # A flipper, lying along +x from its pivot.
-  let
-    flipperLength = toFloat32(FlipperLength)
-    flipperRadius = toFloat32(FlipperRadius)
-  view.flipperBody = ToonMesh()
-  view.flipperBody.addWall(vec2(0, 0), vec2(flipperLength, 0), flipperRadius - 1, 1, 19)
-  view.flipperBody.addCylinder(vec3(0, 0, 0), flipperRadius + 2.5, 21)
-  view.flipperBand = ToonMesh()
-  view.flipperBand.addWall(vec2(0, 0), vec2(flipperLength, 0), flipperRadius, 6, 14)
+  view.flipperParts = buildFlipperParts(toFloat32(FlipperLength), toFloat32(FlipperRadius))
+
+  # Anodized trim and fasteners on the side rails and brushed metal lockdown bar.
+  view.stripes = ToonMesh()
+  for x in [-CabinetMargin / 2, width + CabinetMargin / 2]:
+    view.stripes.addBox(vec3(x-2, CabinetHeight, 0), vec3(x+2, CabinetHeight+1, length))
+    for z in [24'f32, 340, 680, length-20]:
+      view.rails.addCylinder(vec3(x+6, CabinetHeight, z), 3, 1.5)
+  view.rails.addBox(vec3(-CabinetMargin, CabinetHeight, length+11),
+    vec3(width+CabinetMargin, CabinetHeight+3, length+23))
+  for side in [0, 1]:
+    let start = if side == 0: 28'f32 else: 278'f32
+    for i in 0..4:
+      let x = start + i.float32 * 15
+      view.stripes.addFlatPolygon([vec2(x,1051), vec2(x+9,1051),
+        vec2(x+27,1069), vec2(x+18,1069)], ApronHeight+0.5)
+  view.rails.addDisc(vec3(LaneDividerX / 2, ApronHeight+1, 1060), 14, 12)
 
   view.ballMesh = ToonMesh()
   view.ballMesh.addBall(vec3(0, 0, 0), toFloat32(BallRadius))
@@ -200,7 +207,7 @@ proc newTableView*(): TableView =
   result.marks = initShapeRenderer()
   result.glows = initShapeRenderer()
   result.glows.additive = true
-  result.starfield = uploadTexture(starfieldImage())
+  result.printTexture = uploadTexture(playfieldImage())
 
   sunAzimuth = LightAzimuthDegrees
   sunElevation = LightElevationDegrees
@@ -519,7 +526,7 @@ proc isSeeThrough(material: ToonMaterial): bool =
 
 proc collectFixed(view: TableView, table: Table, items: var seq[DrawItem]) =
   items.add DrawItem(mesh: view.playfield, transform: mat4(),
-    material: ToonMaterial(color: color(1, 1, 1, 1), texture: view.starfield))
+    material: ToonMaterial(color: color(0.75, 0.77, 0.78, 1), texture: view.printTexture))
   items.add DrawItem(mesh: view.cabinet, transform: mat4(), castsShadow: true,
     material: ToonMaterial(color: CabinetColour, chrome: 0.12))
   items.add DrawItem(mesh: view.rails, transform: mat4(), castsShadow: true,
@@ -532,15 +539,17 @@ proc collectFixed(view: TableView, table: Table, items: var seq[DrawItem]) =
     transform: translate(vec3(0, 0, toFloat32(PlungerTravel * table.plunger.pull))),
     material: ToonMaterial(color: RailColour, chrome: 0.8))
 
+  items.add DrawItem(mesh: view.stripes, transform: mat4(),
+    material: ToonMaterial(color: color(0.96, 0.45, 0.13, 1)))
+
   for side in FlipperSide:
     let
       collider = flipperCollider(side, table.flippers[side].angle)
       along = collider.b.toVec2 - collider.a.toVec2
       transform = placed(collider.a.onTable, radToDeg(arctan2(along.y, along.x)))
-    items.add DrawItem(mesh: view.flipperBody, transform: transform, castsShadow: true,
-      material: ToonMaterial(color: FlipperColour, chrome: 0.1))
-    items.add DrawItem(mesh: view.flipperBand, transform: transform, castsShadow: true,
-      material: ToonMaterial(color: FlipperBandColour))
+    for part in view.flipperParts:
+      items.add DrawItem(mesh: part.mesh, transform: transform, castsShadow: part.castsShadow,
+        material: part.material)
 
   for ball in table.balls:
     if not table.isHidden(ball):
@@ -631,16 +640,18 @@ proc draw*(view: TableView, table: Table, framebufferSize: IVec2, seconds: float
       if item.castsShadow:
         view.toon.drawDepth(item.mesh, item.transform)
 
-  glClearColor(Backdrop.r, Backdrop.g, Backdrop.b, 1)
+  when defined(emscripten):
+    glClearColor(0, 0, 0, 0)
+  else:
+    glClearColor(Backdrop.r, Backdrop.g, Backdrop.b, 1)
   glClear(GL_COLOR_BUFFER_BIT or GL_DEPTH_BUFFER_BIT)
-  # See-through parts must not make the canvas itself see-through: in a
-  # browser the page would show through them.
-  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE)
   view.toon.time = view.time
   view.toon.beginDraw()
   for item in items:
     if not item.material.isSeeThrough:
       view.toon.draw(item.mesh, item.material, item.transform)
+  # Preserve the opaque playfield beneath transparent ramps and glows.
+  glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_FALSE)
   for item in items:
     if item.material.isSeeThrough:
       view.toon.draw(item.mesh, item.material, item.transform)

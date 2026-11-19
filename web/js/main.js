@@ -27,9 +27,6 @@ const GAME_SCOPE = {
   coworld: 'cow_3ff5f418-2002-410a-84ab-c85fdf6742d7',
   league: 'league_9a3f459f-8223-4dc1-acd9-7292e46919dd',
 }
-/** Below this the chat is a drawer over the table instead of a column beside it. Matches styles.css. */
-const DRAWER_LAYOUT = '(max-width: 1099px), (max-aspect-ratio: 1/1)'
-
 const byId = (id) => document.getElementById(id)
 const canvas = byId('canvas')
 
@@ -69,6 +66,7 @@ function newEpisodeStarted() {
 function restart() {
   game.send({ type: 'restart' })
   newEpisodeStarted()
+  canvas.focus()
 }
 
 game.on('hud', (hud) => {
@@ -85,6 +83,32 @@ game.on('episode', ({ summary }) => {
 })
 
 byId('play-again').addEventListener('click', restart)
+
+const musicButton = byId('music-cycle')
+const soundtrack = byId('soundtrack')
+const musicModes = [
+  { name: 'Off' },
+  { name: 'Space Echo', file: 'music/space-echo.ogg' },
+  { name: 'Space Adventure', file: 'music/space-adventure.ogg' },
+]
+let musicIndex = 0
+soundtrack.volume = 0.24
+musicButton.addEventListener('click', (event) => {
+  musicIndex = (musicIndex + 1) % musicModes.length
+  const mode = musicModes[musicIndex]
+  soundtrack.pause()
+  musicButton.textContent = `♫ Music · ${mode.name}`
+  if (mode.file) {
+    soundtrack.src = mode.file
+    soundtrack.play().catch((error) => {
+      if (error.name !== 'AbortError' && musicModes[musicIndex] === mode) {
+        musicButton.textContent = `♫ ${mode.name} unavailable`
+      }
+    })
+  }
+  // A pointer click gives Space back to the plunger. Keyboard users can cycle in place.
+  if (event.detail > 0) canvas.focus({ preventScroll: true })
+})
 
 // ---------------------------------------------------------------------------------------------
 // Programs and the game API
@@ -116,7 +140,10 @@ const api = createGameApi({
 })
 
 const demoToggle = byId('demo-toggle')
-demoToggle.addEventListener('click', () => activate('flipper', programs.active('flipper') === null ? 'demo' : null))
+demoToggle.addEventListener('click', () => {
+  activate('flipper', programs.active('flipper') === null ? 'demo' : null)
+  canvas.focus()
+})
 
 /** The list, and the button under the table that says who plays the flippers. */
 function drawPrograms() {
@@ -188,6 +215,10 @@ const chatPanel = createChatPanel(
 
 function setChatOpen(open) {
   document.body.dataset.chat = open ? 'open' : 'closed'
+  byId('game-display').hidden = open
+  byId('chat').hidden = !open
+  byId('chat-open').setAttribute('aria-pressed', open)
+  byId('chat-close').setAttribute('aria-pressed', !open)
   if (!open) canvas.focus()
   showAttention()
 }
@@ -201,7 +232,7 @@ function showAttention() {
 
 byId('chat-open').addEventListener('click', () => setChatOpen(true))
 byId('chat-close').addEventListener('click', () => setChatOpen(false))
-setChatOpen(!matchMedia(DRAWER_LAYOUT).matches)
+setChatOpen(false)
 
 function startChat(email) {
   chatPanel.showSignedIn(email, 'Finding your cogent…')
@@ -231,7 +262,7 @@ function startChat(email) {
 // Start
 // ---------------------------------------------------------------------------------------------
 
-giveKeysToGame(canvas, document.querySelector('.stage'), byId('chat'))
+giveKeysToGame(canvas, document.querySelector('.table-area'), byId('chat'))
 
 api.loadActive('arena')
 api.loadActive('flipper')

@@ -86,10 +86,10 @@ proc parseOptions(): Options =
 
 proc advance(app: var App, audible = true) =
   ## One tick of the game, and everything that follows a tick.
-  app.game.tick()
-  app.view.observe(app.game.table)
-  if audible:
-    playTickSounds(app.game.table)
+  if app.game.tick():
+    app.view.observe(app.game.table)
+    if audible:
+      playTickSounds(app.game.table)
   for message in app.game.takeMessages():
     sendToPage(message)
 

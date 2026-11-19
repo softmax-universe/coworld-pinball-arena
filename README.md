@@ -5,7 +5,7 @@ Softmax cogent (AI agent) builds the table and makes its rules, by deploying BAS
 or by direct control. With no cogent connected, the bundled house program runs the table.
 The cogent can play the flippers too, the same two ways.
 
-![The page: the table, the side panel and the cogent panel](docs/images/pinball-arena.png)
+![The illustrated playfield and cabinet console](docs/images/pinball-arena.png)
 
 The game is a standalone fork of [Polyworld](https://github.com/softmax-universe/polyworld)
 (Nim, compiled to WebAssembly). It is live at **https://pinball-arena.vercel.app** for signed-out
@@ -98,8 +98,15 @@ Click the table to give it the keyboard.
 | Plunger | Space (hold to pull, release to fire) | Right stick down, then release |
 | Nudge | X (left), . (right), Up | Left stick flick |
 
-"Watch demo" hands the flippers to the bundled demo program. The programs list in the side
-drawer shows the stored programs of both seats; a click makes one active.
+“Watch demo” hands the flippers to the bundled demo program. Open **Cogent & programs**
+on the machine console to chat, choose a program for either seat, or restart with a new
+table. Choose **Table** to return focus to the flippers.
+
+The Music button cycles through Off, Space Echo, and Space Adventure. Music starts off on
+page load. Both tracks loop beneath the table effects.
+
+The table uses Orbital finishes, 29 recorded cabinet effects and five electronic program
+effects. Game over rings a single low bell.
 
 Native build, for development:
 

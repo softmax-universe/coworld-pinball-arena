@@ -39,6 +39,8 @@ const
   Steel = color(0.70, 0.73, 0.82, 1)
   DarkMetal = color(0.20, 0.21, 0.28, 1)
   BlackRubber = color(0.06, 0.06, 0.08, 1)
+  OrbitalEnamel = color(0.87, 0.81, 0.61, 1)
+  OrbitalTrim = color(1.0, 0.29, 0.055, 1)
   RedRubber = color(0.80, 0.10, 0.12, 1)
   Pit = color(0.015, 0.015, 0.04, 1)
   Orange = color(1.0, 0.48, 0.05, 1)
@@ -125,7 +127,15 @@ proc buildBumper(shape: var PieceShape, piece: Component, radius: float32) =
     shape.add(chrome()).addHoop(vec3(0, 9, 0), radius * 0.86, 2.2)
     let cap = shape.addLamp(piece.lampColour, castsShadow = true)
     cap.addCylinder(vec3(0, 26, 0), radius * 0.98, 4)
-    cap.addDome(vec3(0, 30, 0), radius * 0.86, 9)
+    cap.addDome(vec3(0, 30, 0), radius * 0.86, 6)
+    let bezel = shape.add(metal(White, 0.35))
+    bezel.addHoop(vec3(0, 30, 0), radius * 0.93, 1.4)
+    bezel.addDisc(vec3(0, 36.2, 0), radius * 0.28)
+    for spoke in 0 ..< 6:
+      let angle = TAU.float32 * spoke.float32 / 6
+      let line = vec2(cos(angle), sin(angle)) * radius
+      bezel.addTube([vec3(line.x*0.48, 35.1, line.y*0.48),
+        vec3(line.x*0.73, 33.4, line.y*0.73)], 0.85)
   of ckPassiveBumper:
     shape.add(paint(White)).addCylinder(ground(0, 0), radius * 0.5, 22)
     shape.add(paint(BlackRubber)).addHoop(vec3(0, 10, 0), radius * 0.8, radius * 0.2)
@@ -138,12 +148,53 @@ proc buildSlingshot(shape: var PieceShape, radius, size: float32) =
   let
     corners = [vec2(-radius * 0.8, -radius * 0.2), vec2(radius * 0.8, -radius * 0.2),
                vec2(0, radius * 0.6)]
-    posts = shape.add(chrome())
+    posts = shape.add(metal(Steel, 0.65))
     band = shape.add(paint(RedRubber))
-  for index, corner in corners:
-    posts.addCylinder(ground(corner.x, corner.y), 3 * size, 20)
-    band.addWall(corner, corners[(index + 1) mod 3], 2.4 * size, 7, 13)
-  shape.add(paint(Orange)).addPrism(corners, 20, 22.5)
+    ink = shape.add(paint(OrbitalTrim))
+    inset = shape.add(metal(DarkMetal, 0.25))
+  for i, c in corners:
+    posts.addCylinder(ground(c.x, c.y), 3 * size, 23)
+    band.addWall(c, corners[(i + 1) mod 3], 2.4 * size, 7, 14)
+    posts.addHoop(vec3(c.x, 22.2, c.y), 2.7 * size, 0.5 * size)
+    inset.addWall(c - vec2(1.4, 0) * size, c + vec2(1.4, 0) * size, 0.38 * size, 23, 23.2)
+    let next = corners[(i + 1) mod 3]
+    posts.addTube([vec3(c.x * 0.95, 22.65, c.y * 0.95),
+      vec3(next.x * 0.95, 22.65, next.y * 0.95)], 0.8 * size)
+    # Fasteners stay visible above the printed shield.
+    posts.addDome(vec3(c.x * 0.80, 23, c.y * 0.80), 2.2 * size, 1)
+  shape.add(metal(OrbitalEnamel, 0.10)).addPrism(corners, 17, 22.5)
+  # Swept wings on either side of a sunburst medallion.
+  for side in [-1'f32, 1'f32]:
+    ink.addFlatPolygon([vec2(side * 0.64, -0.12) * radius,
+      vec2(side * 0.13, -0.055) * radius, vec2(side * 0.15, 0.20) * radius], 22.7)
+  inset.addCylinder(vec3(0, 22.55, radius * 0.12), radius * 0.15, 1)
+  posts.addHoop(vec3(0, 23.8, radius * 0.12), radius * 0.13, radius * 0.016)
+  ink.addDome(vec3(0, 23.6, radius * 0.12), radius * 0.10, 1.7)
+  for i in 0 .. 2:
+    let z = (0.30 + 0.075 * i.float32) * radius
+    let width = (0.097 - 0.024 * i.float32) * radius
+    inset.addWall(vec2(-width, z), vec2(width, z), size * 0.55, 22.5, 22.8)
+
+proc buildFlipperParts*(length, radius: float32): seq[Part] =
+  var shape: PieceShape
+  let
+    bobbin = shape.add(metal(Steel, 0.42))
+    shell = shape.add(paint(OrbitalEnamel))
+    band = shape.add(paint(RedRubber))
+    inlay = shape.add(paint(OrbitalTrim))
+  bobbin.addCylinder(ground(0, 0), radius + 2.5, 19)
+  band.addWall(vec2(0, 0), vec2(length, 0), radius, 4, 15)
+  shell.addWall(vec2(0, 0), vec2(length, 0), radius * 0.86, 15, 18.5)
+  bobbin.addCylinder(vec3(0, 18.5, 0), radius * 0.67, 1.6)
+  inlay.addDisc(vec3(0, 20.2, 0), radius * 0.43, radius * 0.22)
+  bobbin.addHoop(vec3(0, 18.6, 0), radius * 1.18, 0.7)
+  for side in [-1'f32, 1'f32]:
+    bobbin.addTube([vec3(radius, 15.5, side * radius * 0.85),
+      vec3(length - 2, 15.5, side * radius * 0.85)], 0.65)
+    band.addTube([vec3(0, 8, side * radius), vec3(length, 8, side * radius)], 0.45)
+  inlay.addFlatPolygon([vec2(7, -3), vec2(length - 1, 0), vec2(7, 3)], 18.8)
+  bobbin.addWall(vec2(10, 0), vec2(length * 0.55, 0), 0.7, 18.8, 19.1)
+  shape.parts
 
 proc buildPlate(shape: var PieceShape, piece: Component, radius, size: float32) =
   ## Standup, drop and toggle targets: an upright plate across the rotation.
@@ -216,7 +267,7 @@ proc addRim(shape: var PieceShape, radius: float32, material: ToonMaterial) =
     [vec2(radius, 0), vec2(radius, 3), vec2(radius - 3, 3), vec2(radius - 4.5, 0.4)])
 
 proc addArrow(shape: var PieceShape, degrees, length: float32, material: ToonMaterial,
-              lamp = false, colour = White, at = vec2(0, 0)) =
+              lamp = false, colour = White, at = vec2(0, 0), height = 0.9'f32) =
   ## A flat arrowhead on the piece that points along `degrees` (of the piece).
   let
     along = vec2(cos(degToRad(degrees)), sin(degToRad(degrees)))
@@ -225,16 +276,37 @@ proc addArrow(shape: var PieceShape, degrees, length: float32, material: ToonMat
                at - along * length * 0.25, at - along * length * 0.6 - across * length * 0.75]
     mesh = if lamp: shape.addLamp(colour) else: shape.add(material, castsShadow = false)
   # The outline is a dart, which is not convex, so it is laid as two triangles.
-  mesh.addFlatPolygon([outline[0], outline[1], outline[2]], 0.9)
-  mesh.addFlatPolygon([outline[0], outline[2], outline[3]], 0.9)
+  mesh.addFlatPolygon([outline[0], outline[1], outline[2]], height)
+  mesh.addFlatPolygon([outline[0], outline[2], outline[3]], height)
 
 proc buildHole(shape: var PieceShape, piece: Component, radius, size: float32) =
   ## Saucer, scoop, lock, kicker and kickback: things that lie in the table.
   let fireDegrees = toFloat32(piece.settings[setDirection] - piece.rotation)
   case piece.kind
-  of ckSaucer:
-    shape.add(flat(color(0.03, 0.04, 0.10, 1))).addDisc(vec3(0, 0.4, 0), radius - 3)
-    shape.addRim(radius, chrome())
+  of ckSaucer, ckKicker:
+    let
+      rim = shape.add(metal(Steel, 0.50))
+      inserts = shape.add(paint(OrbitalTrim))
+      socket = shape.add(paint(OrbitalEnamel))
+      centre = vec3(0, 0.35, 0)
+    socket.addLathe(ground(0, 0), [vec2(radius, 0), vec2(radius, 3.5),
+      vec2(radius * 0.72, 3.5), vec2(radius * 0.58, 0.45)])
+    rim.addHoop(vec3(0, 3.6, 0), radius * 0.73, radius * 0.043)
+    shape.add(flat(Pit)).addDisc(centre, radius * 0.62)
+    let vanes = shape.add(metal(DarkMetal, 0.38))
+    for i in 0 .. 6:
+      let angle = i.float32 * TAU.float32 / 7
+      let outer = vec2(cos(angle), sin(angle)) * radius
+      let inner = vec2(cos(angle - 0.48), sin(angle - 0.48)) * radius
+      vanes.addFlatPolygon([outer * 0.57, inner * 0.24, inner * 0.49], 0.55)
+    rim.addHoop(vec3(0, 2.8, 0), radius * 0.98, radius * 0.033)
+    for i in 0 .. 7:
+      let angle = i.float32 * TAU.float32 / 8
+      let at = vec3(cos(angle) * radius * 0.86, 3.55, sin(angle) * radius * 0.86)
+      inserts.addDome(at, radius * 0.09, 1.4)
+    rim.addDisc(vec3(0, 0.45, 0), radius * 0.38, radius * 0.32)
+    if piece.kind == ckKicker:
+      shape.addArrow(fireDegrees, radius * 0.35, flat(Orange))
   of ckScoop:
     shape.add(flat(Pit)).addDisc(vec3(0, 0.4, 0), radius - 1)
     # A hood round the back, away from where the ball comes out.
@@ -254,15 +326,25 @@ proc buildHole(shape: var PieceShape, piece: Component, radius, size: float32) =
     for corner in 0 ..< 4:
       let angle = degToRad(45 + corner.float32 * 90)
       cage.addPost(ground(cos(angle) * radius, sin(angle) * radius), 18, 1.6)
-  of ckKicker:
-    shape.add(metal(DarkMetal, 0.3), castsShadow = false).addDisc(vec3(0, 0.4, 0), radius)
-    shape.addRim(radius, chrome())
-    shape.addArrow(fireDegrees, radius * 0.62, flat(Orange))
-  else:  # Kickback: a square plate, and an arrow that is lit while it is armed.
-    shape.add(metal(DarkMetal, 0.3), castsShadow = false).addBox(
-      vec3(-radius, 0, -radius), vec3(radius, 0.5, radius))
-    shape.addArrow(fireDegrees, radius * 0.7, flat(White), lamp = true,
-      colour = LampColours[colourGreen])
+  else:  # Kickback. The direction and armed lamp still follow the table program.
+    let
+      along = vec2(cos(degToRad(fireDegrees)), sin(degToRad(fireDegrees)))
+      across = vec2(-along.y, along.x)
+      bezel = shape.add(metal(OrbitalEnamel, 0.32))
+      bars = shape.add(metal(Steel, 0.4))
+    bezel.addWall(-along * radius * 0.28, along * radius * 0.28, radius * 0.70, 0, 2.6)
+    shape.add(paint(DarkMetal)).addWall(-along * radius * 0.28, along * radius * 0.28,
+      radius * 0.55, 2.6, 3.3)
+    for side in [-1'f32, 1'f32]:
+      let offset = across * (radius * 0.60 * side)
+      bars.addWall(offset - along * radius * 0.26, offset + along * radius * 0.26,
+        1.2 * size, 2.6, 4.2)
+    for side in [-1'f32, 1'f32]:
+      for sign in [-1'f32, 1'f32]:
+        let at = across * (radius * 0.56 * side) + along * (radius * 0.39 * sign)
+        bars.addDome(vec3(at.x, 2.7, at.y), radius * 0.085, 1.3)
+    let green = LampColours[colourGreen]
+    shape.addArrow(fireDegrees, radius * 0.57, flat(White), true, green, height = 3.5)
 
 proc buildMagnet(shape: var PieceShape, piece: Component, radius: float32) =
   let colour = case toInt(piece.settings[setMode])
@@ -321,7 +403,31 @@ proc buildWall(shape: var PieceShape, piece: Component, radius: float32) =
   let path = wallPath(piece)
   case Surface(clamp(toInt(piece.settings[setBounce]), 0, ord(high(Surface))))
   of surfaceMetal:
-    shape.add(metal()).addWallPath(path, radius, 0, WallHeight)
+    let
+      clamps = shape.add(metal(Steel, 0.57))
+      rail = shape.add(metal(OrbitalEnamel, 0.24))
+      line = shape.add(paint(OrbitalTrim))
+    rail.addWallPath(path, radius, 0, WallHeight - 2)
+    line.addWallPath(path, radius * 0.55, WallHeight - 2, WallHeight)
+    for side in [-1'f32, 1'f32]:
+      var bead: seq[Vec3]
+      for i, at in path:
+        let tangent = normalize(path[min(i + 1, path.high)] - path[max(i - 1, 0)])
+        let edge = at + vec2(-tangent.y, tangent.x) * (radius * side * 0.87)
+        bead.add vec3(edge.x, WallHeight - 2.2, edge.y)
+      clamps.addTube(bead, radius * 0.18)
+    for i in 1 .. path.high:
+      let
+        a = path[i - 1]
+        b = path[i]
+        span = (b - a).length
+        count = max(1, int(span / 28'f32))
+        tangent = normalize(b - a)
+        normal = vec2(-tangent.y, tangent.x)
+      for j in 0 ..< count:
+        let centre = mix(a, b, (j.float32 + 0.5) / count.float32)
+        clamps.addWall(centre - normal * radius * 0.59, centre + normal * radius * 0.59,
+          radius * 0.35, WallHeight - 1.5, WallHeight + 0.9)
   of surfaceRubber:
     # A rubber band stretched between two posts.
     let posts = shape.add(chrome())

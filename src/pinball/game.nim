@@ -275,10 +275,11 @@ proc humanInput*(game: Game, command: Command) =
   command.seat = seatFlipper
   game.give command
 
-proc tick*(game: Game) =
+proc tick*(game: Game): bool {.discardable.} =
   ## Advance the game by one simulation tick (1/120 s): the programs decide
   ## when their turn comes, the table steps, and the hash is recorded. Does
-  ## nothing after the Episode has ended, until a restart.
+  ## nothing after the Episode has ended, until a restart. Returns true only
+  ## when the table stepped and its events and cues are fresh.
   if game.table.phase == episodeOver:
     game.waitAfterEpisode()
     return
@@ -290,6 +291,7 @@ proc tick*(game: Game) =
   if game.flipper != nil and game.table.tick mod FlipperDecisionTicks == 0:
     game.decideFlipper()
   game.table.step()
+  result = true
   game.hashes.add game.table.stateHash
 
   if game.table.events.len > 0:

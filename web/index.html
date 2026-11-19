@@ -12,6 +12,9 @@
   </head>
   <body data-chat="closed">
     <main class="stage">
+      <header class="marquee">
+        <h1><i class="orbit-mark" aria-hidden="true"></i>Pinball <em>Arena</em></h1>
+      </header>
       <div class="cabinet">
         <div class="table-area">
           <div class="table">
@@ -24,78 +27,62 @@
               <button type="button" class="lamp-button" id="play-again">PLAY AGAIN</button>
             </div>
           </div>
-
-          <div class="table-aside">
-            <dl class="keys" aria-label="Keys">
-              <div><dt><kbd>Z</kbd> <kbd>/</kbd></dt><dd>FLIPPERS</dd></div>
-              <div><dt><kbd>SPACE</kbd></dt><dd>PLUNGER</dd></div>
-              <div><dt><kbd>X</kbd> <kbd>.</kbd> <kbd>UP</kbd></dt><dd>NUDGE</dd></div>
-            </dl>
-            <button type="button" class="demo-toggle" id="demo-toggle" aria-pressed="false">WATCH DEMO</button>
-          </div>
         </div>
-
-        <aside class="side-panel" aria-label="Machine display">
-          <h1 class="title-plate">PINBALL <span>ARENA</span></h1>
-          <p class="ball-line" id="ball-line">BALL 1 OF 3</p>
-
+        <aside class="console" aria-label="Machine display">
           <div class="readout">
-            <span class="label">SCORE</span>
+            <div class="readout-head"><span class="label">Score</span><span id="ball-line">BALL 1 OF 3</span></div>
             <div class="score" id="score" role="img" aria-label="Score 0"></div>
+            <div class="status-line"><span class="flags" id="flags"></span><span id="clock">CLOCK -:-- LEFT</span></div>
           </div>
+          <button type="button" class="music-cycle" id="music-cycle" title="Cycle background music">♫ Music · Off</button>
+          <audio id="soundtrack" loop preload="none"></audio>
+          <div class="mode-switch">
+            <button type="button" id="chat-close" aria-controls="game-display" aria-pressed="true">Table</button>
+            <button type="button" id="chat-open" aria-controls="chat" aria-pressed="false">Cogent &amp; programs</button>
+          </div>
+          <section class="game-display" id="game-display" aria-label="Table status">
+            <div class="message message-quest"><h2 class="label">Quest</h2><p id="quest"></p></div>
+            <div class="message message-award"><h2 class="label">Last award</h2><p id="award"></p></div>
+            <dl class="keys" aria-label="Keyboard controls">
+              <div><dt>Flippers</dt><dd><kbd>Z</kbd> <kbd>/</kbd></dd></div>
+              <div><dt>Plunger</dt><dd><kbd>Space</kbd></dd></div>
+              <div><dt>Nudge</dt><dd><kbd>X</kbd> <kbd>.</kbd> <kbd>↑</kbd></dd></div>
+            </dl>
+            <button type="button" class="demo-toggle" id="demo-toggle" aria-pressed="false">Watch demo</button>
+          </section>
+          <section class="chat" id="chat" aria-label="Your cogent" hidden>
+            <section class="conversation" id="conversation" hidden>
+              <div class="cogent-state">
+                <p id="cogent-state" role="status"></p>
+                <button type="button" class="quiet-button" id="try-again" hidden>Try again</button>
+              </div>
+              <div class="chat-log" id="chat-log" aria-live="polite"></div>
+              <div class="chat-asks" id="chat-asks"></div>
+              <form class="composer" id="composer">
+                <label class="visually-hidden" for="chat-text">Message to your cogent</label>
+                <textarea id="chat-text" rows="2" placeholder="Ask for a table: more ramps, a harder quest…"></textarea>
+                <button type="submit" class="send-button">Send</button>
+              </form>
+              <p class="account"><span id="account-email"></span> <button type="button" class="quiet-button" id="sign-out">Sign out</button></p>
+            </section>
 
-          <div class="message message-quest">
-            <span class="label">QUEST</span>
-            <p id="quest"></p>
-          </div>
-          <div class="message message-award">
-            <span class="label">LAST AWARD</span>
-            <p id="award"></p>
-          </div>
+            <section class="signed-out" id="signed-out" hidden>
+              <p>The house program runs the table. Your own cogent can write new ones.</p>
+              <button type="button" class="sign-in" id="sign-in">Sign in with Softmax to connect your cogent</button>
+            </section>
 
-          <p class="flags" id="flags"></p>
-          <p class="clock" id="clock">CLOCK -:-- LEFT</p>
+            <section class="programs" aria-labelledby="programs-heading">
+              <div class="program-notice" id="program-notice" role="status" hidden>
+                <p class="program-notice-title" id="program-notice-title"></p>
+                <p class="program-notice-detail" id="program-notice-detail"></p>
+                <button type="button" class="lamp-button" id="restart-now">RESTART NOW</button>
+              </div>
+              <h3 id="programs-heading">PROGRAMS</h3>
+              <ul class="program-list" id="program-list"></ul>
+            </section>
+          </section>
         </aside>
       </div>
     </main>
-
-    <button type="button" class="chat-open" id="chat-open">COGENT</button>
-
-    <aside class="chat" id="chat" aria-label="Your cogent">
-      <header class="chat-head">
-        <h2>YOUR COGENT</h2>
-        <button type="button" class="quiet-button" id="chat-close">Hide</button>
-      </header>
-
-      <section class="conversation" id="conversation" hidden>
-        <div class="cogent-state">
-          <p id="cogent-state" role="status"></p>
-          <button type="button" class="quiet-button" id="try-again" hidden>Try again</button>
-        </div>
-        <div class="chat-log" id="chat-log" aria-live="polite"></div>
-        <div class="chat-asks" id="chat-asks"></div>
-        <form class="composer" id="composer">
-          <label class="visually-hidden" for="chat-text">Message to your cogent</label>
-          <textarea id="chat-text" rows="2" placeholder="Ask for a table: more ramps, a harder quest…"></textarea>
-          <button type="submit" class="send-button">Send</button>
-        </form>
-        <p class="account"><span id="account-email"></span> <button type="button" class="quiet-button" id="sign-out">Sign out</button></p>
-      </section>
-
-      <section class="signed-out" id="signed-out" hidden>
-        <p>The house program runs the table. Your own cogent can write new ones.</p>
-        <button type="button" class="sign-in" id="sign-in">Sign in with Softmax to connect your cogent</button>
-      </section>
-
-      <section class="programs" aria-labelledby="programs-heading">
-        <div class="program-notice" id="program-notice" role="status" hidden>
-          <p class="program-notice-title" id="program-notice-title"></p>
-          <p class="program-notice-detail" id="program-notice-detail"></p>
-          <button type="button" class="lamp-button" id="restart-now">RESTART NOW</button>
-        </div>
-        <h3 id="programs-heading">PROGRAMS</h3>
-        <ul class="program-list" id="program-list"></ul>
-      </section>
-    </aside>
   </body>
 </html>

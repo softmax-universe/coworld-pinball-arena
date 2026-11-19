@@ -109,6 +109,8 @@ proc eventCue(table: Table, event: Event): SoundCue =
   of evPassed: cueGate
   of evSwitched, evRaised, evLowered: cueClack
   of evFlipperUp: cueClack
+  of evPlungerPulled: cuePlungerPull
+  of evNudge: cueNudge
   of evBallLaunched: cueLaunch
   of evTiltWarning: cueWarning
   of evTilt: cueTilt

@@ -215,6 +215,17 @@ messages, the methods, and what the page expects in reply to a `surface.event`. 
 sends the cogent no instructions: a chat message carries only what the person wrote, and the
 cogent learns the game from [`docs/cogent/`](cogent/README.md).
 
+## The Softmax-hosted preview (`coworld/`)
+
+Softmax can run a Coworld only as a container that plays an episode by itself, so the hosted
+version is a preview: the Flipper seat alone, played by a BASIC file, on the house table.
+`coworld/server.py` is a thin game server of the Coworld contract around the command-line
+runner. It adds no game logic: `headless --flipper FILE --preview PATH` plays the Episode,
+and the server turns the summary into the results, the seat log and the replay.
+[`coworld/README.md`](../coworld/README.md) has the details, and [`play.md`](../play.md) is
+for people who submit programs. The browser game does not use any of it, except that its
+AIDE scope names the registered Coworld and league.
+
 ## Where the build departs from the design
 
 | Design | Build | Why |

@@ -17,6 +17,11 @@ fakes; see [What is not verified](#what-is-not-verified).
 > game is, what you can send, where every fact is, and what to save in your own knowledge
 > base. The rest of this page is for people who run and change the code.
 
+There is also a **Softmax-hosted preview**, the Coworld `pinball-arena`. It is not the game:
+one BASIC program plays the flippers on the house table, with no person and no table
+building. [`play.md`](play.md) says how to take part, and
+[`coworld/README.md`](coworld/README.md) describes the package.
+
 ## The two seats
 
 | Seat | Who holds it | Aim |
@@ -52,6 +57,8 @@ Each fact is written down once, in the place below.
 | The design (Final): how the game looks, feels and behaves. Appendix I lists what is settled | [`docs/designs/pinball-arena-2026-11-16.html`](docs/designs/pinball-arena-2026-11-16.html) |
 | The script hosts, for people who change them | [`src/pinball/script/README.md`](src/pinball/script/README.md) |
 | The server part: sign-in and the cogent's WebSocket | [`server/README.md`](server/README.md) |
+| Taking part in the Softmax-hosted preview: write, test, upload and submit a Flipper program | [`play.md`](play.md) |
+| The Coworld package of the preview: what is registered, how an episode runs, how to upload again | [`coworld/README.md`](coworld/README.md) |
 | Assets and their licences | [`assets/LICENSES.md`](assets/LICENSES.md) |
 | Setting up, playing, testing and deploying | This page |
 
@@ -124,6 +131,7 @@ nim r src/pinball/headless.nim --arena my_table.bas          # your own table pr
 nim r src/pinball/headless.nim --flipper my_flipper.bas      # your own Flipper program
 nim r src/pinball/headless.nim --record episode.replay
 nim r src/pinball/headless.nim --replay episode.replay       # verify a recording
+nim r src/pinball/headless.nim --preview preview.json        # a small picture of the Episode for a viewer
 ```
 
 It plays one Episode, prints the Episode summary (the same JSON the page reports to the
@@ -156,6 +164,9 @@ web/                    the page (plain JavaScript modules), fonts
 docs/cogent/            for a cogent: getting started, the game API, BASIC, both seats
 docs/                   architecture, the design, the screenshot
 server/, api/           the Node server part and the Vercel function
+coworld/                the Softmax-hosted preview: its game server and replay page
+Dockerfile, compose.yaml, coworld_manifest_template.json   the preview's image and manifest
+play.md                 how to take part in the preview
 assets/                 sounds and the licence record
 tests/, web/test/, server/test/
 ```
@@ -168,10 +179,12 @@ tests/, web/test/, server/test/
   contract files. The game API itself (programs for both seats, `run`, `state`, the game's
   messages) was tried against the real game in a browser, over a transport that has since
   been removed, and not yet through an AIDE connection.
-- **The Coworld scope.** The page uses the AIDE scope `{scope: "coworld", coworld, league}`,
-  but Pinball Arena is not registered as a Coworld, so both ids are stand-ins
-  (`GAME_SCOPE` in `web/js/main.js`). A real workspace may refuse them. Registering the game
-  needs a game container, a manifest and certification, none of which exist yet.
+- **The Coworld scope with a real workspace.** The page uses the AIDE scope
+  `{scope: "coworld", coworld, league}` with the ids of the registered preview Coworld
+  (`GAME_SCOPE` in `web/js/main.js`). No workspace has been asked to accept them yet.
+- **The hosted preview beyond certification.** The Coworld passed local and hosted
+  certification with the demo player. Nobody has submitted a program through a league yet,
+  and `coworld/server.py` has no tests of its own.
 - **`policy.list` on the relay.** The page answers it as softmax pull request 32249 defines
   it. That request was still open when this was written, so the relay may not pass it on yet.
 - **That a cogent finds and uses the documentation.** The page sends the cogent no

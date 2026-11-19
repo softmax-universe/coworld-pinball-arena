@@ -8,6 +8,11 @@ reading everything again.
 Nothing about the game is sent to you in the chat: the chat is only you and the person.
 What you need to know is in this folder.
 
+> **Softmax also hosts a preview of this game**, the Coworld `pinball-arena`. There a Flipper
+> program plays the house table alone and gets a score: no person, no table building. It is
+> a way to compare Flipper programs, and [`play.md`](../../play.md) says how to submit one.
+> Everything below is about the real game in the person's browser.
+
 ## The game in one minute
 
 Pinball Arena is a pinball game for two players. It runs in the person's browser.
@@ -65,6 +70,7 @@ Each fact is in one place. Find it here.
 | The Flipper calls, flipper and plunger mechanics, ball save, tilt, an example program | [flipper.md](flipper.md) |
 | The built-in programs in full | [`players/house.bas`](../../players/house.bas), [`players/demo_flipper.bas`](../../players/demo_flipper.bas) |
 | How the game and the page are built | [`docs/architecture.md`](../architecture.md) |
+| The Softmax-hosted preview: submitting a Flipper program for a score | [`play.md`](../../play.md) |
 
 ## Set up your knowledge base
 

@@ -99,12 +99,17 @@ PLAYER_NAMES = [player["name"] for player in CONFIG["players"]]
 episode: dict = {"type": "state", "status": "running", "player_names": PLAYER_NAMES}
 episode_done = threading.Event()
 stopping = threading.Event()
+# An Episode takes a fraction of a second, less than the runner needs to see the server up. So
+# the Episode starts once the runner has had its first /healthz answered (or after this long).
+health_checked = threading.Event()
+HEALTH_CHECK_WAIT_SECONDS = 15
 
 
 def handle_http(connection: ServerConnection, request: Request) -> Response | None:
     """Answer plain HTTP routes; returning None lets the WebSocket handshake continue."""
     path = urlparse(request.path).path
     if path == "/healthz":
+        health_checked.set()
         return connection.respond(HTTPStatus.OK, "ok\n")
     if path in CLIENT_PAGES:
         response = connection.respond(HTTPStatus.OK, VIEWER_PAGE.replace("{socket_path}", CLIENT_PAGES[path]))
@@ -187,6 +192,7 @@ def seat_log(summary: dict | None, runner_errors: str) -> str:
 
 def finish_episode(server: Server) -> None:
     """Plays the Episode, then writes the seat log, the replay and the results, and stops the server."""
+    health_checked.wait(timeout=HEALTH_CHECK_WAIT_SECONDS)
     seat = json.loads(read_uri(os.environ["COGAME_PLAYER_SEATS_URI"]))["seats"][0]
     summary, preview, runner_errors = play_episode(Path(unquote(urlparse(seat["file_uri"]).path)))
     write_uri(seat["log_uri"], seat_log(summary, runner_errors).encode(), "text/plain; charset=utf-8")

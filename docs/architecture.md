@@ -194,8 +194,15 @@ maps the AIDE requests onto `game-api.js`:
 | AIDE | Game API |
 | --- | --- |
 | `policy.create`, `policy.update` (cogent to page) | `api.create` / `api.update`: store the program, make it active, load it. The seat comes from the source (`' @seat flipper`, else Arena) at creation |
+| `policy.list` (cogent to page) | `api.policies()`: the name and version of every deployed program. The built-in programs are left out, because the contract allows no version 0 |
 | `surface.act` (cogent to page) | `api.handle(data)`: one request `{method, params}`. The reply's `data` is `{result}` or `{error}`. An unknown method is answered `unsupported` |
 | `surface.event` (page to cogent) | `episode.summary` and `program.failed`, always. `game.messages` while subscribed: the game's `hud`, `events` and `programLoaded` messages, unchanged |
+
+The page plays in one AIDE scope, its Coworld and league (`GAME_SCOPE` in `main.js`; the ids
+are provisional until the game is registered as a Coworld). It sends that scope with
+everything, refuses a policy or a `surface.act` that names another with `forbidden`, answers
+`policy.list` for another scope with an empty list, and repeats a question's scope in its
+`clarification.response`. A stored session that was opened in another scope is replaced.
 
 Two things follow from the AIDE contract. A `surface.act` belongs to its connection, so a
 late answer is dropped after a reconnect and the subscription ends when the connection

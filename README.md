@@ -32,7 +32,7 @@ phase (10 seconds at most), then three balls, and at most 8 minutes of play.
 
 The game runs in the browser, so there is no game server. Everything the cogent does goes
 over its one AIDE 1.0.0 connection with the page: `policy.create` and `policy.update` deploy
-a program for a seat, `surface.act` carries a request to the game (run BASIC calls now, read
+a program for a seat, `policy.list` says which are deployed, `surface.act` carries a request to the game (run BASIC calls now, read
 the table, manage programs, subscribe), and `surface.event` carries what the game tells the
 cogent. The page puts nothing about the game into the chat.
 [`docs/cogent/game-api.md`](docs/cogent/game-api.md) is the one reference for these messages.
@@ -163,11 +163,17 @@ tests/, web/test/, server/test/
 ## What is not verified
 
 - **A real cogent.** Sign-in, the WebSocket pass-through, chat, `policy.create` /
-  `policy.update`, `surface.act` and `surface.event` with a real workspace have never run.
+  `policy.update` / `policy.list`, `surface.act` and `surface.event` with a real workspace have never run.
   The page's client and session are tested against a fake socket built from the AIDE 1.0.0
   contract files. The game API itself (programs for both seats, `run`, `state`, the game's
   messages) was tried against the real game in a browser, over a transport that has since
   been removed, and not yet through an AIDE connection.
+- **The Coworld scope.** The page uses the AIDE scope `{scope: "coworld", coworld, league}`,
+  but Pinball Arena is not registered as a Coworld, so both ids are stand-ins
+  (`GAME_SCOPE` in `web/js/main.js`). A real workspace may refuse them. Registering the game
+  needs a game container, a manifest and certification, none of which exist yet.
+- **`policy.list` on the relay.** The page answers it as softmax pull request 32249 defines
+  it. That request was still open when this was written, so the relay may not pass it on yet.
 - **That a cogent finds and uses the documentation.** The page sends the cogent no
   instructions, so it knows the game only if it has this repository and reads
   `docs/cogent/`. No cogent has done so yet.

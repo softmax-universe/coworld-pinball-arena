@@ -15,6 +15,14 @@ import { createProgramsPanel, effectLine, failureLine } from './programs-panel.j
 import { createProgramStore, effectOf } from './programs.js'
 import { createSidePanel, drawScore } from './side-panel.js'
 
+/**
+ * The AIDE scope of this game: its Coworld and league. Everything the page sends the cogent carries
+ * it, and the page acts only on policies and game requests that name it.
+ *
+ * PROVISIONAL: Pinball Arena is not registered as a Coworld yet, so both ids are stand-ins.
+ * Replace them with the registered Coworld id and league id (README, "What is not verified").
+ */
+const GAME_SCOPE = { scope: 'coworld', coworld: 'pinball-arena', league: 'pinball-arena' }
 /** Below this the chat is a drawer over the table instead of a column beside it. Matches styles.css. */
 const DRAWER_LAYOUT = '(max-width: 1099px), (max-aspect-ratio: 1/1)'
 
@@ -201,6 +209,7 @@ function startChat(email) {
     const connection = connectCogent({
       workspaceId,
       api,
+      scope: GAME_SCOPE,
       storage: localStorage,
       onUnreachable: chatPanel.setUnreachable,
     })

@@ -60,6 +60,19 @@ test('an updated program keeps its seat, is made active again and sent to the ga
   assert.throws(() => api.create('catcher', SOURCE), { code: 'conflict' })
 })
 
+test('the policies are the deployed programs of both seats, without the built-in ones', () => {
+  const { api } = start()
+  assert.deepEqual(api.policies(), [])
+  api.create('ramps', SOURCE)
+  api.create('catcher', "' @seat flipper\nflip(left, 1)")
+  api.update('ramps', SOURCE)
+  // Every version is 1 or more, as the contract's `PolicyVersion` requires.
+  assert.deepEqual(api.policies(), [
+    { name: 'catcher', version: 1 },
+    { name: 'ramps', version: 2 },
+  ])
+})
+
 test('a request can list, read, activate and remove the stored programs', async () => {
   const { game, api, call } = start()
   api.create('ramps', SOURCE)

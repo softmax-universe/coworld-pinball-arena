@@ -4,7 +4,7 @@
  * `docs/cogent/game-api.md` describes all of it for the cogent.
  *
  * A program arrives as an AIDE policy (`policy.create`, `policy.update`): `create` and `update`
- * below store it and make it active.
+ * below store it and make it active. `policies` answers `policy.list`.
  *
  * Everything else arrives as a `surface.act` whose data is a request, `{ method, params }`, for
  * `handle`. The answer is `{ result }` or `{ error: { code, message } }`. After `subscribe`, the
@@ -139,6 +139,11 @@ export function createGameApi({ programs, game, onProgramsChanged = () => {} }) 
     create: (name, source) => deploy(programs.add(name, seatOf(source), source)),
     /** `policy.update`: a new source for a stored program. It keeps its seat. */
     update: (name, source) => deploy(programs.update(name, source)),
+    /**
+     * `policy.list`: `{ name, version }` of every program the cogent deployed, of both seats. The
+     * built-in programs are left out: they are not policies, and the contract has no version 0.
+     */
+    policies: () => programs.list().filter((program) => !program.builtIn).map(({ name, version }) => ({ name, version })),
 
     /**
      * Resolves with the answer to one request. It never rejects. `run` and `state` are answered a

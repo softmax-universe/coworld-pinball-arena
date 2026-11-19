@@ -7,7 +7,9 @@ import { createCogentSession, requestWording } from '../js/cogent-session.js'
 // Contract files: notes/aide-1.0.0/protocol.md ("protocol.md"), asyncapi.json, examples.json.
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-const WORKSPACE_SCOPE = { scope: 'workspace', coworld: null, league: null }
+// The game's scope: asyncapi.json `Scope`, the Coworld form. The ids are the test's own.
+const SCOPE = { scope: 'coworld', coworld: 'coworld-test', league: 'league-test' }
+const OTHER_SCOPE = { scope: 'coworld', coworld: 'coworld-test', league: 'another-league' }
 
 const RUNNING_ID = '55555555-5555-4555-8555-555555555555'
 const RESUMED_ID = '66666666-6666-4666-8666-666666666666'
@@ -33,7 +35,7 @@ function requestRecord(requestId, status, extra = {}) {
   return {
     request_id: requestId,
     session_id: 'session-1',
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
     origin: 'user',
     status,
     created_at: '2026-11-05T14:01:00Z',
@@ -60,7 +62,7 @@ function sessionRecord(requests = [], extra = {}) {
       .filter((request) => !terminal.includes(request.status))
       .map((request) => request.request_id),
     pending: [],
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
     revision: 1,
     requests,
     ...extra,
@@ -182,6 +184,7 @@ function fakeApi() {
       api.calls.push(['update', name, source])
       return { name, version: 2 }
     },
+    policies: () => [{ name: 'catcher', version: 2 }],
     handle(request) {
       api.calls.push(['handle', request])
       if (request.method === 'teleport') return Promise.resolve({ error: { code: 'unknown_method', message: 'There is no method teleport.' } })
@@ -213,7 +216,7 @@ function start(options = {}) {
   const client = options.client ?? fakeClient()
   const storage = options.storage ?? fakeStorage()
   const api = fakeApi()
-  const session = createCogentSession({ client, storage, api })
+  const session = createCogentSession({ client, storage, api, scope: SCOPE })
   return { client, storage, session, api }
 }
 
@@ -241,12 +244,12 @@ test('the first connection opens a session as the pinball-arena client, then rea
   )
   // asyncapi.json `session_openParams`, `Scope` (all three keys, the nulls included) and `Client`.
   assert.deepEqual(client.calls[0].params, {
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
     client: { id: 'pinball-arena', kind: 'web', guide: 'pinball-arena' },
   })
   // asyncapi.json `chat_historyParams`: `session_id` and `scope` are required.
   assert.equal(client.calls[1].params.session_id, 'session-1')
-  assert.deepEqual(client.calls[1].params.scope, WORKSPACE_SCOPE)
+  assert.deepEqual(client.calls[1].params.scope, SCOPE)
   assert.equal(session.state.sessionId, 'session-1')
   assert.equal(session.state.cogent, 'ready')
 })
@@ -270,21 +273,21 @@ test('after a reload the page reads the session, then history, then events for e
     ['state.get', 'chat.history', 'chat.events', 'chat.events'],
   )
   // asyncapi.json `state_getParams`; examples.json "Reload → read requests → show failure → retry".
-  assert.deepEqual(client.calls[0].params, { resource: 'sessions', id: 'session-1', scope: WORKSPACE_SCOPE })
+  assert.deepEqual(client.calls[0].params, { resource: 'sessions', id: 'session-1', scope: SCOPE })
   assert.equal(client.calls[1].params.session_id, 'session-1')
-  assert.deepEqual(client.calls[1].params.scope, WORKSPACE_SCOPE)
+  assert.deepEqual(client.calls[1].params.scope, SCOPE)
   // asyncapi.json `chat_eventsParams`; `{attempt:n, seq:0}` is the start of attempt n (protocol.md "Chat events").
   assert.deepEqual(client.calls[2].params, {
     session_id: 'session-1',
     request_id: RUNNING_ID,
     after: { attempt: 0, seq: 0 },
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
   })
   assert.deepEqual(client.calls[3].params, {
     session_id: 'session-1',
     request_id: RESUMED_ID,
     after: { attempt: 2, seq: 0 },
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
   })
 
   assert.equal(requestState(session, RUNNING_ID).status, 'running')
@@ -305,6 +308,27 @@ test('a stored session the workspace no longer has is replaced by a new one', as
     ['state.get', 'session.open', 'chat.history'],
   )
   assert.equal(client.calls[2].params.session_id, 'session-2')
+  assert.equal(session.state.sessionId, 'session-2')
+})
+
+test('a stored session that was opened in another scope is replaced by a new one', async () => {
+  const storage = fakeStorage()
+  await startBound({ storage })
+
+  // protocol.md "Session scope": a session keeps its scope, and a read with another scope is `forbidden`.
+  const client = fakeClient()
+  const readSession = client.replies['state.get']
+  client.replies['state.get'] = (params) => {
+    if (params.resource === 'sessions') throw new AideError('forbidden', 'The scope does not match.')
+    return readSession(params)
+  }
+  client.session = sessionRecord([], { id: 'session-2' })
+  const { session } = await startBound({ storage, client })
+
+  assert.deepEqual(
+    client.calls.map((call) => call.method),
+    ['state.get', 'session.open', 'chat.history'],
+  )
   assert.equal(session.state.sessionId, 'session-2')
 })
 
@@ -330,7 +354,7 @@ test('after a reconnect events are read from the last cursor the page applied', 
     session_id: 'session-1',
     request_id: id,
     after: { attempt: 0, seq: 2 },
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
   })
 })
 
@@ -343,7 +367,7 @@ test('a session record without the optional request list still gets its open req
 
   assert.deepEqual(
     client.sent('chat.events').map((call) => call.params),
-    [{ session_id: 'session-1', request_id: RUNNING_ID, after: { attempt: 0, seq: 0 }, scope: WORKSPACE_SCOPE }],
+    [{ session_id: 'session-1', request_id: RUNNING_ID, after: { attempt: 0, seq: 0 }, scope: SCOPE }],
   )
 })
 
@@ -370,7 +394,7 @@ test('an event that arrives out of order makes the page read the missed ones', a
     session_id: 'session-1',
     request_id: id,
     after: { attempt: 0, seq: 1 },
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
   })
 
   const readsAfterTheGap = client.sent('chat.events').length
@@ -406,11 +430,11 @@ test('on aide.presence the page rereads each open request, but not one held unti
   // protocol.md: "On any `aide.presence`, read every open request's record and its events from the last applied cursor."
   assert.deepEqual(
     client.sent('state.get').map((call) => call.params),
-    [{ resource: 'requests', id: RUNNING_ID, scope: WORKSPACE_SCOPE }],
+    [{ resource: 'requests', id: RUNNING_ID, scope: SCOPE }],
   )
   assert.deepEqual(
     client.sent('chat.events').map((call) => call.params),
-    [{ session_id: 'session-1', request_id: RUNNING_ID, after: { attempt: 0, seq: 0 }, scope: WORKSPACE_SCOPE }],
+    [{ session_id: 'session-1', request_id: RUNNING_ID, after: { attempt: 0, seq: 0 }, scope: SCOPE }],
   )
   // protocol.md: "A frontend must not read a `waiting` request before its `waiting.until`".
   assert.ok(!JSON.stringify(client.calls).includes(HELD_ID))
@@ -432,7 +456,7 @@ test('a chat message goes out with chat.send and carries only what the person wr
   assert.deepEqual(sent.params, {
     session_id: 'session-1',
     messages: [{ role: 'user', content: 'more ramps' }],
-    scope: WORKSPACE_SCOPE,
+    scope: SCOPE,
   })
   assert.equal(requestState(session, id).status, 'queued')
   assert.equal(session.state.cogent, 'busy')
@@ -559,7 +583,7 @@ test('cancel asks the workspace to stop one request', async () => {
   // asyncapi.json `chat_cancelParams`.
   assert.deepEqual(
     client.sent('chat.cancel').map((call) => call.params),
-    [{ session_id: 'session-1', request_id: id, scope: WORKSPACE_SCOPE }],
+    [{ session_id: 'session-1', request_id: id, scope: SCOPE }],
   )
 })
 
@@ -712,18 +736,18 @@ test('a question from the cogent is taken at once and answered later with clarif
   const questionId = '77777777-7777-4777-8777-777777777777'
 
   // examples.json "Non-blocking clarification → later answer"; `session_id` is optional and left out here.
-  const reply = client.callAgent('clarification.request', { prompt: 'Which side should the ramp go on?' }, questionId)
+  const reply = client.callAgent('clarification.request', { prompt: 'Which side should the ramp go on?', scope: SCOPE }, questionId)
   assert.deepEqual(reply, { accepted: true })
-  assert.deepEqual(session.state.questions, [{ id: questionId, prompt: 'Which side should the ramp go on?' }])
+  assert.deepEqual(session.state.questions, [{ id: questionId, prompt: 'Which side should the ramp go on?', scope: SCOPE }])
   assert.equal(client.sent('clarification.response').length, 0)
 
   session.answerQuestion(questionId, 'The left side.')
   await settle()
 
-  // asyncapi.json `clarification_responseParams`: only `request_id` and `answer`; no session, no scope.
+  // asyncapi.json `clarification_responseParams`: `request_id`, `answer`, and the scope of the question repeated.
   assert.deepEqual(
     client.sent('clarification.response').map((call) => call.params),
-    [{ request_id: questionId, answer: 'The left side.' }],
+    [{ request_id: questionId, answer: 'The left side.', scope: SCOPE }],
   )
   assert.deepEqual(session.state.questions, [])
 })
@@ -732,8 +756,8 @@ test('after a reconnect an open question can still be answered and an answered o
   const { client, session } = await startBound()
   const answeredId = '77777777-7777-4777-8777-777777777777'
   const openId = '88888888-8888-4888-8888-888888888888'
-  client.callAgent('clarification.request', { prompt: 'Left or right?', session_id: 'session-1' }, answeredId)
-  client.callAgent('clarification.request', { prompt: 'How many bumpers?', session_id: 'session-1' }, openId)
+  client.callAgent('clarification.request', { prompt: 'Left or right?', session_id: 'session-1', scope: SCOPE }, answeredId)
+  client.callAgent('clarification.request', { prompt: 'How many bumpers?', session_id: 'session-1', scope: SCOPE }, openId)
   session.answerQuestion(answeredId, 'Left.')
   await settle()
 
@@ -748,12 +772,12 @@ test('after a reconnect an open question can still be answered and an answered o
     ['state.get', 'chat.history'],
   )
   // protocol.md "Non-blocking clarifications": a question still held after a reconnect may be answered.
-  assert.deepEqual(session.state.questions, [{ id: openId, prompt: 'How many bumpers?' }])
+  assert.deepEqual(session.state.questions, [{ id: openId, prompt: 'How many bumpers?', scope: SCOPE }])
   session.answerQuestion(openId, 'Three.')
   await settle()
   assert.deepEqual(
     client.sent('clarification.response').map((call) => call.params),
-    [{ request_id: openId, answer: 'Three.' }],
+    [{ request_id: openId, answer: 'Three.', scope: SCOPE }],
   )
 })
 
@@ -789,13 +813,13 @@ test('a pending approval is shown and answered with input.respond', async () => 
         session_id: 'session-1',
         request_id: detailed.request_id,
         response: { kind: 'approval', choice: 'once' },
-        scope: WORKSPACE_SCOPE,
+        scope: SCOPE,
       },
       {
         session_id: 'session-1',
         request_id: bare.request_id,
         response: { kind: 'approval', choice: 'deny' },
-        scope: WORKSPACE_SCOPE,
+        scope: SCOPE,
       },
     ],
   )
@@ -805,26 +829,35 @@ test('a pending approval is shown and answered with input.respond', async () => 
 // Programs and game API requests from the cogent, and what the game tells it
 // ---------------------------------------------------------------------------------------------
 
-const WORKSPACE = { scope: 'workspace', coworld: null, league: null }
-
 test('policy.create and policy.update deploy the program and reply with name and version', async () => {
   const { client, api } = await startBound()
   // examples.json "Deploy a policy → update it".
   const source = "' @seat flipper\nflip(left, 1)"
-  assert.deepEqual(client.callAgent('policy.create', { name: 'catcher', scope: WORKSPACE, blob: { kind: 'text', text: source } }), {
+  assert.deepEqual(client.callAgent('policy.create', { name: 'catcher', scope: SCOPE, blob: { kind: 'text', text: source } }), {
     name: 'catcher',
     version: 1,
   })
-  assert.deepEqual(client.callAgent('policy.update', { name: 'catcher', scope: WORKSPACE, blob: { kind: 'text', text: 'PRINT 2' } }), {
+  assert.deepEqual(client.callAgent('policy.update', { name: 'catcher', scope: SCOPE, blob: { kind: 'text', text: 'PRINT 2' } }), {
     name: 'catcher',
     version: 2,
   })
   assert.deepEqual(api.calls, [['create', 'catcher', source], ['update', 'catcher', 'PRINT 2']])
 })
 
+test('policy.list answers with the name and version of every deployed program', async () => {
+  const { client, api } = await startBound()
+  // asyncapi.json `policy_listParams` and `policy_listResult` (softmax PR 32249): only `scope` in, `{items}` out.
+  assert.deepEqual(client.callAgent('policy.list', { scope: SCOPE }), { items: [{ name: 'catcher', version: 2 }] })
+  // The page holds no policy that plays in another scope, and none at all is an empty list, not `unsupported`.
+  assert.deepEqual(client.callAgent('policy.list', { scope: OTHER_SCOPE }), { items: [] })
+  assert.deepEqual(client.callAgent('policy.list', { scope: { scope: 'workspace', coworld: null, league: null } }), { items: [] })
+  api.policies = () => []
+  assert.deepEqual(client.callAgent('policy.list', { scope: SCOPE }), { items: [] })
+})
+
 test('a policy the store refuses is answered with the contract error code', async () => {
   const { client, api } = await startBound()
-  const policy = { name: 'ramps', scope: WORKSPACE, blob: { kind: 'text', text: 'PRINT 1' } }
+  const policy = { name: 'ramps', scope: SCOPE, blob: { kind: 'text', text: 'PRINT 1' } }
   // protocol.md "Policies": conflict, not_found, too_large and forbidden. Anything else is unsupported.
   for (const code of ['conflict', 'too_large']) {
     api.create = refusal(code)
@@ -841,19 +874,30 @@ test('a policy the store refuses is answered with the contract error code', asyn
   }
   assert.throws(() => client.callAgent('policy.create', policy), { code: 'unsupported' })
   // "Larger or binary content needs a new blob `kind`".
-  const archive = { name: 'ramps', scope: WORKSPACE, blob: { kind: 'archive', url: 'https://example.invalid/ramps.zip' } }
+  const archive = { name: 'ramps', scope: SCOPE, blob: { kind: 'archive', url: 'https://example.invalid/ramps.zip' } }
   assert.throws(() => client.callAgent('policy.create', archive), { code: 'unsupported' })
 })
 
 test('a surface.act carries one game API request, and the reply carries its answer', async () => {
   const { client, api } = await startBound()
   // asyncapi.json `surface_actParams` and `surface_actResult`: the object travels in `data`.
-  const reply = await client.callAgent('surface.act', { scope: WORKSPACE, data: { method: 'state' } })
+  const reply = await client.callAgent('surface.act', { scope: SCOPE, data: { method: 'state' } })
   assert.deepEqual(reply, { data: { result: { score: 100 } } })
   assert.deepEqual(api.calls, [['handle', { method: 'state' }]])
 
   // "A recipient that does not understand an object returns `unsupported`."
-  await assert.rejects(client.callAgent('surface.act', { scope: WORKSPACE, data: { method: 'teleport' } }), { code: 'unsupported' })
+  await assert.rejects(client.callAgent('surface.act', { scope: SCOPE, data: { method: 'teleport' } }), { code: 'unsupported' })
+})
+
+test('a policy or a game request for another scope is refused with forbidden and does nothing', async () => {
+  const { client, api } = await startBound()
+  // protocol.md "Session scope": "The recipient checks the value".
+  const policy = { name: 'ramps', scope: OTHER_SCOPE, blob: { kind: 'text', text: 'PRINT 1' } }
+  assert.throws(() => client.callAgent('policy.create', policy), { code: 'forbidden' })
+  assert.throws(() => client.callAgent('policy.update', policy), { code: 'forbidden' })
+  assert.throws(() => client.callAgent('surface.act', { scope: OTHER_SCOPE, data: { method: 'restart' } }), { code: 'forbidden' })
+  assert.throws(() => client.callAgent('surface.act', { data: { method: 'restart' } }), { code: 'forbidden' })
+  assert.deepEqual(api.calls, [])
 })
 
 test('browser.snapshot and browser.act are answered with unsupported', async () => {
@@ -878,9 +922,9 @@ test('the messages of the game go out one surface.event at a time, the rest toge
   assert.deepEqual(
     client.sent('surface.event').map((call) => call.params),
     [
-      { scope: WORKSPACE, data: { kind: 'game.messages', messages: [{ type: 'hud', score: 10 }] } },
+      { scope: SCOPE, data: { kind: 'game.messages', messages: [{ type: 'hud', score: 10 }] } },
       {
-        scope: WORKSPACE,
+        scope: SCOPE,
         data: {
           kind: 'game.messages',
           messages: [
@@ -923,7 +967,7 @@ test('each Episode summary is one surface.event', async () => {
   const sent = client.sent('surface.event')
   assert.equal(sent.length, 1)
   assert.match(sent[0].id, UUID)
-  assert.deepEqual(sent[0].params, { scope: WORKSPACE, data: { kind: 'episode.summary', ...summary } })
+  assert.deepEqual(sent[0].params, { scope: SCOPE, data: { kind: 'episode.summary', ...summary } })
 })
 
 test('a program failure is one surface.event', async () => {
@@ -939,6 +983,6 @@ test('a program failure is one surface.event', async () => {
 
   assert.deepEqual(
     client.sent('surface.event').map((call) => call.params),
-    [{ scope: WORKSPACE, data: { kind: 'program.failed', ...failure } }],
+    [{ scope: SCOPE, data: { kind: 'program.failed', ...failure } }],
   )
 })

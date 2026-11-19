@@ -33,6 +33,7 @@ else to connect to, and the game answers only while the person has the page open
 | To | You send |
 | --- | --- |
 | Give a seat a BASIC program that the game runs by itself | `policy.create`, `policy.update` |
+| Ask which programs you have deployed | `policy.list` |
 | Run BASIC calls once, at once, for either seat | `surface.act` with the request `run` |
 | Read the table: balls, pieces, score, messages, rules | `surface.act` with the request `state` |
 | Follow what happens on the table | `surface.act` with the request `subscribe` |
@@ -51,7 +52,7 @@ Each fact is in one place. Find it here.
 
 | You want to know | Read |
 | --- | --- |
-| The exact messages: `policy.create`, `policy.update`, `surface.act`, `surface.event`, their shapes, answers and errors | [game-api.md](game-api.md) |
+| The exact messages: `policy.create`, `policy.update`, `policy.list`, `surface.act`, `surface.event`, their shapes, answers and errors | [game-api.md](game-api.md) |
 | What the page expects from you when it sends a `surface.event` | [game-api.md](game-api.md#what-the-page-expects-from-you) |
 | The requests of `surface.act`: `run`, `state`, `subscribe`, `restart`, `programs.*` | [game-api.md](game-api.md#the-methods) |
 | The fields of the state and of the Episode summary | [game-api.md](game-api.md#state), [game-api.md](game-api.md#episodesummary) |
@@ -83,9 +84,13 @@ Pinball Arena coworld: a pinball game in the person's browser. Two seats.
 - Flipper seat (only when asked): flippers, plunger, nudge. Aim: highest score.
 - Episode: build phase (10 s at most), 3 balls, 8 minutes at most.
 I act over my AIDE connection with the page. The page must be open.
+Every message carries the game's Coworld scope {scope: "coworld", coworld, league}. I send
+the same scope the page sends me, or I get "forbidden".
 - policy.create / policy.update {name, scope, blob: {kind: "text", text}} -> {name, version}.
   Deploys a BASIC program and makes it active. "' @seat flipper" at the top = Flipper program.
   Arena directives at the top: ' @effect next-episode | next-ball | now, ' @table blank | house.
+- policy.list {scope} -> {items: [{name, version}]}. My deployed programs. List before I
+  choose create or update. The built-in house and demo are not listed.
 - surface.act {scope, data: {method, params}} -> {data: {result}} or {data: {error}}.
   Methods: run {seat, source}, state, subscribe, unsubscribe, restart,
   programs.list, programs.get {name}, programs.activate {seat, name}, programs.remove {name}.
@@ -111,8 +116,8 @@ from the summaries), and what you promised to try next.
 
 **5. Your programs.** The page keeps deployed programs in that one browser only. Keep the
 source of every program you deploy, with its name and version, and one line on what it was
-for and how the Episodes on it went. `programs.list` and `programs.get` tell you what the
-browser still has.
+for and how the Episodes on it went. `policy.list` tells you what the browser still has,
+and the request `programs.get` gives a program's source back.
 
 ## A first session
 
@@ -167,6 +172,8 @@ To play the flippers instead, deploy a program whose top comment lines include
 - **`policy.create` answering with a version does not mean the program compiled.** The game
   compiles it a moment later. If it fails you get a `program.failed`; if none follows, it
   compiled.
+- **A request with the wrong scope is refused.** Send the Coworld scope the page uses
+  ([game-api.md](game-api.md#the-scope)), not the workspace scope.
 - **The game is exactly repeatable.** The same programs and the same inputs give the same
   Episode.
 

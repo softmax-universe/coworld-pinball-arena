@@ -1,6 +1,6 @@
 # The game API
 
-Every message between a cogent and the game: how to deploy a program (`policy.create`, `policy.update`), the requests you can send (`surface.act`), and what the page sends you and expects back (`surface.event`). New here? Read [README.md](README.md) first. The BASIC that programs and `run` are written in is in [basic.md](basic.md), [arena.md](arena.md) and [flipper.md](flipper.md).
+Every message between a cogent and the game: how to deploy a program (`policy.create`, `policy.update`), how to ask what is deployed (`policy.list`), the requests you can send (`surface.act`), and what the page sends you and expects back (`surface.event`). New here? Read [README.md](README.md) first. The BASIC that programs and `run` are written in is in [basic.md](basic.md), [arena.md](arena.md) and [flipper.md](flipper.md).
 
 ## The connection
 
@@ -9,13 +9,27 @@ The game runs in the person's browser. There is no game server. The page is the 
 | AIDE method | Who sends it | What the page does with it |
 | --- | --- | --- |
 | `policy.create`, `policy.update` | You | Stores a BASIC program and makes it play its seat ([Programs](#programs)) |
+| `policy.list` | You | Answers with the programs you have deployed ([Which programs are deployed](#which-programs-are-deployed)) |
 | `surface.act` | You | Carries out one request to the game and answers it ([Requests](#requests)) |
 | `surface.event` | The page | Tells you what the game did. You answer it ([What the page sends you](#what-the-page-sends-you)) |
 | `clarification.request` | You | Shows your question to the person. The page answers `{"accepted": true}` at once and sends the person's answer later as `clarification.response` |
 | `browser.snapshot`, `browser.act` | You | Not supported: answered with the error `unsupported` |
 | `chat.send` and the other chat and session methods | The page | The conversation between you and the person. The page puts nothing about the game into it |
 
-The page ignores the `scope` of what you send. In what it sends, the scope is always `{"scope": "workspace", "coworld": null, "league": null}`.
+### The scope
+
+Every message of the game carries one scope, the Coworld scope of Pinball Arena:
+
+```json
+{"scope": "coworld", "coworld": "pinball-arena", "league": "pinball-arena"}
+```
+
+- The page sends this scope with everything it sends: the session it opens, chat, and every `surface.event`.
+- **You must send the same scope** with `policy.create`, `policy.update` and `surface.act`. One with any other scope, or with the workspace scope, is answered with the error `forbidden` and does nothing.
+- `policy.list` with another scope is answered with an empty list: the page holds no program that plays anywhere else.
+- When you ask the person a question with `clarification.request`, the page repeats the scope of your question in its `clarification.response`.
+
+These two ids are provisional. Pinball Arena is not registered as a Coworld yet; when it is, the registered Coworld id and league id replace them. Read the scope from a `surface.event` or from the session the page opened, and do not keep the ids in your notes as fixed.
 
 ## Programs
 
@@ -26,7 +40,7 @@ A program is a BASIC program that the game runs by itself: an Arena program 12 t
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.create",
  "params": {"name": "ramp-school",
-            "scope": {"scope": "workspace", "coworld": null, "league": null},
+            "scope": {"scope": "coworld", "coworld": "pinball-arena", "league": "pinball-arena"},
             "blob": {"kind": "text", "text": "' @effect next-episode\nif built = 0 then ..."}}}
 ```
 
@@ -43,6 +57,7 @@ An error has its reason in `error.data.code`:
 | Code | When |
 | --- | --- |
 | `conflict` | `policy.create` with a name that is stored or built in. Use `policy.update` |
+| `forbidden` | A scope that is not the game's ([The scope](#the-scope)) |
 | `not_found` | `policy.update` with a name that is not stored |
 | `forbidden` | `policy.update` of `house` or `demo` |
 | `too_large` | A source over 256 KiB |
@@ -56,6 +71,22 @@ An error has its reason in `error.data.code`:
 - A program that does not compile is not loaded, and whoever held the seat before keeps it.
 - A program that fails while it runs never runs again. A failed Arena program leaves its table and rules as they are, and the rules keep working. A failed Flipper program leaves the flippers and the plunger released.
 
+### Which programs are deployed
+
+`policy.list` asks the page which programs it holds. Send it before you choose between `policy.create` and `policy.update`, and after a create or update whose answer never arrived, to learn whether it was applied.
+
+```json
+{"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.list",
+ "params": {"scope": {"scope": "coworld", "coworld": "pinball-arena", "league": "pinball-arena"}}}
+```
+
+The result is `{"items": [{"name": "ramp-school", "version": 3}, {"name": "catcher", "version": 1}]}`: every program you have deployed that the browser still holds, of both seats, in no set order. With none it is `{"items": []}`. With any scope but the game's it is `{"items": []}` too.
+
+- The built-in programs `house` and `demo` are **not** in the list, though their names are taken: `policy.create` with one answers `conflict` and `policy.update` answers `forbidden`.
+- The list has no seat, no source and no word on which program is active. The request `programs.list` ([The methods](#the-methods)) gives the seat and `active`, with the built-in programs, and `programs.get` gives the source.
+- It changes nothing, so you may send it again at any time, also after a reconnect.
+- `policy.list` is new in the AIDE contract (softmax pull request 32249). Until the relay accepts it, use `programs.list`.
+
 ## Requests
 
 ### What you send
@@ -64,7 +95,7 @@ A `surface.act` whose `data` is one request to the game, `{"method": ..., "param
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.act",
- "params": {"scope": {"scope": "workspace", "coworld": null, "league": null},
+ "params": {"scope": {"scope": "coworld", "coworld": "pinball-arena", "league": "pinball-arena"},
             "data": {"method": "run", "params": {"seat": "flipper", "source": "flip(left, 1)"}}}}
 ```
 
@@ -79,6 +110,7 @@ The result's `data` holds the answer of the game: `result` when the request was 
 
 - A refusal by the game is a normal result with `data.error`. Its codes: `invalid` (a bad param, or a program of the other seat), `not_found`, `forbidden` (a built-in program cannot be removed).
 - A `method` the game does not have is answered with the AIDE error `unsupported`.
+- A scope that is not the game's is answered with the AIDE error `forbidden`.
 - `run` and `state` are answered on the game's next frame, about 1/60 s after the request reaches the page. The other methods are answered at once.
 - A request belongs to the connection it arrived on. If the connection closes before the page has answered, no answer is sent, and the request must not be assumed done or not done: read `state`.
 - You may send requests without waiting for earlier answers. They are carried out in the order they arrive.
@@ -139,7 +171,7 @@ Everything the game tells you arrives as a `surface.event`: a request from the p
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.event",
- "params": {"scope": {"scope": "workspace", "coworld": null, "league": null},
+ "params": {"scope": {"scope": "coworld", "coworld": "pinball-arena", "league": "pinball-arena"},
             "data": {"kind": "episode.summary", "score": 41200, "endReason": "lastBallDrained", "...": "..."}}}
 ```
 

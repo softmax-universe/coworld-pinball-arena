@@ -4,7 +4,8 @@
  *
  * It sits between the other two modules. `aide-client.js` carries the messages; this module decides
  * which to send and when, following the AIDE 1.0.0 contract (the design document's Appendix D lists
- * the rules). The cogent deploys programs with `policy.create` and `policy.update`, acts on the
+ * the rules). The cogent deploys programs with `policy.create` and `policy.update`, asks which it
+ * has deployed with `policy.list`, acts on the
  * game with `surface.act`, which carries one request of the game API (`game-api.js`), and hears
  * from the game through `surface.event`.
  *
@@ -16,7 +17,6 @@
 import { AideError } from './aide-client.js'
 
 const SESSION_KEY = 'pinball-arena.session'
-const SCOPE = { scope: 'workspace', coworld: null, league: null }
 const CLIENT = { id: 'pinball-arena', kind: 'web', guide: 'pinball-arena' }
 
 const OPEN_STATUSES = ['queued', 'running', 'waiting']
@@ -64,13 +64,15 @@ export function requestWording(request) {
 
 /**
  * `client` is an AIDE client, `storage` is localStorage (it remembers the session id across
- * reloads) and `api` is the game API from `createGameApi`.
+ * reloads), `api` is the game API from `createGameApi` and `scope` is the AIDE scope of this game:
+ * `{ scope: 'coworld', coworld, league }`. Everything the page sends carries it, and the page
+ * acts only on policies and game requests that name it.
  *
  * A chat message carries the person's words and nothing from the game. The cogent learns how the
  * game works from the repository (`docs/cogent/`).
  * The caller connects the client; the session starts work each time the client reports a connection.
  */
-export function createCogentSession({ client, storage, api }) {
+export function createCogentSession({ client, storage, api, scope }) {
   const state = {
     /** `connecting`, `ready`, `busy`, `asleep` or `disconnected`. */
     cogent: 'connecting',
@@ -180,12 +182,13 @@ export function createCogentSession({ client, storage, api }) {
     if (readingSession) return
     readingSession = true
 
-    const openNew = () => client.request('session.open', { scope: SCOPE, client: CLIENT }).then((result) => result.session)
+    const openNew = () => client.request('session.open', { scope, client: CLIENT }).then((result) => result.session)
     const session = state.sessionId
-      ? client.request('state.get', { resource: 'sessions', id: state.sessionId, scope: SCOPE }).then(
+      ? client.request('state.get', { resource: 'sessions', id: state.sessionId, scope }).then(
           (result) => result.item,
           (error) => {
-            if (error.code === 'not_found') return openNew()
+            // `forbidden`: the stored session was opened in another scope, and a session keeps its scope.
+            if (error.code === 'not_found' || error.code === 'forbidden') return openNew()
             throw error
           },
         )
@@ -194,7 +197,7 @@ export function createCogentSession({ client, storage, api }) {
     session
       .then((record) => {
         installSession(record)
-        return client.request('chat.history', { session_id: record.id, scope: SCOPE })
+        return client.request('chat.history', { session_id: record.id, scope })
       })
       .then((history) => {
         history.items.forEach(addMessage)
@@ -271,7 +274,7 @@ export function createCogentSession({ client, storage, api }) {
 
   function rereadOpenRequests() {
     for (const request of readableRequests()) {
-      client.request('state.get', { resource: 'requests', id: request.id, scope: SCOPE }).then((result) => {
+      client.request('state.get', { resource: 'requests', id: request.id, scope }).then((result) => {
         installRequest(result.item)
         changed()
       }, noteWorkspaceAway)
@@ -288,7 +291,7 @@ export function createCogentSession({ client, storage, api }) {
     if (readingEvents.has(id)) return
     readingEvents.add(id)
     const after = cursors.get(id)
-    client.request('chat.events', { session_id: state.sessionId, request_id: id, after, scope: SCOPE }).then(
+    client.request('chat.events', { session_id: state.sessionId, request_id: id, after, scope }).then(
       (page) => {
         readingEvents.delete(id)
         cursors.set(id, page.next)
@@ -384,8 +387,8 @@ export function createCogentSession({ client, storage, api }) {
 
   // A question holds no work on the cogent's side. It is taken at once and answered whenever the
   // person gets to it.
-  client.handle('clarification.request', ({ prompt }, id) => {
-    state.questions.push({ id, prompt })
+  client.handle('clarification.request', ({ prompt, scope: askedIn }, id) => {
+    state.questions.push({ id, prompt, scope: askedIn })
     changed()
     return { accepted: true }
   })
@@ -394,12 +397,28 @@ export function createCogentSession({ client, storage, api }) {
   // The game API
   // -------------------------------------------------------------------------------------------
 
+  const isThisGame = (other) =>
+    other?.scope === scope.scope && other.coworld === scope.coworld && other.league === scope.league
+
+  /** The game plays in one Coworld and league. A policy or a game request for another is refused. */
+  function inScope(handler) {
+    return (params) => {
+      if (!isThisGame(params.scope)) {
+        throw new AideError('forbidden', 'This page plays only in its own Coworld and league.')
+      }
+      return handler(params)
+    }
+  }
+
   // A `surface.act` carries one request of the game API in `data`, and the reply carries its answer.
-  client.handle('surface.act', ({ data }) =>
-    api.handle(data).then((answer) => {
-      if (answer.error?.code === 'unknown_method') throw new AideError('unsupported', answer.error.message)
-      return { data: answer }
-    }),
+  client.handle(
+    'surface.act',
+    inScope(({ data }) =>
+      api.handle(data).then((answer) => {
+        if (answer.error?.code === 'unknown_method') throw new AideError('unsupported', answer.error.message)
+        return { data: answer }
+      }),
+    ),
   )
 
   // The messages of the game for a subscribed cogent. The relay allows a page few requests at a
@@ -413,7 +432,7 @@ export function createCogentSession({ client, storage, api }) {
     waitingMessages = []
     messagesOut = true
     client
-      .request('surface.event', { scope: SCOPE, data: { kind: 'game.messages', messages } })
+      .request('surface.event', { scope, data: { kind: 'game.messages', messages } })
       // Messages that did not get through are not sent again: `state` has the table as it is.
       .catch(() => {})
       .finally(() => {
@@ -439,8 +458,10 @@ export function createCogentSession({ client, storage, api }) {
       }
     }
   }
-  client.handle('policy.create', deployProgram((name, source) => api.create(name, source)))
-  client.handle('policy.update', deployProgram((name, source) => api.update(name, source)))
+  client.handle('policy.create', inScope(deployProgram((name, source) => api.create(name, source))))
+  client.handle('policy.update', inScope(deployProgram((name, source) => api.update(name, source))))
+  // Every program the page holds plays in its own scope, so it holds none for any other.
+  client.handle('policy.list', (params) => ({ items: isThisGame(params.scope) ? api.policies() : [] }))
 
   // browser.snapshot and browser.act get no handler, so the client answers `unsupported`.
 
@@ -459,7 +480,7 @@ export function createCogentSession({ client, storage, api }) {
       buildParams: () => ({
         session_id: state.sessionId,
         messages: [{ role: 'user', content: text }],
-        scope: SCOPE,
+        scope,
       }),
       onResult() {
         // A notification may already have reported a later status.
@@ -479,12 +500,14 @@ export function createCogentSession({ client, storage, api }) {
   }
 
   function cancel(requestId) {
-    post('chat.cancel', () => ({ session_id: state.sessionId, request_id: requestId, scope: SCOPE }))
+    post('chat.cancel', () => ({ session_id: state.sessionId, request_id: requestId, scope }))
   }
 
   function answerQuestion(questionId, answer) {
+    // The answer repeats the scope of the question.
+    const { scope: askedIn } = state.questions.find((question) => question.id === questionId)
     state.questions = state.questions.filter((question) => question.id !== questionId)
-    post('clarification.response', () => ({ request_id: questionId, answer }))
+    post('clarification.response', () => ({ request_id: questionId, answer, scope: askedIn }))
     changed()
   }
 
@@ -496,7 +519,7 @@ export function createCogentSession({ client, storage, api }) {
       session_id: state.sessionId,
       request_id: inputId,
       response: { kind: 'approval', choice },
-      scope: SCOPE,
+      scope,
     }))
     changed()
   }
@@ -511,9 +534,9 @@ export function createCogentSession({ client, storage, api }) {
     answerApproval,
     /** The two reports the cogent always gets, subscribed or not. They are sent again until they get through. */
     reportEpisode: (summary) =>
-      post('surface.event', () => ({ scope: SCOPE, data: { kind: 'episode.summary', ...summary } })),
+      post('surface.event', () => ({ scope, data: { kind: 'episode.summary', ...summary } })),
     reportProgramFailure: (failure) =>
-      post('surface.event', () => ({ scope: SCOPE, data: { kind: 'program.failed', ...failure } })),
+      post('surface.event', () => ({ scope, data: { kind: 'program.failed', ...failure } })),
     /**
      * Sends again what is waiting and rereads the open requests. For the page to call when there is
      * a reason: the person asks, or the `until` of a held request has passed (one read then lets

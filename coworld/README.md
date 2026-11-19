@@ -12,6 +12,7 @@ re-upload the package.
 
 | | |
 | --- | --- |
+| Repository | https://github.com/softmax-universe/coworld-pinball-arena (public) |
 | Coworld | `pinball-arena`, version 0.1.1, `cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`, public |
 | League | `league_1663daf1-a349-487d-944c-4c96db943646` |
 | Player runtime | `game-hosted`: a policy is a file that the game runs |
@@ -90,9 +91,9 @@ runner and the `COGAME_*` variables set to `file://` paths.
 
 ## Not done
 
-- The readme shown on Softmax is text inside the manifest, because the repository is
-  private. The platform's `play.md` therefore has no link to a game guide. When the
-  repository is public, make `game.docs.readme` a `uri` to [`play.md`](../play.md).
+- The readme shown on Softmax is text inside the manifest, so the platform's `play.md`
+  links to the game's page on Softmax and not to [`play.md`](../play.md) here. The manifest's
+  doc pages link to this repository, which is public.
 - The Arena seat is not part of the hosted version.
 - No tests cover `server.py`. It was checked by local episodes (a good file, a broken file,
   the default player) and by certification.

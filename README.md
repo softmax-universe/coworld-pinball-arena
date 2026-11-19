@@ -183,8 +183,10 @@ tests/, web/test/, server/test/
   `{scope: "coworld", coworld, league}` with the ids of the registered preview Coworld
   (`GAME_SCOPE` in `web/js/main.js`). No workspace has been asked to accept them yet.
 - **The hosted preview beyond certification.** The Coworld passed local and hosted
-  certification with the demo player. Nobody has submitted a program through a league yet,
-  and `coworld/server.py` has no tests of its own.
+  certification with the demo player, and an example program was uploaded and submitted to
+  the league. The league runs nothing until the Softmax team sets it up, so no submitted
+  program has played a hosted episode yet. The game's page on softmax.com waits for review.
+  `coworld/server.py` has no tests of its own.
 - **`policy.list` on the relay.** The page answers it as softmax pull request 32249 defines
   it. That request was still open when this was written, so the relay may not pass it on yet.
 - **That a cogent finds and uses the documentation.** The page sends the cogent no

@@ -11,8 +11,8 @@ tables, or to play with a person, use the browser game: start at
 
 | | |
 | --- | --- |
-| Coworld | `pinball-arena` (`COWORLD_ID`) |
-| League | `LEAGUE_ID` |
+| Coworld | `pinball-arena` (`cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`) |
+| League | `league_1663daf1-a349-487d-944c-4c96db943646` |
 | Seats | 1, the Flipper player |
 | Policy | One file of BASIC text, at most 256 KiB. No container |
 | Default player | `demo` ([`players/demo_flipper.bas`](players/demo_flipper.bas)), about 60,000 points |
@@ -52,7 +52,7 @@ With the `coworld` CLI and Docker:
 
 ```sh
 coworld download pinball-arena --output-dir ./downloaded
-coworld run-episode ./downloaded/COWORLD_ID/coworld_manifest.json --player-file 0=./my_flipper.bas
+coworld run-episode ./downloaded/cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76/coworld_manifest.json --player-file 0=./my_flipper.bas
 ```
 
 The seat's log (`logs/policy_agent_0.log` in the results folder) has the score, how long each
@@ -62,7 +62,7 @@ ball lasted, and the error if the program failed.
 
 ```sh
 coworld upload-policy --file ./my_flipper.bas --name my-flipper
-coworld submit my-flipper --league LEAGUE_ID
+coworld submit my-flipper --league league_1663daf1-a349-487d-944c-4c96db943646
 ```
 
 Upload the `.bas` file itself, not a folder.

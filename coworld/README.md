@@ -12,8 +12,8 @@ re-upload the package.
 
 | | |
 | --- | --- |
-| Coworld | `pinball-arena`, version 0.1.1, `COWORLD_ID`, public |
-| League | `LEAGUE_ID` |
+| Coworld | `pinball-arena`, version 0.1.1, `cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`, public |
+| League | `league_1663daf1-a349-487d-944c-4c96db943646` |
 | Player runtime | `game-hosted`: a policy is a file that the game runs |
 | Seats | 1 (the Flipper player) |
 | Bundled player | `demo`, [`players/demo_flipper.bas`](../players/demo_flipper.bas). The default, and the certification fixture |
@@ -74,6 +74,19 @@ has still happened: read the result with `coworld status cow_...`.
 
 `server.py` runs without Docker too, with `PINBALL_HEADLESS` set to a native build of the
 runner and the `COGAME_*` variables set to `file://` paths.
+
+## The pages on Softmax
+
+- https://softmax.com/pinball-arena/play.md is written by the platform from the manifest
+  and the league. It carries the Coworld id and the league id.
+- https://softmax.com/pinball-arena is the game's page. Its text (a blurb, four steps, two
+  links, all saying that this is a preview) was sent with the store page API on 2026-11-18
+  and waits for review by the Softmax team; until it is approved the page has no text of
+  ours.
+- The league was made with `coworld league create pinball-arena preview "Pinball Arena Preview"`.
+  It has no divisions and schedules nothing until the Softmax team sets it up
+  (`coworld --elevated league setup`). The platform's standard setup is for two opposing
+  seats, and this game has one.
 
 ## Not done
 

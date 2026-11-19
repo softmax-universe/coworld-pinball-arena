@@ -198,8 +198,8 @@ maps the AIDE requests onto `game-api.js`:
 | `surface.act` (cogent to page) | `api.handle(data)`: one request `{method, params}`. The reply's `data` is `{result}` or `{error}`. An unknown method is answered `unsupported` |
 | `surface.event` (page to cogent) | `episode.summary` and `program.failed`, always. `game.messages` while subscribed: the game's `hud`, `events` and `programLoaded` messages, unchanged |
 
-The page plays in one AIDE scope, its Coworld and league (`GAME_SCOPE` in `main.js`; the ids
-are provisional until the game is registered as a Coworld). It sends that scope with
+The page plays in one AIDE scope, its Coworld and league (`GAME_SCOPE` in `main.js`: the ids
+of the registered preview Coworld and its league). It sends that scope with
 everything, refuses a policy or a `surface.act` that names another with `forbidden`, answers
 `policy.list` for another scope with an empty list, and repeats a question's scope in its
 `clarification.response`. A stored session that was opened in another scope is replaced.

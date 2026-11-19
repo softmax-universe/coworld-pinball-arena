@@ -691,6 +691,7 @@ test('a sleeping cogent is reported, and the message goes out under the same id 
   assert.equal(session.state.cogent, 'waking')
   assert.equal(session.state.retryAfterMs, 60000)
   assert.equal(typeof session.state.wakingSince, 'number')
+  assert.equal(session.state.awayReason, 'The workspace is starting.')
   assert.equal(requestState(session, id).status, 'sending')
 
   client.replies['chat.send'] = accept

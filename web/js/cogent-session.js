@@ -80,6 +80,8 @@ export function createCogentSession({ client, storage, api, scope }) {
     retryAfterMs: null,
     /** While `waking`: when it began, as `Date.now()` gives it. Otherwise null. */
     wakingSince: null,
+    /** While `waking` or `paused`: the relay's own words for why the workspace is away. */
+    awayReason: null,
     sessionId: storage.getItem(SESSION_KEY),
     /** The contract's `MessageRecord`s, oldest first. Only the newest page of history is read. */
     messages: [],
@@ -119,6 +121,7 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function changed() {
     state.cogent = cogentState()
+    if (state.cogent !== 'waking' && state.cogent !== 'paused') state.awayReason = null
     if (state.cogent === 'waking') {
       state.wakingSince ??= Date.now()
     } else {
@@ -184,8 +187,12 @@ export function createCogentSession({ client, storage, api, scope }) {
     if (error.code === 'starting') {
       workspace = 'waking'
       state.retryAfterMs = error.data?.retry_after_ms ?? null
+    } else if (error.code === 'paused') {
+      workspace = 'paused'
+    } else {
+      return
     }
-    else if (error.code === 'paused') workspace = 'paused'
+    state.awayReason = error.message
   }
 
   // -------------------------------------------------------------------------------------------

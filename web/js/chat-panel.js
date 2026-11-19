@@ -128,9 +128,10 @@ export function createChatPanel(elements, actions) {
   let wakingClock = null
 
   function drawState() {
-    const { cogent, requests, wakingSince } = session.state
+    const { cogent, requests, wakingSince, awayReason } = session.state
     const waited = wakingSince === null ? '' : ` ${Math.round((Date.now() - wakingSince) / 1000)} s so far.`
-    elements.cogentState.textContent = cogentWording(cogent, unreachable) + waited
+    const reason = awayReason ? ` Softmax says: "${awayReason}".` : ''
+    elements.cogentState.textContent = cogentWording(cogent, unreachable) + waited + reason
     if (wakingSince !== null) wakingClock ??= setInterval(drawState, 1000)
     else if (wakingClock !== null) {
       clearInterval(wakingClock)

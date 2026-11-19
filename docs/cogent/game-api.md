@@ -85,7 +85,7 @@ The result is `{"items": [{"name": "ramp-school", "version": 3}, {"name": "catch
 - The built-in programs `house` and `demo` are **not** in the list, though their names are taken: `policy.create` with one answers `conflict` and `policy.update` answers `forbidden`.
 - The list has no seat, no source and no word on which program is active. The request `programs.list` ([The methods](#the-methods)) gives the seat and `active`, with the built-in programs, and `programs.get` gives the source.
 - It changes nothing, so you may send it again at any time, also after a reconnect.
-- `policy.list` is new in the AIDE contract (an addition that was not yet released when this was written). Until the relay accepts it, use `programs.list`.
+- `policy.list` was added to the AIDE 1.0.0 contract on 2026-11-18. If your workspace does not send it yet, use `programs.list`.
 
 ## Requests
 

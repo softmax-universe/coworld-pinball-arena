@@ -76,9 +76,10 @@ Any long random string works as a local secret, for example the output of `opens
 
 On the Softmax side:
 
-- **The site's exact hostname must be added to Softmax's list of allowed cogent sites**, which
-  ships with a softmax.com web deploy. It is an exact match with no wildcards, and today the list
-  has no Vercel host. Until then softmax.com will not send the sign-in code back to the site.
+- **The site's exact hostname must be on Softmax's list of allowed cogent sites**, which ships
+  with a softmax.com web deploy. It is an exact match with no wildcards. `pinball-arena.vercel.app`
+  was added in November 2026; a sign-in from the site has not been tried yet. A site on any
+  other hostname needs its own entry, or softmax.com will not send the sign-in code back to it.
 - The SDK's README says this credential model is for sites Softmax controls. Softmax should agree
   that this site may hold the credential.
 

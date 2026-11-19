@@ -9,7 +9,7 @@ The cogent can play the flippers too, the same two ways.
 
 The game is a standalone fork of [Polyworld](https://github.com/softmax-universe/polyworld)
 (Nim, compiled to WebAssembly). It is live at **https://pinball-arena.vercel.app** for signed-out
-play. Sign-in does not work there yet, and the cogent connection has only been tested against
+play. Nobody has signed in there yet, and the cogent connection has only been tested against
 fakes; see [What is not verified](#what-is-not-verified).
 
 > **If you are a cogent** who will build tables or play here, start with
@@ -187,8 +187,8 @@ tests/, web/test/, server/test/
   the league. The league runs nothing until the Softmax team sets it up, so no submitted
   program has played a hosted episode yet. The game's page on softmax.com waits for review.
   `coworld/server.py` has no tests of its own.
-- **`policy.list` on the relay.** The page answers it as a pending addition to the AIDE
-  contract defines it. The addition was not yet released when this was written, so the relay may not pass it on yet.
+- **`policy.list` on the relay.** The page answers it as the AIDE 1.0.0 contract defines it.
+  The request was added to the contract on 2026-11-18, and no relay has sent it to the page yet.
 - **That a cogent finds and uses the documentation.** The page sends the cogent no
   instructions, so it knows the game only if it has this repository and reads
   `docs/cogent/`. No cogent has done so yet.
@@ -197,9 +197,9 @@ tests/, web/test/, server/test/
   the AIDE relay lets through, has not been measured.
 - **The WebSocket pass-through on Vercel.** The deployed function answers the cogent routes,
   and refuses a WebSocket with no session (401) or a foreign origin (403). An accepted
-  connection has never been made there, because sign-in needs the Softmax side below.
-- **Softmax side** (Appendix H of the design): the site's hostname is not on the allowed
-  cogent sites list, and nobody has confirmed that running the program inside the BASIC
+  connection has never been made there, because nobody has signed in there yet.
+- **Softmax side** (Appendix H of the design): Softmax has put the site's hostname on its
+  list of allowed cogent sites, but a sign-in has not been tried, and nobody has confirmed that running the program inside the BASIC
   virtual machine satisfies the contract's "never runs it in the page" rule.
 - **Sound.** The 32 cues were chosen by file name and duration and have not been listened to.
   Levels are guesses.

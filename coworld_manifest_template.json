@@ -1,0 +1,193 @@
+{
+  "$schema": "https://raw.githubusercontent.com/softmax-universe/coworld/main/src/coworld/coworld_manifest_schema.json",
+  "tags": [
+    "pinball",
+    "basic",
+    "game-hosted",
+    "preview"
+  ],
+  "game": {
+    "name": "pinball-arena",
+    "description": "Preview of Pinball Arena. One BASIC program plays the flippers on the built-in house table, and the score is the pinball score. The real game runs in a browser at https://pinball-arena.vercel.app, where a person plays the flippers and their cogent builds the table and its rules.",
+    "owner": "jboggs",
+    "player_runtime": [
+      "game-hosted"
+    ],
+    "runnable": {
+      "type": "game",
+      "image": "{{PINBALL_ARENA_IMAGE}}",
+      "run": [
+        "python",
+        "/app/server.py"
+      ],
+      "source_url": "https://github.com/softmax-universe/coworld-pinball-arena"
+    },
+    "config_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "tokens",
+        "players"
+      ],
+      "properties": {
+        "tokens": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "players": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "name"
+            ],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    "results_schema": {
+      "$schema": "https://json-schema.org/draft/2020-12/schema",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "scores",
+        "end_reason",
+        "ball_seconds",
+        "flipper_error"
+      ],
+      "properties": {
+        "scores": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 1,
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "description": "The pinball score at the end of the episode."
+        },
+        "end_reason": {
+          "type": "string",
+          "enum": [
+            "lastBallDrained",
+            "clock"
+          ]
+        },
+        "ball_seconds": {
+          "type": "array",
+          "items": {
+            "type": "number",
+            "minimum": 0
+          },
+          "description": "How long each ball lasted, in seconds of game time."
+        },
+        "flipper_error": {
+          "type": "boolean",
+          "description": "True when the Flipper program stopped with an error during the episode."
+        }
+      }
+    },
+    "protocols": {
+      "player": {
+        "type": "text",
+        "value": "# Pinball Arena preview: the player file\n\n**This Softmax-hosted Coworld is a preview of Pinball Arena.** The real game runs in a browser at https://pinball-arena.vercel.app: a person plays the flippers and their own cogent builds the table and its rules. The preview has neither. One BASIC program plays the flippers on the built-in house table, nobody plays live, and the score is the score of that one table.\n\nPlayers are **game-hosted**: a policy is a file that the game runs. There is no player container and no WebSocket exchange.\n\n## The file\n\n- One text file of Bassy BASIC source, UTF-8, at most 256 KiB. Upload it with `coworld upload-policy --file my_flipper.bas --name my-flipper`. A directory or an archive is not accepted: the staged bytes are compiled as BASIC as they are.\n- It is a Flipper program. The game runs it from its first line to its last 60 times a second of game time (every 2 ticks of 1/120 s), from the start of the episode, and keeps its variables between runs.\n- Calls: `flip(side, pressed)` with `side` `left` or `right`; `plunger(pressed)`; `nudge(direction)` with `nudge_left`, `nudge_right` or `nudge_up`.\n- It reads the view before each run: `tick`, `phase`, `ballnumber`, `score`, `clockseconds`, `leftangle`, `rightangle`, `leftpressed`, `rightpressed`, `plungerpull`, `tiltwarnings`, `tilted`, `ballcount`, `balls(i)` (`.x .y .vx .vy .level .state`), `piececount`, `pieces(i)` (`.kind .x .y .rotation .size .level .group .phase .lamp .down .face`). Positions are millimetres, `x` 0..520 to the right and `y` 0..1080 toward the player.\n- The complete reference: https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/flipper.md and https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/basic.md.\n\n## Limits and isolation\n\n- One run may use 50,000 BASIC instructions, and the program has 2 MiB of memory. The BASIC virtual machine has no file, network, clock or process access: a program can only read the view and make the three calls.\n- The game has no randomness outside the program, and `rnd` gives the same numbers in every episode, so an episode is exactly repeatable.\n- The table is the built-in house table. The episode is three balls and at most 8 minutes of game time.\n\n## Failure\n\n- A file that does not compile (or is not BASIC text, or is over 256 KiB) is a terminal player failure: no episode is played and the game declares the failure for slot 0.\n- A program that fails while running (a run-time error, or a run over the instruction budget) never runs again. Both flippers and the plunger are released, the episode plays on to its end with nobody at the flippers, and the score counts. `flipper_error` in the results is then true.\n- The seat log has the score, how long each ball lasted, and for a failed program the error and the last 16 lines it printed. `PRINT` output is not shown anywhere else.\n\n## Results\n\n`{\"scores\": [n], \"end_reason\": \"lastBallDrained\" | \"clock\", \"ball_seconds\": [...], \"flipper_error\": false}`. `scores[0]` is the pinball score at the end of the episode.\n\n`/player` is served because the contract asks for it. It only shows the episode, as `/global` does.\n"
+      },
+      "global": {
+        "type": "text",
+        "value": "# Pinball Arena preview: the global viewer\n\nConnect to the `/global` WebSocket (browser page: `GET /client/global`). The game sends one JSON text message on connect, `{\"type\": \"state\", \"status\": \"running\", \"player_names\": [...]}`, and one more when the episode is over. An episode takes a few seconds, so there is nothing to watch live.\n\nThe last message has `\"status\": \"done\"` and the replay: `results` (as in the results file), `framesPerSecond` (10), `pieces` (one `{kind, x, y, rotation, level, r, length?}` per piece of the table) and `frames`, one `[tick, score, ball number, left flipper angle, right flipper angle, [x, y, x, y, ...]]` per tenth of a second of game time, where the last list holds the ball positions. When the Flipper program did not compile it has `\"status\": \"failed\"` and the `failure`.\n\nThe replay file is the same object without `type` and `status`. In replay mode (`COGAME_LOAD_REPLAY_URI`), `/replay` sends it once as `{\"type\": \"replay\", ...}` and `GET /client/replay` draws it in a loop: the pieces as plain shapes, the balls, the flippers and the score. It is a sketch of the episode, not the game's own picture. Viewers send nothing.\n\n**This Softmax-hosted Coworld is a preview of Pinball Arena.** The real game runs in a browser at https://pinball-arena.vercel.app: a person plays the flippers and their own cogent builds the table and its rules. The preview has neither. One BASIC program plays the flippers on the built-in house table, nobody plays live, and the score is the score of that one table.\n"
+      }
+    },
+    "docs": {
+      "readme": {
+        "type": "text",
+        "value": "# Pinball Arena (preview)\n\n**This Softmax-hosted Coworld is a preview of Pinball Arena.** The real game runs in a browser at https://pinball-arena.vercel.app: a person plays the flippers and their own cogent builds the table and its rules. The preview has neither. One BASIC program plays the flippers on the built-in house table, nobody plays live, and the score is the score of that one table.\n\n## What an episode is here\n\n- One seat: the **Flipper player**. Your policy is one BASIC program (a text file) that works the two flippers, the plunger and nudges.\n- The table is always the built-in **house table**: three pop bumpers, drop targets that light a ramp, a saucer that starts a multiball, top lanes, slingshots and kickbacks.\n- An episode is a build phase, then three balls, and at most 8 minutes of game time. The game runs it as fast as the machine goes, so a hosted episode takes a few seconds.\n- `scores[0]` is the pinball score at the end.\n- The game is exactly repeatable: the same program always plays the same episode and gets the same score.\n- The bundled player `demo` is the default Flipper program. It is built to show the table, not to play well.\n\n## How to write a Flipper program\n\nThe program runs from its first line to its last 60 times a second and keeps its variables between runs. It sees the balls, the flippers, the plunger and every piece on the table, and it has three calls: `flip(side, pressed)`, `plunger(pressed)` and `nudge(direction)`.\n\nThe full guides are in the repository:\n\n- [docs/cogent/flipper.md](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/flipper.md): the Flipper seat, with a complete example program.\n- [docs/cogent/basic.md](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/basic.md): the BASIC dialect, what a program can see, failure and limits.\n- [docs/cogent/arena.md](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/arena.md): the table, its pieces and the house table.\n- [play.md](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/play.md): how to test, upload and submit a program with the `coworld` CLI.\n\nA small complete program:\n\n```basic\n' Plunges every ball, and raises a flipper while a ball comes down onto it.\nonplunger = 0\nfor i = 0 to ballcount - 1\n  if balls(i).x > 480 and balls(i).y > 950 and abs(balls(i).vy) < 20 then onplunger = 1\nnext\nif onplunger = 1 and pulling = 0 then\n  pulling = 1\n  plunger(1)\nend if\nif pulling = 1 and plungerpull >= 0.8 then\n  plunger(0)\n  pulling = 0\nend if\n\nwantleft = 0\nwantright = 0\nfor i = 0 to ballcount - 1\n  if balls(i).state = state_free and balls(i).vy > 0 and balls(i).y > 900 and balls(i).y < 990 then\n    if balls(i).x > 150 and balls(i).x <= 240 then wantleft = 1\n    if balls(i).x > 240 and balls(i).x < 330 then wantright = 1\n  end if\nnext\nif wantleft <> leftpressed then flip(left, wantleft)\nif wantright <> rightpressed then flip(right, wantright)\n```\n\n## The real game\n\nAt https://pinball-arena.vercel.app a person plays the flippers with the keyboard, and their Softmax cogent builds the table: it deploys BASIC table programs, changes the table while the ball is in play, and defines every rule and score. The Arena seat, which is most of the game, is not part of this preview. The repository's [README](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/README.md) describes it, and [docs/cogent/README.md](https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/README.md) is the getting-started guide for a cogent.\n"
+      },
+      "pages": [
+        {
+          "id": "flipper.md",
+          "title": "The Flipper seat",
+          "content": {
+            "type": "uri",
+            "value": "https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/flipper.md"
+          }
+        },
+        {
+          "id": "basic.md",
+          "title": "BASIC for both seats",
+          "content": {
+            "type": "uri",
+            "value": "https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/basic.md"
+          }
+        },
+        {
+          "id": "arena.md",
+          "title": "The table and the house table",
+          "content": {
+            "type": "uri",
+            "value": "https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/docs/cogent/arena.md"
+          }
+        },
+        {
+          "id": "play.md",
+          "title": "Play the Pinball Arena preview",
+          "content": {
+            "type": "uri",
+            "value": "https://github.com/softmax-universe/coworld-pinball-arena/blob/HEAD/play.md"
+          }
+        }
+      ]
+    }
+  },
+  "player": [
+    {
+      "id": "demo",
+      "name": "Demo Flipper",
+      "type": "player",
+      "file": "players/demo_flipper.bas",
+      "description": "The built-in demo Flipper program, and the default player: plunges, flips when a ball reaches a flipper, nudges a stuck ball. Built to show the table, not to play well."
+    }
+  ],
+  "variants": [
+    {
+      "id": "house",
+      "name": "House table",
+      "game_config": {
+        "players": [
+          {
+            "name": "Flipper"
+          }
+        ]
+      },
+      "description": "One Flipper program on the built-in house table: three balls, at most 8 minutes of game time."
+    }
+  ],
+  "certification": {
+    "game_config": {
+      "players": [
+        {
+          "name": "Demo Flipper"
+        }
+      ]
+    },
+    "players": [
+      {
+        "player_id": "demo"
+      }
+    ]
+  }
+}

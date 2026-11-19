@@ -9,18 +9,24 @@
 ##   --flipper PATH   the Flipper program (default: the bundled demo program)
 ##   --record PATH    save the replay of the Episode
 ##   --replay PATH    check a saved replay instead of playing
+##   --preview PATH   save a small JSON picture of the Episode for a viewer:
+##                    the pieces, and the balls, flippers and score ten times
+##                    a second (the Coworld game server uses it as its replay)
 ##
 ## The exit code is 1 when a program does not compile or a replay does not
 ## match.
 
-import std/[json, os]
+import std/[json, math, os, strutils]
 import game
+import sim/catalogue
 
-const Usage = "usage: headless [--arena PATH] [--flipper PATH] [--record PATH] [--replay PATH]"
+const
+  Usage = "usage: headless [--arena PATH] [--flipper PATH] [--record PATH] [--replay PATH] [--preview PATH]"
+  PreviewFrameTicks = TicksPerSecond div 10
 
 type
   Options = object
-    arenaPath, flipperPath, recordPath, replayPath: string
+    arenaPath, flipperPath, recordPath, replayPath, previewPath: string
 
 proc readOptions(): Options =
   ## Every option takes one value, so the arguments come in pairs.
@@ -34,6 +40,7 @@ proc readOptions(): Options =
     of "--flipper": result.flipperPath = value
     of "--record": result.recordPath = value
     of "--replay": result.replayPath = value
+    of "--preview": result.previewPath = value
     else: quit(Usage, 1)
 
 proc checkReplay(recording: Replay) =
@@ -58,6 +65,31 @@ proc loadedNoProgram(game: Game): bool =
     if node["type"].getStr == "programError":
       stderr.writeLine node.pretty
       result = true
+
+proc rounded(value: Fixed): float =
+  round(float(toFloat32(value)), 1)
+
+proc previewPieces(table: Table): JsonNode =
+  ## Where the pieces stand, for a viewer that draws them as plain shapes.
+  ## `r` is the footprint radius, and `length` is there for a wall.
+  result = newJArray()
+  for piece in table.components:
+    let node = %*{
+      "kind": ($piece.kind)[2 .. ^1].toLowerAscii, "x": rounded(piece.pos.x), "y": rounded(piece.pos.y),
+      "rotation": rounded(piece.rotation), "level": piece.level,
+      "r": rounded(scaled(KindInfos[piece.kind].radius, piece.sizePercent))}
+    if KindInfos[piece.kind].isLong:
+      node["length"] = %rounded(scaled(piece.settings[setLength], piece.sizePercent))
+    result.add node
+
+proc previewFrame(table: Table): JsonNode =
+  ## `[tick, score, ball number, left flipper angle, right flipper angle, [x, y, x, y, ...]]`
+  var balls = newJArray()
+  for ball in table.balls:
+    balls.add %rounded(ball.pos.x)
+    balls.add %rounded(ball.pos.y)
+  %*[table.tick, table.score, table.ballNumber, rounded(table.flippers[flipperLeft].angle),
+     rounded(table.flippers[flipperRight].angle), balls]
 
 proc main() =
   let options = readOptions()
@@ -87,9 +119,21 @@ proc main() =
     if game.loadedNoProgram():
       quit(1)
 
+  var pieces = newJArray()
+  var frames = newJArray()
   while game.table.phase != episodeOver:
     game.tick()
     game.printMessages()
+    if options.previewPath.len > 0 and game.table.phase == episodePlay:
+      # The pieces as they stand when the first ball is served, which for a
+      # table that does not change during play is how they stay.
+      if pieces.len == 0:
+        pieces = previewPieces(game.table)
+      if game.table.tick mod PreviewFrameTicks == 0:
+        frames.add previewFrame(game.table)
+  if options.previewPath.len > 0:
+    writeFile(options.previewPath, $(%*{
+      "framesPerSecond": TicksPerSecond div PreviewFrameTicks, "pieces": pieces, "frames": frames}))
 
   let recording = game.replay()
   if options.recordPath.len > 0:

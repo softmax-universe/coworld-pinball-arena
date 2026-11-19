@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Pinball Arena preview</title>
+<style>
+  body { margin: 0; background: #15133a; color: #e4e7f0; font: 15px/1.4 system-ui, sans-serif; display: grid; justify-items: center; gap: 8px; padding: 12px; }
+  h1 { font-size: 18px; margin: 0; }
+  p { margin: 0; max-width: 46ch; text-align: center; color: #b4bace; }
+  a { color: #ffd23f; }
+  canvas { background: #1d1b4d; border: 2px solid #b4bace; border-radius: 6px; height: min(78vh, 760px); aspect-ratio: 520 / 1080; }
+  #status { font-variant-numeric: tabular-nums; color: #ffd23f; }
+</style>
+<h1>Pinball Arena: preview</h1>
+<p>This Softmax-hosted version is a preview: a BASIC program plays the flippers on the house table.
+The real game, where a person plays and their cogent builds the table, is at
+<a href="https://pinball-arena.vercel.app">pinball-arena.vercel.app</a>.</p>
+<p id="status">Waiting for the game...</p>
+<canvas id="table" width="520" height="1080"></canvas>
+<script>
+  // The picture is a plain drawing of the preview the game saved: the pieces as circles and
+  // lines, the balls, the two flippers and the score, ten frames a second, looping.
+  const canvas = document.getElementById("table");
+  const context = canvas.getContext("2d");
+  const status = document.getElementById("status");
+  const PIVOTS = [[157, 950, 1], [323, 950, -1]];   // x, y, and which way the flipper points
+  const FLIPPER_LENGTH = 70, REST_DEGREES = 30;
+  let replay = null, frameIndex = 0;
+
+  function drawPieces() {
+    context.lineCap = "round";
+    for (const piece of replay.pieces) {
+      context.strokeStyle = context.fillStyle = piece.kind.includes("target") ? "#ff6b6b" : piece.kind.includes("bumper") ? "#ffd23f" : "#9aa0bd";
+      if (piece.length) {
+        const angle = (piece.rotation * Math.PI) / 180, half = piece.length / 2;
+        context.lineWidth = Math.max(piece.r * 2, 4);
+        context.beginPath();
+        context.moveTo(piece.x - Math.cos(angle) * half, piece.y - Math.sin(angle) * half);
+        context.lineTo(piece.x + Math.cos(angle) * half, piece.y + Math.sin(angle) * half);
+        context.stroke();
+      } else if (piece.r > 0) {
+        context.globalAlpha = piece.level > 1 ? 0.35 : 0.8;
+        context.beginPath();
+        context.arc(piece.x, piece.y, piece.r, 0, Math.PI * 2);
+        context.fill();
+        context.globalAlpha = 1;
+      }
+    }
+  }
+
+  function drawFrame() {
+    const [tick, score, ballNumber, leftAngle, rightAngle, balls] = replay.frames[frameIndex];
+    context.clearRect(0, 0, 520, 1080);
+    drawPieces();
+    context.strokeStyle = "#e4e7f0";
+    context.lineWidth = 12;
+    [leftAngle, rightAngle].forEach((angle, side) => {
+      const [x, y, direction] = PIVOTS[side];
+      const radians = ((REST_DEGREES - angle) * Math.PI) / 180;
+      context.beginPath();
+      context.moveTo(x, y);
+      context.lineTo(x + direction * Math.cos(radians) * FLIPPER_LENGTH, y + Math.sin(radians) * FLIPPER_LENGTH);
+      context.stroke();
+    });
+    context.fillStyle = "#ffffff";
+    for (let index = 0; index < balls.length; index += 2) {
+      context.beginPath();
+      context.arc(balls[index], balls[index + 1], 13.5, 0, Math.PI * 2);
+      context.fill();
+    }
+    const final = replay.results ? `  |  FINAL ${replay.results.scores[0].toLocaleString()}` : "";
+    status.textContent = `BALL ${ballNumber}  |  SCORE ${score.toLocaleString()}  |  ${(tick / 120).toFixed(0)} s${final}`;
+    frameIndex = (frameIndex + 1) % replay.frames.length;   // The end loops back to the start.
+  }
+
+  const scheme = location.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(scheme + "//" + location.host + "{socket_path}" + location.search);
+  socket.onmessage = (event) => {
+    const message = JSON.parse(event.data);
+    if (message.frames && message.frames.length > 0) {
+      if (replay === null) setInterval(drawFrame, 1000 / message.framesPerSecond);
+      replay = message;
+      frameIndex = 0;
+    } else if (message.status === "failed") {
+      status.textContent = message.failure.message;
+    } else if (message.status === "running") {
+      status.textContent = "The episode is being played. It takes a few seconds.";
+    }
+  };
+</script>

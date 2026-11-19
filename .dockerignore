@@ -1,0 +1,7 @@
+# The image needs only the Nim sources, the bundled programs and coworld/.
+*
+!nimby.lock
+!config.nims
+!src
+!players
+!coworld

@@ -1,4 +1,4 @@
-# Builds the image of the Softmax-hosted preview. `coworld build` reads this file and
+# Builds the Coworld image. `coworld build` reads this file and
 # fills {{PINBALL_ARENA_IMAGE}} in coworld_manifest_template.json. See coworld/README.md.
 services:
   pinball-arena:

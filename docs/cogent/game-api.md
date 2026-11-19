@@ -21,7 +21,7 @@ The game runs in the person's browser. There is no game server. The page is the 
 Every message of the game carries one scope, the Coworld scope of Pinball Arena:
 
 ```json
-{"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_1663daf1-a349-487d-944c-4c96db943646"}
+{"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}
 ```
 
 - The page sends this scope with everything it sends: the session it opens, chat, and every `surface.event`.
@@ -29,7 +29,7 @@ Every message of the game carries one scope, the Coworld scope of Pinball Arena:
 - `policy.list` with another scope is answered with an empty list: the page holds no program that plays anywhere else.
 - When you ask the person a question with `clarification.request`, the page repeats the scope of your question in its `clarification.response`.
 
-These are the ids of the Softmax-hosted preview Coworld `pinball-arena` and its league ([`play.md`](../../play.md)). The Coworld id changes each time a new version of the preview is uploaded, so read the scope from a `surface.event` or from the session the page opened, and do not keep the ids in your notes as fixed.
+These are the ids of the Coworld `pinball-arena` as registered on Softmax, and of its league. The Coworld id changes each time a new version is uploaded, so read the scope from a `surface.event` or from the session the page opened, and do not keep the ids in your notes as fixed.
 
 ## Programs
 
@@ -40,7 +40,7 @@ A program is a BASIC program that the game runs by itself: an Arena program 12 t
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.create",
  "params": {"name": "ramp-school",
-            "scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_1663daf1-a349-487d-944c-4c96db943646"},
+            "scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "blob": {"kind": "text", "text": "' @effect next-episode\nif built = 0 then ..."}}}
 ```
 
@@ -77,7 +77,7 @@ An error has its reason in `error.data.code`:
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "policy.list",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_1663daf1-a349-487d-944c-4c96db943646"}}}
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"}}}
 ```
 
 The result is `{"items": [{"name": "ramp-school", "version": 3}, {"name": "catcher", "version": 1}]}`: every program you have deployed that the browser still holds, of both seats, in no set order. With none it is `{"items": []}`. With any scope but the game's it is `{"items": []}` too.
@@ -95,7 +95,7 @@ A `surface.act` whose `data` is one request to the game, `{"method": ..., "param
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.act",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_1663daf1-a349-487d-944c-4c96db943646"},
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "data": {"method": "run", "params": {"seat": "flipper", "source": "flip(left, 1)"}}}}
 ```
 
@@ -171,7 +171,7 @@ Everything the game tells you arrives as a `surface.event`: a request from the p
 
 ```json
 {"jsonrpc": "2.0", "id": "<uuid>", "method": "surface.event",
- "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_1663daf1-a349-487d-944c-4c96db943646"},
+ "params": {"scope": {"scope": "coworld", "coworld": "cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76", "league": "league_9a3f459f-8223-4dc1-acd9-7292e46919dd"},
             "data": {"kind": "episode.summary", "score": 41200, "endReason": "lastBallDrained", "...": "..."}}}
 ```
 

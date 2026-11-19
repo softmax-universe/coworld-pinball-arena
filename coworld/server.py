@@ -1,9 +1,9 @@
-"""The Coworld game server of Pinball Arena: a preview of the game on Softmax.
+"""The Coworld game server of Pinball Arena: episodes that Softmax runs with no browser.
 
-The real game runs in a browser at https://pinball-arena.vercel.app, where a
-person plays the flippers and their cogent builds the table. This server is
-the Softmax-hosted preview: one seat, the Flipper seat, played by a BASIC
-program on the bundled house table, with nobody watching live.
+The game is played in a browser at https://pinball-arena.vercel.app, where a
+person and their cogent share a table. Softmax can also run an episode by
+itself, and this server is how: one seat, the Flipper seat, played by a BASIC
+program on the bundled house table.
 
 An episode here is one run of the command-line runner (`/app/headless`, built
 from src/pinball/headless.nim). The server stages the seat's BASIC file, runs
@@ -147,14 +147,14 @@ def handle_websocket(connection: ServerConnection) -> None:
 def play_episode(flipper_file: Path) -> tuple[dict | None, dict, str]:
     """Runs one Episode on the house table with this Flipper program.
 
-    Returns the Episode summary, the preview for the viewer, and what the runner wrote to
+    Returns the Episode summary, the frames for the viewer, and what the runner wrote to
     standard error (a program failure is there). The summary is None when the program did not
     compile, which is the one way a player file can fail outright.
     """
     with tempfile.TemporaryDirectory() as scratch:
-        preview_path = Path(scratch) / "preview.json"
+        frames_path = Path(scratch) / "frames.json"
         run = subprocess.run(
-            [HEADLESS, "--flipper", str(flipper_file), "--preview", str(preview_path)],
+            [HEADLESS, "--flipper", str(flipper_file), "--frames", str(frames_path)],
             capture_output=True,
             text=True,
             timeout=EPISODE_TIMEOUT_SECONDS,
@@ -163,7 +163,7 @@ def play_episode(flipper_file: Path) -> tuple[dict | None, dict, str]:
             if '"stage": "compile"' in run.stderr:
                 return None, {}, run.stderr
             raise RuntimeError(f"the episode runner failed with exit code {run.returncode}: {run.stderr[-2000:]}")
-        return json.loads(run.stdout), json.loads(preview_path.read_text()), run.stderr
+        return json.loads(run.stdout), json.loads(frames_path.read_text()), run.stderr
 
 
 def seat_log(summary: dict | None, runner_errors: str) -> str:
@@ -193,7 +193,7 @@ def finish_episode() -> None:
     runner had seen it healthy.
     """
     seat = json.loads(read_uri(os.environ["COGAME_PLAYER_SEATS_URI"]))["seats"][0]
-    summary, preview, runner_errors = play_episode(Path(unquote(urlparse(seat["file_uri"]).path)))
+    summary, frames, runner_errors = play_episode(Path(unquote(urlparse(seat["file_uri"]).path)))
     write_uri(seat["log_uri"], seat_log(summary, runner_errors).encode(), "text/plain; charset=utf-8")
 
     if summary is None:
@@ -209,7 +209,7 @@ def finish_episode() -> None:
             "flipper_error": summary["flipper"]["scriptError"] is not None,
         }
         logger.info("episode finished, score=%s", summary["score"])
-        replay = {"player_names": PLAYER_NAMES, "results": results, **preview}
+        replay = {"player_names": PLAYER_NAMES, "results": results, **frames}
         write_json(os.environ["COGAME_SAVE_REPLAY_URI"], replay, "COGAME_SAVE_REPLAY_METHOD")
         # Results are the completion marker, so they are written last.
         write_json(os.environ["COGAME_RESULTS_URI"], results, "COGAME_RESULTS_METHOD")

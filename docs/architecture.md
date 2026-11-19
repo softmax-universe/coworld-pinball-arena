@@ -204,7 +204,7 @@ maps the AIDE requests onto `game-api.js`:
 | `surface.event` (page to cogent) | `episode.summary` and `program.failed`, always. `game.messages` while subscribed: the game's `hud`, `events` and `programLoaded` messages, unchanged |
 
 The page plays in one AIDE scope, its Coworld and league (`GAME_SCOPE` in `main.js`: the ids
-of the registered preview Coworld and its league). It sends that scope with
+of the registered Coworld and its league). It sends that scope with
 everything, refuses a policy or a `surface.act` that names another with `forbidden`, answers
 `policy.list` for another scope with an empty list, and repeats a question's scope in its
 `clarification.response`. A stored session that was opened in another scope is replaced.
@@ -220,12 +220,12 @@ messages, the methods, and what the page expects in reply to a `surface.event`. 
 sends the cogent no instructions: a chat message carries only what the person wrote, and the
 cogent learns the game from [`docs/cogent/`](cogent/README.md).
 
-## The Softmax-hosted preview (`coworld/`)
+## Episodes that Softmax runs (`coworld/`)
 
-Softmax can run a Coworld only as a container that plays an episode by itself, so the hosted
-version is a preview: the Flipper seat alone, played by a BASIC file, on the house table.
+Softmax can run a Coworld only as a container that plays an episode by itself, so a hosted
+episode is the Flipper seat alone, played by a BASIC file, on the house table.
 `coworld/server.py` is a thin game server of the Coworld contract around the command-line
-runner. It adds no game logic: `headless --flipper FILE --preview PATH` plays the Episode,
+runner. It adds no game logic: `headless --flipper FILE --frames PATH` plays the Episode,
 and the server turns the summary into the results, the seat log and the replay.
 [`coworld/README.md`](../coworld/README.md) has the details, and [`play.md`](../play.md) is
 for people who submit programs. The browser game does not use any of it, except that its

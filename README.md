@@ -17,10 +17,10 @@ fakes; see [What is not verified](#what-is-not-verified).
 > game is, what you can send, where every fact is, and what to save in your own knowledge
 > base. The rest of this page is for people who run and change the code.
 
-There is also a **Softmax-hosted preview**, the Coworld `pinball-arena`. It is not the game:
-one BASIC program plays the flippers on the house table, with no person and no table
-building. [`play.md`](play.md) says how to take part, and
-[`coworld/README.md`](coworld/README.md) describes the package.
+The game is registered on Softmax as the Coworld `pinball-arena`. Softmax can also run an
+episode with no browser: a BASIC program plays the flippers on the house table for a score.
+[`play.md`](play.md) says how to submit one, and [`coworld/README.md`](coworld/README.md)
+describes the package.
 
 ## The two seats
 
@@ -57,8 +57,8 @@ Each fact is written down once, in the place below.
 | The design (Final): how the game looks, feels and behaves. Appendix I lists what is settled | [`docs/designs/pinball-arena-2026-11-16.html`](docs/designs/pinball-arena-2026-11-16.html) |
 | The script hosts, for people who change them | [`src/pinball/script/README.md`](src/pinball/script/README.md) |
 | The server part: sign-in and the cogent's WebSocket | [`server/README.md`](server/README.md) |
-| Taking part in the Softmax-hosted preview: write, test, upload and submit a Flipper program | [`play.md`](play.md) |
-| The Coworld package of the preview: what is registered, how an episode runs, how to upload again | [`coworld/README.md`](coworld/README.md) |
+| Running a Flipper program on Softmax with no browser: write, test, upload and submit | [`play.md`](play.md) |
+| The Coworld package: what is registered, how an episode runs, how to upload again | [`coworld/README.md`](coworld/README.md) |
 | Assets and their licences | [`assets/LICENSES.md`](assets/LICENSES.md) |
 | Setting up, playing, testing and deploying | This page |
 
@@ -131,7 +131,7 @@ nim r src/pinball/headless.nim --arena my_table.bas          # your own table pr
 nim r src/pinball/headless.nim --flipper my_flipper.bas      # your own Flipper program
 nim r src/pinball/headless.nim --record episode.replay
 nim r src/pinball/headless.nim --replay episode.replay       # verify a recording
-nim r src/pinball/headless.nim --preview preview.json        # a small picture of the Episode for a viewer
+nim r src/pinball/headless.nim --frames frames.json          # a small picture of the Episode for a viewer
 ```
 
 It plays one Episode, prints the Episode summary (the same JSON the page reports to the
@@ -164,9 +164,9 @@ web/                    the page (plain JavaScript modules), fonts
 docs/cogent/            for a cogent: getting started, the game API, BASIC, both seats
 docs/                   architecture, the design, the screenshot
 server/, api/           the Node server part and the Vercel function
-coworld/                the Softmax-hosted preview: its game server and replay page
-Dockerfile, compose.yaml, coworld_manifest_template.json   the preview's image and manifest
-play.md                 how to take part in the preview
+coworld/                the Coworld package: the game server for episodes that Softmax runs
+Dockerfile, compose.yaml, coworld_manifest_template.json   the Coworld's image and manifest
+play.md                 how to run a Flipper program on Softmax
 assets/                 sounds and the licence record
 tests/, web/test/, server/test/
 ```
@@ -180,9 +180,9 @@ tests/, web/test/, server/test/
   messages) was tried against the real game in a browser, over a transport that has since
   been removed, and not yet through an AIDE connection.
 - **The Coworld scope with a real workspace.** The page uses the AIDE scope
-  `{scope: "coworld", coworld, league}` with the ids of the registered preview Coworld
+  `{scope: "coworld", coworld, league}` with the ids of the registered Coworld
   (`GAME_SCOPE` in `web/js/main.js`). No workspace has been asked to accept them yet.
-- **The hosted preview beyond certification.** The Coworld passed local and hosted
+- **Hosted episodes beyond certification.** The Coworld passed local and hosted
   certification with the demo player, and an example program was uploaded and submitted to
   the league. The league runs nothing until the Softmax team sets it up, so no submitted
   program has played a hosted episode yet. The game's page on softmax.com waits for review.

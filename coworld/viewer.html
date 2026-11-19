@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset="utf-8">
-<title>Pinball Arena preview</title>
+<title>Pinball Arena episode</title>
 <style>
   body { margin: 0; background: #15133a; color: #e4e7f0; font: 15px/1.4 system-ui, sans-serif; display: grid; justify-items: center; gap: 8px; padding: 12px; }
   h1 { font-size: 18px; margin: 0; }
@@ -9,14 +9,14 @@
   canvas { background: #1d1b4d; border: 2px solid #b4bace; border-radius: 6px; height: min(78vh, 760px); aspect-ratio: 520 / 1080; }
   #status { font-variant-numeric: tabular-nums; color: #ffd23f; }
 </style>
-<h1>Pinball Arena: preview</h1>
-<p>This Softmax-hosted version is a preview: a BASIC program plays the flippers on the house table.
-The real game, where a person plays and their cogent builds the table, is at
+<h1>Pinball Arena</h1>
+<p>A BASIC program played the flippers on the house table. This is a sketch of that episode.
+To play the game yourself, go to
 <a href="https://pinball-arena.vercel.app">pinball-arena.vercel.app</a>.</p>
 <p id="status">Waiting for the game...</p>
 <canvas id="table" width="520" height="1080"></canvas>
 <script>
-  // The picture is a plain drawing of the preview the game saved: the pieces as circles and
+  // The picture is a plain drawing of the frames the game saved: the pieces as circles and
   // lines, the balls, the two flippers and the score, ten frames a second, looping.
   const canvas = document.getElementById("table");
   const context = canvas.getContext("2d");

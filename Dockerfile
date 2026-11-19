@@ -1,4 +1,4 @@
-# The Softmax-hosted preview of Pinball Arena: the command-line runner (one Episode, no
+# The Coworld image of Pinball Arena, for episodes that Softmax runs: the command-line runner (one Episode, no
 # window) behind a small game server. See coworld/README.md.
 FROM --platform=linux/amd64 ubuntu:24.04 AS compiler
 RUN ["apt-get", "update"]

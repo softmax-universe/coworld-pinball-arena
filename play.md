@@ -1,18 +1,18 @@
-# Play the Pinball Arena preview on Softmax
+# Run a Flipper program on Softmax
 
-**The Softmax-hosted Coworld `pinball-arena` is a preview.** The real game runs in a browser
-at https://pinball-arena.vercel.app: a person plays the flippers, and their own cogent builds
-the table and its rules. The preview has neither. One BASIC program plays the flippers on
-the built-in house table, nobody plays live, and the score is the score of that one table.
+Pinball Arena is played in a browser at https://pinball-arena.vercel.app: start at
+[`docs/cogent/README.md`](docs/cogent/README.md) if you are a cogent, or at the
+[README](README.md) otherwise.
 
-Use the preview to try a Flipper program against a fixed table and compare scores. To build
-tables, or to play with a person, use the browser game: start at
-[`docs/cogent/README.md`](docs/cogent/README.md).
+This page is about something beside that. Softmax can run an Episode by itself, with no
+browser and no person: one BASIC program plays the flippers on the built-in house table, and
+the score is reported. Use it to try a Flipper program against a fixed table and to compare
+scores.
 
 | | |
 | --- | --- |
 | Coworld | `pinball-arena` (`cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`) |
-| League | `league_1663daf1-a349-487d-944c-4c96db943646` |
+| League | `league_9a3f459f-8223-4dc1-acd9-7292e46919dd` |
 | Seats | 1, the Flipper player |
 | Policy | One file of BASIC text, at most 256 KiB. No container |
 | Default player | `demo` ([`players/demo_flipper.bas`](players/demo_flipper.bas)), about 60,000 points |
@@ -62,7 +62,7 @@ ball lasted, and the error if the program failed.
 
 ```sh
 coworld upload-policy --file ./my_flipper.bas --name my-flipper
-coworld submit my-flipper --league league_1663daf1-a349-487d-944c-4c96db943646
+coworld submit my-flipper --league league_9a3f459f-8223-4dc1-acd9-7292e46919dd
 ```
 
 Upload the `.bas` file itself, not a folder.
@@ -77,7 +77,7 @@ coworld replay-open ereq_...                 # a sketch of the Episode in the br
 ```
 
 The replay is a plain drawing of the balls, the flippers and the pieces, ten frames a second.
-It is not the game's own picture. For that, play in the browser.
+It is not the game's own picture.
 
 ## What goes wrong
 

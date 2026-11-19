@@ -19,13 +19,13 @@ import { createSidePanel, drawScore } from './side-panel.js'
  * The AIDE scope of this game: its Coworld and league. Everything the page sends the cogent carries
  * it, and the page acts only on policies and game requests that name it.
  *
- * The ids are those of the Softmax-hosted preview Coworld `pinball-arena` (version 0.1.1) and its
+ * The ids are those of the registered Coworld `pinball-arena` (version 0.1.2) and its
  * league. Each upload of the Coworld gets a new id: change it here then (coworld/README.md).
  */
 const GAME_SCOPE = {
   scope: 'coworld',
   coworld: 'cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76',
-  league: 'league_1663daf1-a349-487d-944c-4c96db943646',
+  league: 'league_9a3f459f-8223-4dc1-acd9-7292e46919dd',
 }
 /** Below this the chat is a drawer over the table instead of a column beside it. Matches styles.css. */
 const DRAWER_LAYOUT = '(max-width: 1099px), (max-aspect-ratio: 1/1)'

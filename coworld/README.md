@@ -1,11 +1,11 @@
-# The Coworld package: a Softmax-hosted preview
+# The Coworld package
 
-**The Softmax-hosted Coworld `pinball-arena` is a preview of the game, not the game.** The
-real game runs in a browser, where a person plays the flippers and their cogent builds the
-table. A Coworld episode has no browser and no person, so the hosted version is cut down to
-what fits: one BASIC program plays the flippers on the built-in house table.
+Pinball Arena is registered on Softmax as the Coworld `pinball-arena`. The registration does
+two things. It gives the browser game the Coworld and league ids that its AIDE scope names.
+And it lets Softmax run an Episode by itself: a Coworld episode has no browser and no
+person, so there one BASIC program plays the flippers on the built-in house table.
 
-How to take part is in [`play.md`](../play.md). This page is for people who change or
+How to submit a program is in [`play.md`](../play.md). This page is for people who change or
 re-upload the package.
 
 ## What is registered
@@ -14,7 +14,7 @@ re-upload the package.
 | --- | --- |
 | Repository | https://github.com/softmax-universe/coworld-pinball-arena (public) |
 | Coworld | `pinball-arena`, version 0.1.1, `cow_8ef3f45c-7b8a-42ca-be02-208b261cbf76`, public |
-| League | `league_1663daf1-a349-487d-944c-4c96db943646` |
+| League | `league_9a3f459f-8223-4dc1-acd9-7292e46919dd` |
 | Player runtime | `game-hosted`: a policy is a file that the game runs |
 | Seats | 1 (the Flipper player) |
 | Bundled player | `demo`, [`players/demo_flipper.bas`](../players/demo_flipper.bas). The default, and the certification fixture |
@@ -37,9 +37,9 @@ holds the id and the league id as the page's AIDE scope, so change it when you u
 
 1. The runner stages the policy file and starts the image with the config, the seats
    document (`COGAME_PLAYER_SEATS_URI`) and the output locations.
-2. `server.py` runs `/app/headless --flipper <file> --preview <path>`. That plays a whole
+2. `server.py` runs `/app/headless --flipper <file> --frames <path>`. That plays a whole
    Episode in well under a second.
-3. It writes the seat log, then the replay (the preview with the results), then the results.
+3. It writes the seat log, then the replay (the frames with the results), then the results.
    The results file is the completion marker, so it is last. The server then stays up until
    the runner stops the container: version 0.1.0 exited when it was done, and a hosted
    runner that had not yet seen it healthy then waited for it until its timeout.
@@ -48,7 +48,7 @@ holds the id and the league id as the page's AIDE scope, so change it when you u
 
 `/player` is served because the contract asks for it. Nothing connects to it to play.
 
-The replay is the output of `headless --preview`: the pieces as they stand when the first
+The replay is the output of `headless --frames`: the pieces as they stand when the first
 ball is served, and ten frames a second of `[tick, score, ball number, left flipper angle,
 right flipper angle, [ball x, y, ...]]`. A table program could change the pieces later; the
 house table does not.
@@ -80,11 +80,13 @@ runner and the `COGAME_*` variables set to `file://` paths.
 
 - https://softmax.com/pinball-arena/play.md is written by the platform from the manifest
   and the league. It carries the Coworld id and the league id.
-- https://softmax.com/pinball-arena is the game's page. Its text (a blurb, four steps, two
-  links, all saying that this is a preview) was sent with the store page API on 2026-11-18
-  and waits for review by the Softmax team; until it is approved the page has no text of
+- https://softmax.com/pinball-arena is the game's page. Its text (a blurb, three steps and two
+  links about the game) was sent with the store page API on 2026-11-18 and waits for review
+  by the Softmax team; until it is approved the page has no text of
   ours.
-- The league was made with `coworld league create pinball-arena preview "Pinball Arena Preview"`.
+- The league was made with `coworld league create pinball-arena main "Pinball Arena"`.
+  An earlier league, `league_1663daf1-a349-487d-944c-4c96db943646`, is retired (its seed is
+  disabled).
   It has no divisions and schedules nothing until the Softmax team sets it up
   (`coworld --elevated league setup`). The platform's standard setup is for two opposing
   seats, and this game has one.

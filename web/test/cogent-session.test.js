@@ -688,7 +688,8 @@ test('a sleeping cogent is reported, and the message goes out under the same id 
   }
   const id = session.send('more ramps')
   await settle()
-  assert.equal(session.state.cogent, 'asleep')
+  assert.equal(session.state.cogent, 'waking')
+  assert.equal(session.state.retryAfterMs, 60000)
   assert.equal(requestState(session, id).status, 'sending')
 
   client.replies['chat.send'] = accept
@@ -699,6 +700,25 @@ test('a sleeping cogent is reported, and the message goes out under the same id 
   assert.equal(sends.length, 2)
   assert.equal(sends[1].id, id)
   assert.deepEqual(sends[1].params, sends[0].params)
+  assert.equal(requestState(session, id).status, 'queued')
+  assert.equal(session.state.cogent, 'busy')
+})
+
+test('a paused cogent is told apart from a waking one, and retry() sends again without waiting for presence', async () => {
+  const { client, session } = await startBound()
+  const accept = client.replies['chat.send']
+  // protocol.md "Requests and refusal": `paused` is relay-owned and distinct from `starting`.
+  client.replies['chat.send'] = () => {
+    throw new AideError('paused', 'The workspace is paused.', { outcome: 'not_delivered' })
+  }
+  const id = session.send('a quieter table')
+  await settle()
+  assert.equal(session.state.cogent, 'paused')
+  assert.equal(session.state.retryAfterMs, null)
+
+  client.replies['chat.send'] = accept
+  session.retry()
+  await settle()
   assert.equal(requestState(session, id).status, 'queued')
   assert.equal(session.state.cogent, 'busy')
 })

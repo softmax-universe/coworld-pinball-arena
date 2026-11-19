@@ -102,6 +102,9 @@ test('after repeated failed connections the panel says the cogent cannot be reac
   assert.match(cogentWording('connecting', false), /Connecting/)
   assert.match(cogentWording('connecting', true), /Cannot reach/)
   assert.match(cogentWording('ready', true), /ready/)
+  assert.match(cogentWording('waking', false), /Waking your cogent/)
+  assert.match(cogentWording('paused', false), /paused/)
+  assert.match(cogentWording('asleep', false), /wakes when you send a message/)
 })
 
 test('reconnecting backs off from one second and never waits more than thirty', () => {

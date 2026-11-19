@@ -106,6 +106,7 @@ export function connectCogent({ workspaceId, api, scope, storage, onUnreachable 
   let failures = 0
   let reconnectTimer = null
   let resumeTimer = null
+  let wakeTimer = null
 
   client.onBound(() => {
     failures = 0
@@ -127,6 +128,9 @@ export function connectCogent({ workspaceId, api, scope, storage, onUnreachable 
     clearTimeout(resumeTimer)
     const resumeAt = nextResumeTime(state.requests, Date.now())
     if (resumeAt !== null) resumeTimer = setTimeout(session.retry, Math.min(resumeAt - Date.now(), LONGEST_TIMER_MS))
+    // A waking workspace is tried again when the relay said to, in case its return is not announced.
+    clearTimeout(wakeTimer)
+    if (state.cogent === 'waking' && state.retryAfterMs) wakeTimer = setTimeout(session.retry, state.retryAfterMs)
   })
 
   client.connect()

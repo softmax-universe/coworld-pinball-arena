@@ -10,7 +10,9 @@ const COGENT_WORDING = {
   connecting: 'Connecting to your cogent…',
   ready: 'Your cogent is ready.',
   busy: 'Your cogent is working.',
-  asleep: 'Your cogent is asleep. Messages wait until it wakes. The table keeps its current program.',
+  waking: 'Waking your cogent. This can take a minute… The table keeps its current program.',
+  paused: 'Your cogent is paused. Start it at softmax.com, then press try again. The table keeps its current program.',
+  asleep: 'Your cogent is asleep. It wakes when you send a message.',
   disconnected: 'Connection lost, reconnecting. The table keeps its current program.',
 }
 const UNREACHABLE_WORDING = 'Cannot reach your cogent. Still trying. The table keeps its current program.'
@@ -130,7 +132,7 @@ export function createChatPanel(elements, actions) {
     const canResume = requests.some(
       (request) => request.status === 'waiting' && !(request.until && Date.parse(request.until) > Date.now()),
     )
-    elements.tryAgain.hidden = !(cogent === 'asleep' || cogent === 'disconnected' || unreachable || canResume)
+    elements.tryAgain.hidden = !(['waking', 'paused', 'disconnected'].includes(cogent) || unreachable || canResume)
   }
 
   function drawLog() {

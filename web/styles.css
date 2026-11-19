@@ -588,7 +588,9 @@ body[data-chat='open'] .chat-open {
 }
 .cogent-state p[data-cogent='ready']::before { background: var(--lamp-green); }
 .cogent-state p[data-cogent='busy']::before { background: var(--lamp-blue); }
-.cogent-state p[data-cogent='asleep']::before { background: var(--lamp-yellow); }
+.cogent-state p[data-cogent='asleep']::before,
+.cogent-state p[data-cogent='waking']::before,
+.cogent-state p[data-cogent='paused']::before { background: var(--lamp-yellow); }
 .cogent-state p[data-cogent='disconnected']::before { background: var(--lamp-red); }
 
 .chat-log {

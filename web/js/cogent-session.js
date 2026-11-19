@@ -74,8 +74,10 @@ export function requestWording(request) {
  */
 export function createCogentSession({ client, storage, api, scope }) {
   const state = {
-    /** `connecting`, `ready`, `busy`, `asleep` or `disconnected`. */
+    /** `connecting`, `ready`, `busy`, `waking`, `paused`, `asleep` or `disconnected`. */
     cogent: 'connecting',
+    /** While `waking`: the milliseconds after which the relay asked for another try, or null. */
+    retryAfterMs: null,
     sessionId: storage.getItem(SESSION_KEY),
     /** The contract's `MessageRecord`s, oldest first. Only the newest page of history is read. */
     messages: [],
@@ -96,8 +98,12 @@ export function createCogentSession({ client, storage, api, scope }) {
   /** True once the session has been read on this connection; nothing else is sent before that. */
   let sessionRead = false
   let readingSession = false
-  /** False from the moment the relay says the workspace is away until something gets through. */
-  let workspaceAwake = true
+  /**
+   * `awake`, or why the workspace is away, from the moment the relay says so until something gets
+   * through: `waking` (it is starting, because a read or a send of this page woke it), `paused`
+   * (its owner stopped it) or `asleep` (it went idle, and nothing of this page is waking it).
+   */
+  let workspace = 'awake'
   let sessionRevision
   /** Requests that have not got through yet: `{ id, method, buildParams, onResult, onRefused }`. */
   const outbox = []
@@ -111,12 +117,13 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function changed() {
     state.cogent = cogentState()
+    if (state.cogent !== 'waking') state.retryAfterMs = null
     for (const listener of changeListeners) listener(state)
   }
 
   function cogentState() {
     if (!connected) return hasConnected ? 'disconnected' : 'connecting'
-    if (!workspaceAwake) return 'asleep'
+    if (workspace !== 'awake') return workspace
     if (!sessionRead) return 'connecting'
     return state.requests.some((request) => OPEN_STATUSES.includes(request.status)) ? 'busy' : 'ready'
   }
@@ -142,7 +149,7 @@ export function createCogentSession({ client, storage, api, scope }) {
     }
     client.request(item.method, item.buildParams(), item.id).then(
       (result) => {
-        workspaceAwake = true
+        workspace = 'awake'
         item.onResult?.(result)
         changed()
       },
@@ -167,7 +174,11 @@ export function createCogentSession({ client, storage, api, scope }) {
   }
 
   function noteWorkspaceAway(error) {
-    if (error.code === 'starting' || error.code === 'paused') workspaceAwake = false
+    if (error.code === 'starting') {
+      workspace = 'waking'
+      state.retryAfterMs = error.data?.retry_after_ms ?? null
+    }
+    else if (error.code === 'paused') workspace = 'paused'
   }
 
   // -------------------------------------------------------------------------------------------
@@ -202,7 +213,7 @@ export function createCogentSession({ client, storage, api, scope }) {
       .then((history) => {
         history.items.forEach(addMessage)
         sessionRead = true
-        workspaceAwake = true
+        workspace = 'awake'
         readableRequests().forEach(readEvents)
         sendOutbox()
       })
@@ -328,7 +339,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   client.onBound(() => {
     connected = true
     hasConnected = true
-    workspaceAwake = true
+    workspace = 'awake'
     changed()
     readSession()
   })
@@ -343,7 +354,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   })
 
   client.onNotification('aide.presence', ({ present }) => {
-    workspaceAwake = present
+    workspace = present ? 'awake' : 'asleep'
     // The contract asks for a reread of the open requests on every presence change. What is
     // waiting to be sent goes only when the workspace is back.
     if (present) catchUp()

@@ -15,7 +15,7 @@ function fakeSoftmax(t, routes) {
   const realFetch = globalThis.fetch
   t.after(() => (globalThis.fetch = realFetch))
   globalThis.fetch = (url, init) => {
-    const key = `${init.method} ${url.replace('/softmax-cogent/api', '')}`
+    const key = `${init.method ?? 'GET'} ${url.replace('/softmax-cogent/api', '')}`
     calls.push(init.body ? `${key} ${init.body}` : key)
     const route = routes[key]
     const turns = route?.inTurn
@@ -76,6 +76,7 @@ test('a refused request, a failed workspace and an account with no player are ea
   fakeSoftmax(t, { 'GET /v2/hermes': workspace('failed', 'out of capacity') })
   await assert.rejects(startWorkspace(() => {}, 0), /failed to start: out of capacity/)
 
-  fakeSoftmax(t, { 'GET /v2/hermes': null, 'GET /players': [] })
+  // No workspace is answered with `null` or with 404, depending on the account.
+  fakeSoftmax(t, { 'GET /v2/hermes': 404, 'GET /players': [] })
   await assert.rejects(startWorkspace(() => {}, 0), /no active player/)
 })

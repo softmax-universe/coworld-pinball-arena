@@ -52,6 +52,15 @@ function softmax(path, method = 'GET', body) {
   })
 }
 
+/** The person's workspace, or null when they have none: Softmax answers that with `null` or with 404. */
+function currentWorkspace() {
+  return fetch(`${API}/v2/hermes`, { credentials: 'same-origin' }).then((response) => {
+    if (response.status === 404) return null
+    if (!response.ok) throw new Error(`Softmax answered ${response.status} to GET /v2/hermes.`)
+    return response.json()
+  })
+}
+
 /** Creates a workspace for an account that has none, on its default player. */
 function createWorkspace() {
   return softmax('/players').then((players) => {
@@ -69,7 +78,7 @@ function whenReady(workspace, pollMs, deadline) {
   if (workspace.status === 'failed') throw new Error(`Your cogent workspace failed to start: ${workspace.detail ?? 'no reason given'}.`)
   if (Date.now() > deadline) throw new Error('Your cogent workspace is still starting. Reload in a few minutes.')
   return new Promise((resolve) => setTimeout(resolve, pollMs))
-    .then(() => softmax('/v2/hermes'))
+    .then(currentWorkspace)
     .then((next) => whenReady(next ?? workspace, pollMs, deadline))
 }
 
@@ -80,7 +89,7 @@ function whenReady(workspace, pollMs, deadline) {
  * an `Error` whose message is for the person.
  */
 export function startWorkspace(onProgress, pollMs = READY_POLL_MS) {
-  return softmax('/v2/hermes')
+  return currentWorkspace()
     .then((workspace) => {
       if (!workspace) {
         onProgress('Starting a cogent for you. This takes a minute or two…')

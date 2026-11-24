@@ -206,6 +206,13 @@ requests, and a surface session for game actions and events. Both use the same C
 and WebSocket. On reconnect the page reads both session records to reattach. It holds outgoing
 game reports until the surface session is ready.
 
+Before sending the first player chat, the page registers a short Pinball guide with an
+unscoped `surface.event` of kind `client_guide`. The guide names the open game, gives the
+live table read, and links to the BASIC and payload references. It is registered again on a
+new connection or when the backend returns. If AIDE declines the guide, the chat panel
+shows the reason and the player can still send messages. If live chat skips a message
+sequence, the page reads forward from the last contiguous message in the conversation.
+
 | AIDE | Game API |
 | --- | --- |
 | `policy.create`, `policy.update` (cogent to page) | `api.create` / `api.update`: store the program, make it active, load it. The seat comes from the source (`' @seat flipper`, else Arena) at creation |
@@ -214,21 +221,28 @@ game reports until the surface session is ready.
 | `surface.event` (page to cogent) | `episode.summary` and `program.failed`, always. `game.messages` while subscribed: the game's `hud`, `events` and `programLoaded` messages, unchanged |
 
 The page plays in one AIDE scope, its Coworld and league (`GAME_SCOPE` in `main.js`: the ids
-of the registered Coworld and its league). It sends that scope with
-everything, refuses a policy or a `surface.act` that names another with `forbidden`, answers
+of the registered Coworld and its league). Session opens and game events carry that scope.
+Session reads, chat, cancellation, and approval responses use their IDs. The page checks a
+stored session's returned scope and source before reusing it. It refuses a policy write or
+a `surface.act` that names another scope with `forbidden`, answers
 `policy.list` for another scope with an empty list, and repeats a question's scope in its
 `clarification.response`. A stored session that was opened in another scope is replaced.
 
 Two things follow from the AIDE contract. A `surface.act` belongs to its connection, so a
 late answer is dropped after a reconnect and the subscription ends when the connection
-closes. And a page may have few requests pending, so only one `game.messages` event is out
+closes. Replies larger than the negotiated frame limit return `too_large`. Only one `game.messages` event is out
 at a time; what the game says meanwhile goes together in the next one.
 
 `run` and `state` take one frame to answer, because the page and the game exchange messages
 once per frame. [`docs/cogent/game-api.md`](cogent/game-api.md) is the reference of the
-messages, the methods, and what the page expects in reply to a `surface.event`. The page
-sends the cogent no instructions: a chat message carries only what the person wrote, and the
-cogent learns the game from [`docs/cogent/`](cogent/README.md).
+messages, the methods, and what the page expects in reply to a `surface.event`. Each chat
+message carries only what the person wrote.
+
+The [AIDE policy contract](https://softmax.com/docs/static/aide/1.0.0/protocol.md#policies)
+says the frontend deploys policy text and never runs it in the page. Pinball's game engine
+and its restricted BASIC interpreter both run in WebAssembly in the player's browser.
+The interpreter exposes game operations only. Whether this browser-hosted game runtime
+qualifies as a separate execution environment is an open compatibility question.
 
 ## Episodes that Softmax runs (`coworld/`)
 
@@ -247,9 +261,9 @@ AIDE scope names the registered Coworld and league.
 | --- | --- | --- |
 | `policy.create` / `policy.update` carry a name and the text. | The params are `{name, scope, blob: {kind: "text", text}}`. | The AIDE 1.0.0 contract says so. |
 | The cogent only deploys table programs. `surface.act` is unsupported. | A policy can be a Flipper program (`' @seat flipper`). `surface.act` carries game API requests: run BASIC calls at once for either seat, read the table, manage the stored programs, subscribe. `surface.event` carries the game's messages to a subscribed cogent. | Owner's decision: the cogent should be able to hold either seat, act directly and see the table. |
-| The Arena BASIC guide goes with each chat message in the `instructions` field. | Nothing goes with a chat message. The guides are in `docs/cogent/`, for the cogent to read in the repository. | Owner's decision: the chat is the person and the cogent only. |
+| The Arena BASIC guide goes with each chat message in the `instructions` field. | The page registers its interface guide once per backend connection. Chat carries the person's words. | Owner's decision: the chat is the person and the cogent only. |
 | The Flipper player is a person; a script plays only in attract mode and tests. | The cogent can play the flippers with a program or by direct control. | The same decision. |
-| The page uses Softmax's client library for the wire format. | A hand-written client. | The released client cannot receive policy or surface messages. |
+| The page uses Softmax's client library for the wire format. | A hand-written client. | The wire client handles incoming policy and surface requests as well as chat. |
 | The side panel is part of the game's view. | The side panel and all text are HTML; the canvas is the table only. | No font atlas or engine HUD, and crisp text at any size. |
 | "Can spin off a flipper tip." | Ball spin is not modelled (`Ball.spin` stays 0). | Left out to keep the physics simple. |
 | The diverter raises "passed". | It raises only "switched". | Not implemented. |

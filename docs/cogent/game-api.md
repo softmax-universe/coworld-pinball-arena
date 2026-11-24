@@ -72,7 +72,12 @@ Positions are in millimetres, velocities in mm/s, and angles in degrees. The y c
 
 ## What the page sends you
 
-For `surface.event`, the `data.kind` field identifies one of the three formats below. Each event uses an empty object (`{}`) as its reply data. The page can retry an episode summary or failure report with the same request ID. Subscribed updates are batched in order and are not replayed.
+The page introduces itself with an unscoped `surface.event` carrying
+`{"kind":"client_guide","guide":"…"}`. The guide describes the open game and links to the
+BASIC and payload references. The registration reply has `data` of `{"registered":true}`.
+
+Game events carry the table's scope. Their `data.kind` identifies one of the three formats below.
+Each game event uses an empty object (`{}`) as its reply data. The page can retry an episode summary or failure report with the same request ID. Subscribed updates are batched in order and are not replayed.
 
 ### `episode.summary`
 

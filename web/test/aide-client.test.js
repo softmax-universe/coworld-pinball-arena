@@ -17,10 +17,11 @@ const BINDING = {
   },
 }
 
-// The six requests the agent may send to the page (protocol.md "Public surface").
+// The requests the agent may send to the page (protocol.md "Public surface").
 const AGENT_REQUESTS = [
   'policy.create',
   'policy.update',
+  'policy.list',
   'surface.act',
   'browser.snapshot',
   'browser.act',
@@ -307,6 +308,21 @@ test('a handler may answer later with a promise, and its failure is a reply too'
     { jsonrpc: '2.0', id: otherId, error: { code: -32000, message: 'Not understood.', data: { code: 'unsupported' } } },
     { jsonrpc: '2.0', id, result: { data: { result: { score: 100 } } } },
   ])
+})
+
+test('an oversized reply returns too_large and the next table read still works', async () => {
+  const { client, socket } = boundClient()
+  client.handle('surface.act', ({ data }) => Promise.resolve({
+    data: { result: data.method === 'run' ? '星'.repeat(350000) : { score: 42 } },
+  }))
+  for (const method of ['run', 'state']) {
+    socket.receive({ jsonrpc: '2.0', id: crypto.randomUUID(), method: 'surface.act', params: { data: { method } } })
+  }
+  await new Promise((resolve) => setImmediate(resolve))
+  const [large, small] = socket.frames()
+  assert.equal(large.error.data.code, 'too_large')
+  assert.deepEqual(small.result.data.result, { score: 42 })
+  assert.ok(socket.sent.every((frame) => Buffer.byteLength(frame) <= BINDING.binding.max_message_bytes))
 })
 
 test('a handler that fails some other way still sends a reply', () => {

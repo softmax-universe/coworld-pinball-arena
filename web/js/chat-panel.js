@@ -128,11 +128,12 @@ export function createChatPanel(elements, actions) {
   let wakingClock = null
 
   function drawState() {
-    const { cogent, requests, wakingSince, awayReason, surfaceError } = session.state
+    const { cogent, requests, wakingSince, awayReason, surfaceError, guideError } = session.state
     const waited = wakingSince === null ? '' : ` ${Math.round((Date.now() - wakingSince) / 1000)} s so far.`
     const reason = awayReason ? ` Softmax says: "${awayReason}".` : ''
     const gameStatus = surfaceError ? ` Game connection failed. ${surfaceError}` : ''
-    elements.cogentState.textContent = cogentWording(cogent, unreachable) + waited + reason + gameStatus
+    const guideStatus = guideError ? ` Chat has no Pinball guide. ${guideError}` : ''
+    elements.cogentState.textContent = cogentWording(cogent, unreachable) + waited + reason + gameStatus + guideStatus
     if (wakingSince !== null) wakingClock ??= setInterval(drawState, 1000)
     else if (wakingClock !== null) {
       clearInterval(wakingClock)
@@ -143,7 +144,7 @@ export function createChatPanel(elements, actions) {
     const canResume = requests.some(
       (request) => request.status === 'waiting' && !(request.until && Date.parse(request.until) > Date.now()),
     )
-    elements.tryAgain.hidden = !(['waking', 'paused', 'disconnected'].includes(cogent) || unreachable || canResume || surfaceError)
+    elements.tryAgain.hidden = !(['waking', 'paused', 'disconnected'].includes(cogent) || unreachable || canResume || surfaceError || session.state.guideCanRetry)
   }
 
   function drawLog() {

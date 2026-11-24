@@ -98,7 +98,14 @@ export function createAideClient(createSocket) {
       // request came in on: a request is never answered after a reconnect.
       const receivedOn = socket
       const reply = (member) => {
-        if (receivedOn === socket) socket.send(JSON.stringify({ jsonrpc: '2.0', id: frame.id, ...member }))
+        if (receivedOn !== socket) return
+        const envelope = { jsonrpc: '2.0', id: frame.id }
+        const text = JSON.stringify({ ...envelope, ...member })
+        if (encoder.encode(text).length <= maxMessageBytes) socket.send(text)
+        else {
+          const refused = failure(new AideError('too_large', 'The reply exceeds the connection message limit.'))
+          socket.send(JSON.stringify({ ...envelope, ...refused }))
+        }
       }
       const answered = answer(frame)
       if (answered.result instanceof Promise) {

@@ -17,7 +17,13 @@
 import { AideError } from './aide-client.js'
 
 const SESSION_KEY = 'pinball-arena.session'
-const CLIENT = { id: 'pinball-arena', kind: 'web', guide: 'pinball-arena' }
+const CLIENT = { id: 'pinball-arena', kind: 'web' }
+const DOCS = 'https://raw.githubusercontent.com/softmax-universe/coworld-pinball-arena/HEAD/docs/cogent'
+const CLIENT_GUIDE = `This chat is in the player's open Pinball Arena game. The table is available through AIDE.
+Read the live table with surface.act data {"method":"state"}. The reply's data.result contains the balls, pieces, score, and active programs.
+Submit Pinball Arena BASIC as text with policy.create or policy.update. policy.list lists the programs deployed in this browser.
+Arena programs build the table and define its rules. Flipper programs control the flippers, plunger, and nudges.
+The BASIC reference is at ${DOCS}/basic.md. Game actions, replies, subscriptions, and event payloads are documented at ${DOCS}/game-api.md.`
 
 const OPEN_STATUSES = ['queued', 'running', 'waiting']
 const FINISHED_STATUSES = ['completed', 'cancelled', 'failed', 'interrupted']
@@ -65,11 +71,11 @@ export function requestWording(request) {
 /**
  * `client` is an AIDE client, `storage` is localStorage (it remembers the session id across
  * reloads), `api` is the game API from `createGameApi` and `scope` is the AIDE scope of this game:
- * `{ scope: 'coworld', coworld, league }`. Everything the page sends carries it, and the page
- * acts only on policies and game requests that name it.
+ * `{ scope: 'coworld', coworld, league }`. Sessions open in that scope. The page acts only on
+ * policies and game requests that name it.
  *
- * A chat message carries the person's words and nothing from the game. The cogent learns how the
- * game works from the repository (`docs/cogent/`).
+ * Chat carries the person's words. The connection guide describes the open game and links
+ * to its BASIC and payload references.
  * The caller connects the client; the session starts work each time the client reports a connection.
  */
 export function createCogentSession({ client, storage, api, scope }) {
@@ -84,6 +90,8 @@ export function createCogentSession({ client, storage, api, scope }) {
     awayReason: null,
     sessionId: storage.getItem(SESSION_KEY),
     surfaceError: null,
+    guideError: null,
+    guideCanRetry: false,
     /** The contract's `MessageRecord`s, oldest first. Only the newest page of history is read. */
     messages: [],
     /**
@@ -103,6 +111,8 @@ export function createCogentSession({ client, storage, api, scope }) {
   /** True once the session has been read on this connection; nothing else is sent before that. */
   let sessionRead = false
   let readingSession = false
+  let guideId
+  let guideStatus
   let surfaceReady = false
   let readingSurface = false
   let reattachOnWake = false
@@ -113,6 +123,9 @@ export function createCogentSession({ client, storage, api, scope }) {
    * (its owner stopped it) or `asleep` (it went idle, and nothing of this page is waking it).
    */
   let workspace = 'awake'
+  let historySequence = 0
+  let announcedSequence = 0
+  let readingGap = false
   let sessionRevision
   /** Requests that have not got through yet: `{ id, method, buildParams, onResult, onRefused }`. */
   const outbox = []
@@ -126,6 +139,7 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function changed() {
     state.cogent = cogentState()
+    state.guideCanRetry = Boolean(state.guideError && guideStatus === 'needed')
     if (state.cogent !== 'waking' && state.cogent !== 'paused') state.awayReason = null
     if (state.cogent === 'waking') {
       state.wakingSince ??= Date.now()
@@ -162,6 +176,11 @@ export function createCogentSession({ client, storage, api, scope }) {
       outbox.push(item)
       return
     }
+    if (item.method === 'chat.send' && guideStatus !== 'finished') {
+      outbox.push(item)
+      registerGuide()
+      return
+    }
     client.request(item.method, item.buildParams(), item.id).then(
       (result) => {
         workspace = 'awake'
@@ -186,6 +205,42 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function sendOutbox() {
     for (const item of outbox.splice(0)) deliver(item)
+  }
+
+  // A guide belongs to one frontend connection and backend binding. A late reply from a
+  // previous binding must never release a chat queued for the current one.
+  function resetGuide() {
+    guideId = crypto.randomUUID()
+    guideStatus = 'needed'
+    state.guideError = null
+  }
+
+  function registerGuide() {
+    if (guideStatus !== 'needed') return
+    guideStatus = 'sending'
+    const id = guideId
+    function finish(error) {
+      if (id !== guideId) return
+      guideStatus = 'finished'
+      state.guideError = error
+      sendOutbox()
+      changed()
+    }
+    client.request('surface.event', { data: { kind: 'client_guide', guide: CLIENT_GUIDE } }, id).then(
+      ({ data }) => finish(data.registered === true ? null : 'The workspace did not confirm registration.'),
+      (error) => {
+        if (id !== guideId) return
+        if (SEND_AGAIN_CODES.includes(error.code)) {
+          guideStatus = 'needed'
+          state.guideError = error.message
+          noteWorkspaceAway(error)
+          changed()
+        } else {
+          // A workspace may decline this optional event and still support regular chat.
+          finish(error.message)
+        }
+      },
+    )
   }
 
   function noteWorkspaceAway(error) {
@@ -214,8 +269,11 @@ export function createCogentSession({ client, storage, api, scope }) {
       })
     }
     if (!id) return open()
-    return client.request('state.get', { resource: 'sessions', id, scope }).then(
-      ({ item }) => item,
+    return client.request('state.get', { resource: 'sessions', id }).then(
+      ({ item }) => {
+        if (isThisGame(item.scope) && (item.source ?? 'user') === source) return item
+        return open()
+      },
       (error) => {
         if (error.code === 'not_found' || error.code === 'forbidden') return open()
         throw error
@@ -253,15 +311,20 @@ export function createCogentSession({ client, storage, api, scope }) {
     readOrOpen(state.sessionId, 'user')
       .then((record) => {
         installSession(record)
-        return client.request('chat.history', { session_id: record.id, scope })
+        return client.request('chat.history', { session_id: record.id })
       })
       .then((history) => {
-        history.items.forEach(addMessage)
+        for (const record of history.items) {
+          addMessage(record)
+          historySequence = Math.max(historySequence, record.sequence)
+        }
         sessionRead = true
+        readMessageGap()
         workspace = 'awake'
         readableRequests().forEach(readEvents)
         sendOutbox()
         readSurfaceSession()
+        registerGuide()
       })
       .catch(noteWorkspaceAway)
       .finally(() => {
@@ -274,6 +337,9 @@ export function createCogentSession({ client, storage, api, scope }) {
     if (record.id !== state.sessionId) {
       // A different session: nothing shown from the old one belongs to it.
       state.messages = []
+      state.questions = []
+      historySequence = 0
+      announcedSequence = 0
       state.requests = state.requests.filter((request) => request.status === 'sending')
       sessionRevision = undefined
       state.sessionId = record.id
@@ -299,8 +365,8 @@ export function createCogentSession({ client, storage, api, scope }) {
     if (!request) {
       request = { id }
       state.requests.push(request)
-      cursors.set(id, { attempt: record.attempt ?? 0, seq: 0 })
     }
+    if (!cursors.has(id)) cursors.set(id, { attempt: record.attempt ?? 0, seq: 0 })
     if (isOlder(record.revision, revisions.get(id))) return
     // A notification with no revision cannot be compared, but a finished request never reopens.
     if (FINISHED_STATUSES.includes(request.status) && !FINISHED_STATUSES.includes(record.status)) return
@@ -319,6 +385,33 @@ export function createCogentSession({ client, storage, api, scope }) {
     state.messages.sort((a, b) => a.sequence - b.sequence)
   }
 
+  // A pushed message can skip earlier messages. Read forward until the newest announcement
+  // is covered, counting hidden continuation messages in the sequence as well.
+  function readMessageGap() {
+    if (!sessionRead || readingGap || historySequence >= announcedSequence) return
+    const sessionId = state.sessionId
+    const after = historySequence
+    readingGap = true
+    client.request('chat.history', { session_id: sessionId, after_sequence: after }).then(
+      ({ items }) => {
+        readingGap = false
+        if (state.sessionId === sessionId) {
+          for (const record of items) {
+            addMessage(record)
+            historySequence = Math.max(historySequence, record.sequence)
+          }
+          changed()
+          if (historySequence <= after) return
+        }
+        readMessageGap()
+      },
+      (error) => {
+        readingGap = false
+        noteWorkspaceAway(error)
+      },
+    )
+  }
+
   /**
    * The open requests that may be read now. The contract forbids reading a held request before
    * its `until`, because a read wakes the workspace.
@@ -331,7 +424,7 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   function rereadOpenRequests() {
     for (const request of readableRequests()) {
-      client.request('state.get', { resource: 'requests', id: request.id, scope }).then((result) => {
+      client.request('state.get', { resource: 'requests', id: request.id }).then((result) => {
         installRequest(result.item)
         changed()
       }, noteWorkspaceAway)
@@ -348,7 +441,7 @@ export function createCogentSession({ client, storage, api, scope }) {
     if (readingEvents.has(id)) return
     readingEvents.add(id)
     const after = cursors.get(id)
-    client.request('chat.events', { session_id: state.sessionId, request_id: id, after, scope }).then(
+    client.request('chat.events', { session_id: state.sessionId, request_id: id, after }).then(
       (page) => {
         readingEvents.delete(id)
         cursors.set(id, page.next)
@@ -373,6 +466,8 @@ export function createCogentSession({ client, storage, api, scope }) {
     if (!sessionRead) {
       readSession()
     } else {
+      registerGuide()
+      readMessageGap()
       rereadOpenRequests()
       readSurfaceSession()
       sendOutbox()
@@ -384,6 +479,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   // -------------------------------------------------------------------------------------------
 
   client.onBound(() => {
+    resetGuide()
     connected = true
     hasConnected = true
     reattachOnWake = false
@@ -393,6 +489,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   })
 
   client.onClosed(() => {
+    resetGuide()
     connected = false
     sessionRead = false
     surfaceReady = false
@@ -403,6 +500,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   })
 
   client.onNotification('aide.presence', ({ present }) => {
+    resetGuide()
     workspace = present ? 'awake' : 'asleep'
     // The contract asks for a reread of the open requests on every presence change. What is
     // waiting to be sent goes only when the workspace is back.
@@ -436,7 +534,10 @@ export function createCogentSession({ client, storage, api, scope }) {
 
   client.onNotification('chat.message', (record) => {
     if (record.session_id !== state.sessionId) return
+    announcedSequence = Math.max(announcedSequence, record.sequence)
+    if (record.sequence === historySequence + 1) historySequence = record.sequence
     addMessage(record)
+    readMessageGap()
     changed()
   })
 
@@ -553,7 +654,6 @@ export function createCogentSession({ client, storage, api, scope }) {
       buildParams: () => ({
         session_id: state.sessionId,
         messages: [{ role: 'user', content: text }],
-        scope,
       }),
       onResult() {
         // A notification may already have reported a later status.
@@ -573,7 +673,7 @@ export function createCogentSession({ client, storage, api, scope }) {
   }
 
   function cancel(requestId) {
-    post('chat.cancel', () => ({ session_id: state.sessionId, request_id: requestId, scope }))
+    post('chat.cancel', () => ({ session_id: state.sessionId, request_id: requestId }))
   }
 
   function answerQuestion(questionId, answer) {
@@ -592,7 +692,6 @@ export function createCogentSession({ client, storage, api, scope }) {
       session_id: state.sessionId,
       request_id: inputId,
       response: { kind: 'approval', choice },
-      scope,
     }))
     changed()
   }

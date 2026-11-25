@@ -11,7 +11,7 @@ import { connectCogent, startWorkspace } from './cogent-connection.js'
 import { createChatPanel } from './chat-panel.js'
 import { createGameApi } from './game-api.js'
 import { createGameBridge, giveKeysToGame } from './game-bridge.js'
-import { createProgramsPanel, effectLine, failureLine } from './programs-panel.js'
+import { createProgramsPanel, effectLine, failureLine, programLabel } from './programs-panel.js'
 import { createProgramStore, effectOf } from './programs.js'
 import { createSidePanel, drawScore } from './side-panel.js'
 
@@ -64,9 +64,8 @@ function newEpisodeStarted() {
 }
 
 function restart() {
-  game.send({ type: 'restart' })
-  newEpisodeStarted()
-  canvas.focus()
+  api.restart()
+  canvas.focus({ preventScroll: true })
 }
 
 game.on('hud', (hud) => {
@@ -83,6 +82,7 @@ game.on('episode', ({ summary }) => {
 })
 
 byId('play-again').addEventListener('click', restart)
+byId('restart-game').addEventListener('click', restart)
 
 const musicButton = byId('music-cycle')
 const soundtrack = byId('soundtrack')
@@ -127,11 +127,23 @@ const programsPanel = createProgramsPanel(
 const api = createGameApi({
   programs,
   game,
+  onRestart: newEpisodeStarted,
   onProgramsChanged(program) {
+    updateTableScripts()
     updateDemoButton()
     if (program) showProgramNotice(program, 'new', 'NEW PROGRAM FROM YOUR COGENT')
   },
 })
+
+const tableScript = byId('table-script')
+tableScript.addEventListener('change', () => activate('arena', tableScript.value))
+
+function updateTableScripts() {
+  const tables = programs.list().filter((program) => program.seat === 'arena')
+  tableScript.replaceChildren(...tables.map((program) =>
+    new Option(program.builtIn ? 'House table' : programLabel(program), program.name, false, program.active),
+  ))
+}
 
 const demoToggle = byId('demo-toggle')
 demoToggle.addEventListener('click', () => {
@@ -256,6 +268,7 @@ giveKeysToGame(canvas, document.querySelector('.table-area'), byId('chat'))
 
 api.loadActive('arena')
 api.loadActive('flipper')
+updateTableScripts()
 updateDemoButton()
 game.load(() => {
   tableNotice.hidden = false

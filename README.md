@@ -93,6 +93,10 @@ Click the table to give it the keyboard.
 | Plunger | Space (hold to pull, release to fire) | Right stick down, then release |
 | Nudge | X (left), . (right), Up | Left stick flick |
 
+Use **Table script** to select the house table or a saved Arena program. The choice persists
+in this browser and follows the script’s activation timing. **Restart game** resets the score
+and starts a fresh game immediately on the latest table script that compiled.
+
 “Watch demo” hands the flippers to the bundled demo program. The **Cogent terminal**
 below the scoreboard holds the chat. On phones, **Cogent**
 opens the terminal and **Table** returns keyboard focus to the flippers.

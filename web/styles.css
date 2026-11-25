@@ -228,6 +228,29 @@ kbd { display: inline-block; text-align: center; min-width: 22px; padding: 1px 5
   color: #eee4c9; border: 1px solid #5c726f; border-radius: 3px; box-shadow: 0 1px #738682; }
 .demo-toggle, .lamp-button { padding: 10px 16px; border: 1px solid #a98b61; border-radius: 4px; color: #ffe0aa; }
 .demo-toggle:hover, .lamp-button:hover { background: #41504b; }
+.table-controls {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 4px 8px;
+}
+.table-controls label { grid-column: 1 / -1; }
+.table-controls select {
+  min-width: 0;
+  padding: 8px;
+  border: 1px solid #597c77;
+  border-radius: 4px;
+  background: #0d1f21;
+  color: #b3edda;
+  color-scheme: dark;
+  font: 14px ui-monospace, Menlo, monospace;
+}
+.table-controls button {
+  padding: 8px 10px;
+  font: 700 11px/1.4 var(--font-plate);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
 .chat {
   --terminal-ink: #ace2be;
   display: flex;
@@ -274,8 +297,8 @@ kbd { display: inline-block; text-align: center; min-width: 22px; padding: 1px 5
   }
   .game-display { display: contents; }
   .readout, .message, .keys { grid-column: 1 / -1; }
-  .demo-toggle { grid-column: 1; grid-row: 5; }
-  .music-cycle { grid-column: 2; grid-row: 5; align-self: stretch; margin: 0; }
+  .demo-toggle { grid-column: 1; grid-row: 6; }
+  .music-cycle { grid-column: 2; grid-row: 6; align-self: stretch; margin: 0; }
 }
 @media (min-width: 701px) and (max-height: 800px) {
   .readout { display: grid; grid-template-columns: minmax(0, 1fr) 57%; gap: 0 12px; padding: 7px 10px; }

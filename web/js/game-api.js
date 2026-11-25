@@ -39,7 +39,7 @@ function refuse(code, message) {
  * after a request changed the stored programs or which one is active; `program` is the one that
  * was made active or replaced while it was active, and otherwise undefined.
  */
-export function createGameApi({ programs, game, onProgramsChanged = () => {} }) {
+export function createGameApi({ programs, game, onProgramsChanged = () => {}, onRestart = () => {} }) {
   /** The game answers `run` and `state` a frame later. The request waits here under its own id. */
   const waiting = new Map()
   let lastAskId = 0
@@ -111,6 +111,7 @@ export function createGameApi({ programs, game, onProgramsChanged = () => {} }) 
 
     restart() {
       game.send({ type: 'restart' })
+      onRestart()
       return {}
     },
 
@@ -134,6 +135,7 @@ export function createGameApi({ programs, game, onProgramsChanged = () => {} }) 
   return {
     activate,
     loadActive,
+    restart: methods.restart,
 
     /** `policy.create`: a new program. Its seat is in its source: `' @seat flipper`, else the Arena seat. */
     create: (name, source) => deploy(programs.add(name, seatOf(source), source)),

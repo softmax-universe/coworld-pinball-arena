@@ -118,10 +118,15 @@ test('run and state are answered when the game answers, each request with its ow
   assert.deepEqual(await ran, { result: { output: [' 1'], error: null } })
 })
 
-test('restart starts a new Episode', async () => {
-  const { game, call } = start()
-  await call('restart')
-  assert.deepEqual(game.sent, [{ type: 'restart' }])
+test('the cabinet and the cogent each restart the game and reset its display once', async () => {
+  const game = fakeGame()
+  let resets = 0
+  const api = createGameApi({ game, programs: createProgramStore(fakeStorage()), onRestart: () => { resets++ } })
+  api.restart()
+  assert.equal(resets, 1)
+  assert.deepEqual(await api.handle({ method: 'restart' }), { result: {} })
+  assert.equal(resets, 2)
+  assert.deepEqual(game.sent, [{ type: 'restart' }, { type: 'restart' }])
 })
 
 test('the messages of the game are passed on only while the cogent is subscribed', async () => {

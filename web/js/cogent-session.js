@@ -21,6 +21,7 @@ const CLIENT = { id: 'pinball-arena', kind: 'web' }
 const DOCS = 'https://raw.githubusercontent.com/softmax-universe/coworld-pinball-arena/HEAD/docs/cogent'
 const CLIENT_GUIDE = `This chat is in the player's open Pinball Arena game. The table is available through AIDE.
 Read the live table with surface.act data {"method":"state"}. The reply's data.result contains the balls, pieces, score, and active programs.
+Start a fresh game on the latest compiled table script with surface.act data {"method":"restart"}.
 Submit Pinball Arena BASIC as text with policy.create or policy.update. policy.list lists the programs deployed in this browser.
 Arena programs build the table and define its rules. Flipper programs control the flippers, plunger, and nudges.
 The BASIC reference is at ${DOCS}/basic.md. Game actions, replies, subscriptions, and event payloads are documented at ${DOCS}/game-api.md.`

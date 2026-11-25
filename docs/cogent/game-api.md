@@ -41,7 +41,7 @@ Other game error codes include `invalid` for bad arguments, `forbidden` for remo
 | `run` | `{seat, source}` | `{output, error}`. Runs lines of BASIC once, now. `seat` is `"arena"` or `"flipper"` |
 | `state` | | The table as it is now |
 | `subscribe`, `unsubscribe` | | `{}`. Turns `game.messages` on or off |
-| `restart` | | `{}`. Starts a new Episode at once |
+| `restart` | | `{}`. Send `{"method":"restart"}` to reset the score and start a new Episode immediately using the latest Arena program that compiled. The Flipper seat keeps its controller. |
 | `programs.list` | | `{programs: [{name, seat, version, builtIn, active}]}`. `active` marks the program chosen for its seat. A table program that is chosen may still be waiting for the next Episode or ball: `state` says who plays now |
 | `programs.get` | `{name}` | The same fields and `source` (null for a built-in program) |
 | `programs.activate` | `{seat, name}` | `{seat, name}`. A stored program plays that seat. `{"seat": "flipper", "name": null}` gives the flippers back to the person |
